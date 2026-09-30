@@ -5,7 +5,7 @@
   "description": "鹅的笔记 · 独立速记小窗。置顶草稿便签，快捷键展开或收起，写完可一键存进鹅的笔记。",
   "author": "Antigravity",
   "homepage": "https://github.com/eachann1024/goose-notes",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "logo": "logo.png",
   "pluginSetting": {
     "single": true
