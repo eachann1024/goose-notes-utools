@@ -413,10 +413,11 @@ export function useAppHotkeys() {
           useTabs.getState().goForwardTabHistory();
         },
       },
-      // 分屏：capture 阶段拦截，编辑器内 Mod+D 仍分屏而不是浏览器收藏。
+      // 分屏是桌面 App 能力，uTools 插件不接管 Cmd+D。
       {
         id: "split-right",
         shortcutId: "splitRight",
+        when: () => isElectronRuntime(),
         match: (event) => {
           const s = appShortcutsRef.current.splitRight;
           return !!s && matchesConfiguredShortcut(event, s);
@@ -430,6 +431,7 @@ export function useAppHotkeys() {
       {
         id: "split-down",
         shortcutId: "splitDown",
+        when: () => isElectronRuntime(),
         match: (event) => {
           const s = appShortcutsRef.current.splitDown;
           return !!s && matchesConfiguredShortcut(event, s);
@@ -444,6 +446,7 @@ export function useAppHotkeys() {
         id: "split-focus-left",
         shortcutId: "splitFocusLeft",
         allowRepeat: true,
+        when: () => isElectronRuntime(),
         match: (event) => {
           const s = appShortcutsRef.current.splitFocusLeft;
           return !!s && matchesConfiguredShortcut(event, s);
@@ -458,6 +461,7 @@ export function useAppHotkeys() {
         id: "split-focus-right",
         shortcutId: "splitFocusRight",
         allowRepeat: true,
+        when: () => isElectronRuntime(),
         match: (event) => {
           const s = appShortcutsRef.current.splitFocusRight;
           return !!s && matchesConfiguredShortcut(event, s);
@@ -472,6 +476,7 @@ export function useAppHotkeys() {
         id: "split-focus-up",
         shortcutId: "splitFocusUp",
         allowRepeat: true,
+        when: () => isElectronRuntime(),
         match: (event) => {
           const s = appShortcutsRef.current.splitFocusUp;
           return !!s && matchesConfiguredShortcut(event, s);
@@ -486,6 +491,7 @@ export function useAppHotkeys() {
         id: "split-focus-down",
         shortcutId: "splitFocusDown",
         allowRepeat: true,
+        when: () => isElectronRuntime(),
         match: (event) => {
           const s = appShortcutsRef.current.splitFocusDown;
           return !!s && matchesConfiguredShortcut(event, s);
@@ -499,6 +505,7 @@ export function useAppHotkeys() {
       {
         id: "split-zoom",
         shortcutId: "splitZoom",
+        when: () => isElectronRuntime(),
         match: (event) => {
           const s = appShortcutsRef.current.splitZoom;
           return !!s && matchesConfiguredShortcut(event, s);
@@ -512,6 +519,7 @@ export function useAppHotkeys() {
       {
         id: "close-split-pane",
         shortcutId: "closeSplitPane",
+        when: () => isElectronRuntime(),
         match: (event) => {
           const s = appShortcutsRef.current.closeSplitPane;
           return !!s && matchesConfiguredShortcut(event, s);
