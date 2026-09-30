@@ -49,7 +49,6 @@ import { clearAllLocalMdSnapshots } from "@/lib/local-md-snapshot";
 import { removeLocalPageIdMap } from "@/lib/local-page-idmap";
 import { usePersistentDismissState } from "@/hooks/usePersistentDismissState";
 import { HostAdapter } from "@/lib/host/adapter";
-import { wnd } from "@/lib/utools/window";
 import type { ExportOptions } from "@/lib/export";
 import { localStorageAdapter as dataStorage } from "@/lib/storage";
 import * as LucideIcons from "lucide-react";
@@ -193,18 +192,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     addCustomSearchProvider,
     updateCustomSearchProvider,
     removeCustomSearchProvider,
-    utools,
     ai,
-    setOpenSearchInUtools,
     setAIEnabled,
     setAIReadGlobalPrompt,
     setAIReadLocalSkills,
     setAISelectedModelId,
     saveAICustomConfig,
-    setUToolsWindowHeight,
     privacy,
     setAutoOpenLastNote,
     singleTabMode,
+    setSingleTabMode,
     showRecentInSearch,
     setShowRecentInSearch,
     closeTabShortcut,
@@ -258,18 +255,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       addCustomSearchProvider: s.addCustomSearchProvider,
       updateCustomSearchProvider: s.updateCustomSearchProvider,
       removeCustomSearchProvider: s.removeCustomSearchProvider,
-      utools: s.utools,
       ai: s.ai,
-      setOpenSearchInUtools: s.setOpenSearchInUtools,
       setAIEnabled: s.setAIEnabled,
       setAIReadGlobalPrompt: s.setAIReadGlobalPrompt,
       setAIReadLocalSkills: s.setAIReadLocalSkills,
       setAISelectedModelId: s.setAISelectedModelId,
       saveAICustomConfig: s.saveAICustomConfig,
-      setUToolsWindowHeight: s.setUToolsWindowHeight,
       privacy: s.privacy,
       setAutoOpenLastNote: s.setAutoOpenLastNote,
       singleTabMode: s.singleTabMode,
+      setSingleTabMode: s.setSingleTabMode,
       showRecentInSearch: s.showRecentInSearch,
       setShowRecentInSearch: s.setShowRecentInSearch,
       closeTabShortcut: s.closeTabShortcut,
@@ -729,14 +724,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   };
 
   const handleOpenApp = (app: (typeof GOOSE_APPS)[number]) => {
-    if (isElectronHost) return;
-    // 官方：redirect 未找到指令时会跳转插件应用市场并搜索该名称
-    // https://www.u-tools.cn/docs/developer/api-reference/utools/window.html
-    if (wnd.redirect(["插件应用市场", "插件应用市场搜一搜"], app.storeQuery))
-      return;
-    if (wnd.redirect("插件应用市场搜一搜", app.storeQuery)) return;
-    if (wnd.redirect(app.storeQuery)) return;
-    UToolsAdapter.openUrl(app.url, false);
+    HostAdapter.openUrl(app.url, false);
   };
 
   return (
@@ -803,12 +791,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 addCustomSearchProvider={addCustomSearchProvider}
                 updateCustomSearchProvider={updateCustomSearchProvider}
                 removeCustomSearchProvider={removeCustomSearchProvider}
-                openSearchInUtools={utools.openSearchInUtools}
-                setOpenSearchInUtools={setOpenSearchInUtools}
-                windowHeight={utools.windowHeight ?? 600}
-                setWindowHeight={setUToolsWindowHeight}
                 autoOpenLastNote={privacy.autoOpenLastNote}
                 setAutoOpenLastNote={setAutoOpenLastNote}
+                singleTabMode={effectiveSingleTabMode(singleTabMode)}
+                setSingleTabMode={(enabled) => {
+                  setSingleTabMode(enabled);
+                  if (enabled) {
+                    useTabs.getState().collapseToActiveTab();
+                    toast.success("已开启极简工作区");
+                  }
+                }}
                 showRecentInSearch={showRecentInSearch}
                 setShowRecentInSearch={setShowRecentInSearch}
                 notebookDropdownHoverExpand={notebookDropdownHoverExpand}
