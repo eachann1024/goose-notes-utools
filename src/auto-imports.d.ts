@@ -405,6 +405,8 @@ declare global {
   const htmlHasNonDefaultGooseBlockAttrs: typeof import('./components/editor/utils/clipboard').htmlHasNonDefaultGooseBlockAttrs
   const htmlHasNonTextPasteBlocks: typeof import('./components/editor/utils/multilinePaste').htmlHasNonTextPasteBlocks
   const htmlHasPreservableFormatting: typeof import('./components/editor/utils/clipboard').htmlHasPreservableFormatting
+  const htmlHasRichPasteContent: typeof import('./components/editor/utils/multilinePaste').htmlHasRichPasteContent
+  const htmlLooksLikeBlockNoteClipboard: typeof import('./components/editor/utils/multilinePaste').htmlLooksLikeBlockNoteClipboard
   const htmlToPlainTextForPaste: typeof import('./components/editor/utils/multilinePaste').htmlToPlainTextForPaste
   const importFile: typeof import('./lib/export/index').importFile
   const importFromJSON: typeof import('./lib/export/index').importFromJSON
@@ -627,6 +629,7 @@ declare global {
   const shouldOpenSlashSuggestionMenu: typeof import('./components/editor/utils/slashMenuPolicy').shouldOpenSlashSuggestionMenu
   const shouldPasteClipboardAsBlocks: typeof import('./components/editor/hooks/useEditorPaste').shouldPasteClipboardAsBlocks
   const shouldPasteHtmlAsBlocks: typeof import('./components/editor/hooks/useEditorPaste').shouldPasteHtmlAsBlocks
+  const shouldPreferPlainMultilinePaste: typeof import('./components/editor/utils/multilinePaste').shouldPreferPlainMultilinePaste
   const shouldPreferVisibleSelectionText: typeof import('./components/editor/utils/clipboard').shouldPreferVisibleSelectionText
   const shouldPreserveStartupSelection: typeof import('./lib/workspaceStartup').shouldPreserveStartupSelection
   const shouldShowImageExportLivePreview: typeof import('./lib/imageExport/index').shouldShowImageExportLivePreview
