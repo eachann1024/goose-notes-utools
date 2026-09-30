@@ -1,0 +1,1 @@
+第三方声明见 goose-notes 仓库（https://github.com/eachann1024/goose-notes）的 THIRD-PARTY-NOTICES.txt。
