@@ -1,4 +1,11 @@
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverAction,
+} from "@/components/ui/popover";
 import { FontSelector } from "@/pages/workspace/components/shared/FontSelector";
+import "./page-menu.css";
 import { ImageExportThemeSelector } from "@/components/ui/image-export-theme-selector";
 import { useEffect, useRef, useState } from "react";
 import type { BlockNoteContent } from "@/components/editor/utils/blocknote-content";
@@ -28,8 +35,14 @@ export function PageMenu() {
     width: typeof window === "undefined" ? 0 : window.innerWidth,
     height: typeof window === "undefined" ? 0 : window.innerHeight,
   }));
-  const { activePageId, getPage, updatePage, createPage, createLocalPageRecord, setActivePage } =
-    usePages();
+  const {
+    activePageId,
+    getPage,
+    updatePage,
+    createPage,
+    createLocalPageRecord,
+    setActivePage,
+  } = usePages();
   const { activeNotebookId, notebooks } = useNotebooks();
   const page = activePageId ? getPage(activePageId) : undefined;
   const activeNotebook = activeNotebookId
@@ -159,12 +172,12 @@ export function PageMenu() {
 
   return (
     <>
-      <DropdownMenu
+      <Popover
         onOpenChange={(open) => {
           if (open) captureSelectedBlocks();
         }}
       >
-        <DropdownMenuTrigger asChild>
+        <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
@@ -175,15 +188,15 @@ export function PageMenu() {
             <LucideIcons.MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">更多操作</span>
           </Button>
-        </DropdownMenuTrigger>
+        </PopoverTrigger>
         {/*
           不要在定位外壳上挂 goose-editor-context-ui（CSS zoom）。
           uTools 旧内核会把 zoom 祖先的 getBoundingClientRect 再次放大，
           导致导出子菜单相对「导出」触发项下漂，中间出现无法穿越的空隙。
           页面更多菜单走 viewport 坐标系，尺寸用真实 px。
         */}
-        <DropdownMenuContent
-          className="max-h-[calc(100vh-24px)] w-[272px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[12px] p-1.5"
+        <PopoverContent
+          className="goose-page-menu-surface max-h-[calc(100vh-24px)] w-[272px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-lg border border-border p-1.5 shadow-md"
           align="end"
           sideOffset={6}
           style={{
@@ -210,32 +223,6 @@ export function PageMenu() {
           </div>
 
           <div className="mx-1 my-1 h-px bg-border" />
-
-          {canOpenInNewWindow && activeTab ? (
-            <DropdownMenuItem
-              className="group grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)] gap-x-1.5 px-2 text-xs"
-              onSelect={() => {
-                void (async () => {
-                  const created = await createDesktopWindow({
-                    mode: "currentTab",
-                    tab: {
-                      id: activeTab.id,
-                      pageId: activeTab.pageId,
-                      type: activeTab.type,
-                      pinned: activeTab.pinned,
-                      workspaceId: activeTab.workspaceId,
-                    },
-                  });
-                  if (created?.windowId) {
-                    detachTabFromThisWindow(activeTab.id, created.windowId);
-                  }
-                })();
-              }}
-            >
-              <LucideIcons.AppWindow className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-interactive-selected-fg)]" />
-              <span className="min-w-0 truncate">在新窗口打开</span>
-            </DropdownMenuItem>
-          ) : null}
 
           <section aria-label="页面状态">
             <div className="px-2 pb-1 text-[10px] font-medium tracking-[0.08em] text-muted-foreground">
@@ -343,19 +330,45 @@ export function PageMenu() {
             </div>
           </section>
 
+          {canOpenInNewWindow && activeTab ? (
+            <PopoverAction
+              className="group grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)] gap-x-1.5 px-2 text-xs"
+              onSelect={() => {
+                void (async () => {
+                  const created = await createDesktopWindow({
+                    mode: "currentTab",
+                    tab: {
+                      id: activeTab.id,
+                      pageId: activeTab.pageId,
+                      type: activeTab.type,
+                      pinned: activeTab.pinned,
+                      workspaceId: activeTab.workspaceId,
+                    },
+                  });
+                  if (created?.windowId) {
+                    detachTabFromThisWindow(activeTab.id, created.windowId);
+                  }
+                })();
+              }}
+            >
+              <LucideIcons.AppWindow className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
+              <span className="min-w-0 truncate">在新窗口打开</span>
+            </PopoverAction>
+          ) : null}
+
           {/* Import */}
-          <DropdownMenuGroup>
-            <DropdownMenuItem
+          <div>
+            <PopoverAction
               className="group grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)] gap-x-1.5 px-2 text-xs"
               onSelect={handleImport}
             >
-              <LucideIcons.Upload className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-interactive-selected-fg)]" />
+              <LucideIcons.Upload className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
               <span className="min-w-0 truncate">导入</span>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
+            </PopoverAction>
+          </div>
 
           {/* Generate Image — standalone, before Export */}
-          <DropdownMenuItem
+          <PopoverAction
             className="page-menu-generate-image grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)] gap-x-1.5 px-2 text-xs text-foreground"
             onSelect={() => {
               setThemeSelectorOpen(true);
@@ -365,16 +378,22 @@ export function PageMenu() {
             <span className="page-menu-shimmer-text min-w-0 truncate font-medium text-foreground">
               {selectedBlocks.length > 0 ? "生成选中图片" : "生成图片"}
             </span>
-          </DropdownMenuItem>
+          </PopoverAction>
 
           {/* Export submenu */}
-          <DropdownMenuGroup>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="group grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-x-1.5 px-2 text-xs">
-                <LucideIcons.Download className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-interactive-selected-fg)] group-data-[state=open]:text-[var(--goose-interactive-selected-fg)]" />
-                <span className="min-w-0 truncate">导出</span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent
+          <div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="group grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-x-1.5 px-2 text-xs"
+                >
+                  <LucideIcons.Download className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)] group-data-[state=open]:text-[var(--goose-interactive-selected-fg)]" />
+                  <span className="min-w-0 truncate">导出</span>
+                  <LucideIcons.ChevronRight className="ml-auto h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
                 className="min-w-[144px] rounded-[12px] p-1"
                 sideOffset={2}
                 alignOffset={-4}
@@ -392,34 +411,34 @@ export function PageMenu() {
                     runExport("Markdown", () => exportToMarkdown(page))
                   }
                 >
-                  <LucideIcons.FileCode className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-interactive-selected-fg)]" />
+                  <LucideIcons.FileCode className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
                   <span className="min-w-0 truncate">Markdown</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="group grid grid-cols-[16px_minmax(0,1fr)] gap-x-2 text-xs"
                   onSelect={() => runExport("HTML", () => exportToHTML(page))}
                 >
-                  <LucideIcons.FileType className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-interactive-selected-fg)]" />
+                  <LucideIcons.FileType className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
                   <span className="min-w-0 truncate">HTML</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="group grid grid-cols-[16px_minmax(0,1fr)] gap-x-2 text-xs"
                   onSelect={() => runExport("Word", () => exportToWord(page))}
                 >
-                  <LucideIcons.File className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-interactive-selected-fg)]" />
+                  <LucideIcons.File className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
                   <span className="min-w-0 truncate">Word</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="group grid grid-cols-[16px_minmax(0,1fr)] gap-x-2 text-xs"
                   onSelect={() => runExport("PDF", () => exportToPDF(page))}
                 >
-                  <LucideIcons.FileText className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-interactive-selected-fg)]" />
+                  <LucideIcons.FileText className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
                   <span className="min-w-0 truncate">PDF</span>
                 </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            <DropdownMenuItem
+            <PopoverAction
               className="group grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)] gap-x-1.5 px-2 text-xs"
               disabled={page?.isFolder}
               onSelect={() => {
@@ -435,24 +454,24 @@ export function PageMenu() {
                 }, 80);
               }}
             >
-              <LucideIcons.History className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-interactive-selected-fg)]" />
+              <LucideIcons.History className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
               <span className="min-w-0 truncate">页面历史</span>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
+            </PopoverAction>
+          </div>
 
-          <DropdownMenuItem
-            className="group grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)] gap-x-1.5 px-2 text-xs text-foreground data-[highlighted]:text-[var(--goose-color-danger-focus)] focus:text-[var(--goose-color-danger-focus)]"
+          <PopoverAction
+            className="group grid min-h-[32px] grid-cols-[18px_minmax(0,1fr)] gap-x-1.5 px-2 text-xs text-foreground hover:text-[var(--goose-color-danger-focus)] focus:text-[var(--goose-color-danger-focus)]"
             onClick={() => void deletePageWithUndo(activePageId)}
           >
             {isLocalItem ? (
-              <LucideIcons.FileX className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-color-danger-focus)]" />
+              <LucideIcons.FileX className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-color-danger-focus)]" />
             ) : (
-              <LucideIcons.Trash2 className="h-3.5 w-3.5 text-muted-foreground group-data-[highlighted]:text-[var(--goose-color-danger-focus)]" />
+              <LucideIcons.Trash2 className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-color-danger-focus)]" />
             )}
             <span className="min-w-0 truncate">
               {isLocalItem ? "移到系统回收站" : "移至垃圾箱"}
             </span>
-          </DropdownMenuItem>
+          </PopoverAction>
 
           <div className="mx-1 mt-1 h-px bg-border" />
 
@@ -462,8 +481,8 @@ export function PageMenu() {
               编辑于 {new Date(page.updatedAt).toLocaleString("zh-CN")}
             </span>
           </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </PopoverContent>
+      </Popover>
 
       <ImageExportThemeSelector
         open={themeSelectorOpen}

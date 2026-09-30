@@ -134,6 +134,7 @@ declare global {
   const ORB_PHASE_HOLD_MS: typeof import('./components/ui/ai-motion').ORB_PHASE_HOLD_MS
   const ORB_VISIBLE_MIN_MS: typeof import('./components/ui/ai-motion').ORB_VISIBLE_MIN_MS
   const Popover: typeof import('./components/ui/popover').Popover
+  const PopoverAction: typeof import('./components/ui/popover').PopoverAction
   const PopoverAnchor: typeof import('./components/ui/popover').PopoverAnchor
   const PopoverContent: typeof import('./components/ui/popover').PopoverContent
   const PopoverTrigger: typeof import('./components/ui/popover').PopoverTrigger
@@ -194,6 +195,7 @@ declare global {
   const TooltipContent: typeof import('./components/ui/tooltip').TooltipContent
   const TooltipProvider: typeof import('./components/ui/tooltip').TooltipProvider
   const TooltipTrigger: typeof import('./components/ui/tooltip').TooltipTrigger
+  const TriggerChild: typeof import('./components/ui/trigger-child').TriggerChild
   const UI_FONT_SIZE_MAP: typeof import('./lib/appearance').UI_FONT_SIZE_MAP
   const UNTITLED_PAGE_TITLE: typeof import('./components/editor/utils/page-title').UNTITLED_PAGE_TITLE
   const UTOOLS_WINDOW_HEIGHT_DEFAULT: typeof import('./stores/settings/index').UTOOLS_WINDOW_HEIGHT_DEFAULT
@@ -811,6 +813,9 @@ declare global {
   // @ts-ignore
   export type { ButtonProps } from './components/ui/button'
   import('./components/ui/button')
+  // @ts-ignore
+  export type { DialogProps } from './components/ui/dialog'
+  import('./components/ui/dialog')
   // @ts-ignore
   export type { IconButtonProps } from './components/ui/icon-button'
   import('./components/ui/icon-button')

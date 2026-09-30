@@ -55,6 +55,7 @@ const CONTEXT_MENU_EXCLUDED_BLOCK_TYPES = new Set([
 ]);
 
 function isExcludedBlockTarget(target: HTMLElement): boolean {
+  if (target.closest(".bn-side-menu")) return true;
   const blockContent = target.closest(".bn-block-content");
   if (!blockContent) return false;
   const contentType = (blockContent as HTMLElement).dataset.contentType ?? "";
