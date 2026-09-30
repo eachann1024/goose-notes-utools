@@ -219,7 +219,7 @@ export function EditorComposer({
       !!target?.closest(".bn-editor");
 
     // 不依赖 ProseMirror keymap 在模块加载时缓存的 navigator.platform。
-    // uTools 的 Windows WebView 偶尔会让 Mod-k 错配，capture 兜底直接按实际
+    // Electron 的 Windows WebView 偶尔会让 Mod-k 错配，capture 兜底直接按实际
     // Ctrl/Meta 状态处理；已有链接仍保持“再次按下即移除”的既有行为。
     if (isPrimaryLinkShortcut) {
       const url = editor.getSelectedLinkUrl();
@@ -543,7 +543,7 @@ export function EditorComposer({
               // 极窄窗口或高缩放下允许工具栏横向滚动，所有操作仍可访问。
               // 工具栏直接使用缩放后的布局尺寸，Floating UI 与
               // 按钮 DOMRect 共用同一套 viewport 坐标，无需再换算 CSS zoom。
-              // 旧 uTools 内核会把带 overflow 的浮层与圆角子元素合成出直角灰块。
+              // 旧 Electron 内核会把带 overflow 的浮层与圆角子元素合成出直角灰块。
               const safeAvailableWidth = Math.max(0, availableWidth);
               elements.floating.style.maxWidth = `${safeAvailableWidth}px`;
               elements.floating.style.overflowX = "visible";

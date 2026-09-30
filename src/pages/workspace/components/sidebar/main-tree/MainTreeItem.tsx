@@ -544,7 +544,7 @@ export function renderItem({
           e.stopPropagation();
           if (isLocalDirectory) {
             if (isElectronHost) return;
-            // uTools：双击文件夹晋升永久标签（目录主页）
+            // Electron：双击文件夹晋升永久标签（目录主页）
             onActivateLocalDirectory?.(String(item.index), "permanent");
             return;
           }

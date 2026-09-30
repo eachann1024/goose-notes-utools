@@ -1,8 +1,8 @@
 /**
- * EditorHostBridge —— 宿主（uTools app）把应用 store 桥接成编辑器内核所需的注入对象。
+ * EditorHostBridge —— 宿主（Electron app）把应用 store 桥接成编辑器内核所需的注入对象。
  *
  * 编辑器内核（@/components/editor）不直接读 usePages/useNotebooks/useSettings/useTabs，
- * 也不直接碰平台 API；本桥读取这些 store 与 uTools 平台实现，组装成 EditorSettings /
+ * 也不直接碰平台 API；本桥读取这些 store 与 Electron 平台实现，组装成 EditorSettings /
  * EditorPageContext，经 <EditorPlatformProvider> + <EditorHostProvider> 注入，再渲染
  * 传入的 <Editor>（children）。
  *
