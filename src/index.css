@@ -519,7 +519,7 @@
 
   .window-shell-safe-top {
     box-sizing: border-box;
-    height: calc(100dvh - var(--goose-top-safe-area));
+    height: calc(100vh - var(--goose-top-safe-area));
     margin-top: var(--goose-top-safe-area);
   }
 
@@ -1328,7 +1328,7 @@ body:has([role="dialog"]:not([hidden]), [role="menu"]:not([hidden])) [role="tool
 
 .bootstrap-screen {
   display: grid;
-  min-height: 100dvh;
+  min-height: 100vh;
   place-content: center;
   justify-items: center;
   gap: 12px;

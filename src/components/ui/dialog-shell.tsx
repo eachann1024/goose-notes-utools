@@ -52,7 +52,7 @@ export function DialogShell({
         className={cn(
           "origin-center data-[state=closed]:slide-out-to-left-0 data-[state=closed]:slide-out-to-right-0 data-[state=closed]:slide-out-to-top-0 data-[state=closed]:slide-out-to-bottom-0 data-[state=open]:slide-in-from-left-0 data-[state=open]:slide-in-from-right-0 data-[state=open]:slide-in-from-top-0 data-[state=open]:slide-in-from-bottom-0",
           isFullscreen
-            ? "left-0 top-[var(--goose-top-safe-area,0px)] h-[calc(100dvh-var(--goose-top-safe-area,0px))] w-screen max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-none border-0 p-0 shadow-none"
+            ? "left-0 top-[var(--goose-top-safe-area,0px)] h-[calc(100vh-var(--goose-top-safe-area,0px))] w-screen max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-none border-0 p-0 shadow-none"
             : "sm:max-w-lg",
           contentClassName,
         )}

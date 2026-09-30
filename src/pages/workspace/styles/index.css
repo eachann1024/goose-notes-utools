@@ -419,6 +419,14 @@ html[data-sidebar-collapsed] .bn-side-menu {
 
 .workspace-shell .page-scroll-container {
   overflow-anchor: none;
+  overflow-y: scroll;
+}
+
+@supports (scrollbar-gutter: stable) {
+  .workspace-shell .page-scroll-container {
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
 }
 
 @keyframes page-menu-text-shimmer {
