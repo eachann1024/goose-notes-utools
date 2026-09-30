@@ -83,3 +83,5 @@ scripts/*
 # PDF CJK font (downloaded at build; not committed)
 public/fonts/*.ttf
 public/fonts/*.otf
+
+!scripts/generate-license-notices.mjs
