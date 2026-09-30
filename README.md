@@ -2,6 +2,9 @@
 
 ![封面](cover.png)
 
+> **uTools 插件版**：本仓库是「鹅的笔记」的 uTools 插件版（同时可在浏览器中运行），与桌面版 [eachann1024/goose-notes](https://github.com/eachann1024/goose-notes) 各自独立开发、独立发布。
+> This repository is the uTools plugin edition of Goose Notes. It is developed and released independently from the desktop edition, [eachann1024/goose-notes](https://github.com/eachann1024/goose-notes).
+
 把本机 Markdown 文件夹和独立速记小窗收成一本可被助手读写的笔记，而不是再做一个云端 Notion。
 
 ## 大功能
