@@ -1,9 +1,8 @@
 # Internal development guide
 
-goose-note is proprietary software and does not accept external code
-contributions. This document is retained for authorized maintainers and
-collaborators only. Access to the source code does not grant permission to use,
-copy, modify, or distribute it; see [LICENSE](./LICENSE).
+goose-note is licensed under the MIT License; see [LICENSE](./LICENSE).
+Contributions must be compatible with that license and preserve third-party
+notices (see [THIRD-PARTY-NOTICES.txt](./THIRD-PARTY-NOTICES.txt)).
 
 ## Development setup
 
