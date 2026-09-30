@@ -3,7 +3,8 @@ import {
   useEditorState,
   useExtension,
 } from "@blocknote/react";
-import { AIExtension } from "@blocknote/xl-ai";
+import { GooseAIExtension } from "@/components/editor/ai/GooseAIExtension";
+import { captureInlineSelection } from "@/components/editor/ai/selectionPrivacy";
 import {
   Fragment,
   useCallback,
@@ -65,7 +66,7 @@ export function EditorFormattingToolbar() {
   // 未启用 AI 的构建跳过 useExtension；编译期分支在同一构建内保持稳定。
 
   const aiExtension = __GOOSE_EDITOR_AI__
-    ? useExtension(AIExtension)
+    ? useExtension(GooseAIExtension)
     : undefined;
   const { ai: aiSettings } = useEditorSettings();
   const { contentMode, page } = useEditorPageContext();
@@ -150,12 +151,18 @@ export function EditorFormattingToolbar() {
     setActiveTooltip(null);
   }, [isScrolling, isContextMenuOpen]);
 
-  // xl-ai 接管：旧自家 AiPanel 不再触发，AI 按钮改为打开 xl-ai 的 AIMenu。
+  // AI 按钮打开自有菜单，冻结当前字符选区。
   // 保存 selection 作为 AI 浮层锚点，并在菜单生命周期内隐藏格式工具栏。
   const handleAiActivate = useCallback(() => {
     try {
       const { selection } = editor.prosemirrorState;
       if (selection.empty) return;
+      if (!editor.isEditable) {
+        toast.error("当前页面不可编辑。");
+        return;
+      }
+      // Reject unsupported table/cross-depth ranges before showing an input menu.
+      captureInlineSelection(editor.prosemirrorState.doc, selection.from, selection.to);
 
       if (!aiSettings.enabled) {
         toast.error("AI 助手尚未开启，请先到设置中打开");
@@ -184,12 +191,13 @@ export function EditorFormattingToolbar() {
       if (!blockId) {
         setFakeSelection(editor, null);
         resetFormattingToolbarAi();
-        toast.error("无法定位当前选区，请重新选中表格或文字后再试");
+        toast.error("无法定位当前选区，请重新选中正文文字后再试");
         return;
       }
       setActiveTooltip(null);
       aiExtension?.openAIMenuAtBlock(blockId);
-    } catch {
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "当前选区暂不支持行内改写，请重新选择正文文字。");
       try {
         setFakeSelection(editor, null);
       } catch {
