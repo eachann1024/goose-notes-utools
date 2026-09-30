@@ -458,6 +458,7 @@ declare global {
   const localAssetPaths: typeof import('./lib/local-folder-asset-maintenance').localAssetPaths
   const localFileTitleFromPath: typeof import('./lib/local-folder-scanner').localFileTitleFromPath
   const localPageHasPersistableContent: typeof import('./lib/unsavedLocalPage').localPageHasPersistableContent
+  const localStorageAdapter: typeof import('./lib/storage').localStorageAdapter
   const looksLikeBlockStructure: typeof import('./components/editor/utils/clipboard').looksLikeBlockStructure
   const looksLikeMarkdownFragment: typeof import('./components/editor/utils/clipboard').looksLikeMarkdownFragment
   const looksLikeMermaidDiagram: typeof import('./components/editor/utils/clipboard').looksLikeMermaidDiagram
@@ -664,6 +665,7 @@ declare global {
   const useEditorUiScale: typeof import('./components/editor/hooks/useEditorUiScale').useEditorUiScale
   const useEffect: typeof import('react').useEffect
   const useEffectEvent: typeof import('react').useEffectEvent
+  const useEffectiveSidebarCollapsed: typeof import('./hooks/useWorkspaceViewportCollapse').useEffectiveSidebarCollapsed
   const useEffectiveSingleTabMode: typeof import('./lib/tabMode').useEffectiveSingleTabMode
   const useFileNavHistory: typeof import('./stores/useFileNavHistory').useFileNavHistory
   const useFormatCode: typeof import('./components/editor/hooks/useFormatCode').useFormatCode
