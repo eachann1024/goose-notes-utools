@@ -141,24 +141,96 @@
 [data-theme="default"] {
   --accent: 60 6.67% 94.12%;
   --border: 0 0% 86%;
+  --goose-menu-surface: var(--goose-editor-bg);
+  --goose-menu-hover: 0 0% 94.5%;
+  --goose-menu-border: 0 0% 86%;
+  --goose-menu-radius: 16px;
+  --goose-menu-item-radius: 8px;
+  --goose-menu-item-height: 30px;
+  --goose-menu-item-font-size: 14px;
+  --goose-menu-item-line-height: 20px;
+  --goose-menu-shadow: 0 14px 34px rgba(15, 23, 42, 0.16),
+    0 2px 8px rgba(15, 23, 42, 0.08);
 }
 .dark,
 [data-theme="dark"] {
   --accent: 60 2.4% 16.1%;
   --border: 0 0% 24%;
+  --goose-menu-surface: 60 2.2% 19.5%;
+  --goose-menu-hover: 0 0% 24%;
+  --goose-menu-border: 0 0% 28%;
+  --goose-menu-radius: 16px;
+  --goose-menu-item-radius: 8px;
+  --goose-menu-item-height: 30px;
+  --goose-menu-item-font-size: 14px;
+  --goose-menu-item-line-height: 20px;
+  --goose-menu-shadow: 0 14px 34px rgba(0, 0, 0, 0.32),
+    0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 /* class 模式暗色：等价 v3 darkMode: ["class"] */
 @custom-variant dark (&:is(.dark *));
 
-.goose-sidebar-context-menu [role="menuitem"],
-.goose-sidebar-context-menu [role="menuitemcheckbox"],
-.goose-sidebar-context-menu [role="menuitemradio"] {
-  column-gap: 12px;
+.goose-menu-surface {
+  border: 1px solid hsl(var(--goose-menu-border));
+  border-radius: var(--goose-menu-radius);
+  background-color: hsl(var(--goose-menu-surface));
+  box-shadow: var(--goose-menu-shadow);
 }
 
-.goose-sidebar-context-menu [role="separator"] {
-  background-color: hsl(var(--border));
+/* Radix initially focuses the menu surface, then transfers focus to the
+ * highlighted item. Keep the surface shadow through that handoff: the global
+ * focus reset removes box-shadow with !important, which otherwise makes an
+ * empty menu look like it has a different background from the same menu while
+ * an item is hovered. */
+@layer properties {
+  .goose-menu-surface,
+  .goose-menu-surface:focus,
+  .goose-menu-surface:focus-visible {
+    box-shadow: var(--goose-menu-shadow) !important;
+  }
+}
+
+.goose-menu-surface [role="menuitem"][data-highlighted],
+.goose-menu-surface [role="menuitem"][data-focused],
+.goose-menu-surface [role="menuitem"][data-state="open"],
+.goose-menu-surface [role="menuitem"]:focus,
+.goose-menu-surface [role="menuitemcheckbox"][data-highlighted],
+.goose-menu-surface [role="menuitemcheckbox"][data-focused],
+.goose-menu-surface [role="menuitemcheckbox"]:focus,
+.goose-menu-surface [role="menuitemradio"][data-highlighted],
+.goose-menu-surface [role="menuitemradio"][data-focused],
+.goose-menu-surface [role="menuitemradio"]:focus {
+  background-color: hsl(var(--goose-menu-hover)) !important;
+  color: var(--goose-interactive-selected-fg) !important;
+}
+
+[data-slot="menu-item"]:hover,
+[data-slot="menu-item"][data-hovered],
+[data-slot="menu-item"][data-focused],
+[data-slot="menu-item"]:focus {
+  background-color: var(--goose-interactive-selected);
+  color: var(--goose-interactive-selected-fg);
+}
+
+.goose-menu-item:hover,
+.goose-menu-item:focus,
+.goose-menu-item[data-highlighted],
+.goose-menu-item[data-state="open"] {
+  background-color: hsl(var(--goose-menu-hover));
+  color: hsl(var(--foreground));
+}
+
+.goose-menu-item {
+  min-height: var(--goose-menu-item-height);
+  border-radius: var(--goose-menu-item-radius);
+  font-size: var(--goose-menu-item-font-size);
+  line-height: var(--goose-menu-item-line-height);
+}
+
+.goose-menu-separator {
+  margin: 6px 8px;
+  background-color: hsl(var(--goose-menu-border));
 }
 
 /* ── Tailwind v4 CSS-first 主题映射 ──────────────────────────────
