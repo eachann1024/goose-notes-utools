@@ -66,6 +66,7 @@ import {
   isInlineAiEmptyParagraphTriggerKey,
   shouldOpenInlineAiOnEmptyParagraph,
 } from "@/components/editor/ai/emptyParagraphAiShortcut";
+import { isQuickNoteEditorPage } from "@/pages/workspace/components/editor-host/editorContentMode";
 
 // Sub-component and modular utility imports
 import { EditorFilePanel } from "@/components/editor/menus/EditorFilePanel";
@@ -234,16 +235,17 @@ export function EditorComposer({
       }
     }
 
+    const allowEnterAi = !isQuickNoteEditorPage(page);
     if (
       (!__GOOSE_EDITOR_AI__ && __HOST_TARGET__ !== "native-editor") ||
-      !isInlineAiEmptyParagraphTriggerKey(event.key) ||
+      !isInlineAiEmptyParagraphTriggerKey(event.key, allowEnterAi) ||
       (page?.localFilePath && __HOST_TARGET__ !== "native-editor") ||
       Boolean(page?.localUnsaved)
     ) {
       return;
     }
 
-    let block: any = null;
+    let block: any;
     let inTable = false;
     let selectionEmpty = true;
     try {
@@ -260,6 +262,7 @@ export function EditorComposer({
     if (
       !shouldOpenInlineAiOnEmptyParagraph({
         key: event.key,
+        allowEnter: allowEnterAi,
         defaultPrevented: event.defaultPrevented,
         repeat: event.repeat,
         altKey: event.altKey,
