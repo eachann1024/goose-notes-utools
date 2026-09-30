@@ -78,21 +78,44 @@
   opacity: 0.64;
 }
 
-.rct-main-tree .main-tree-row {
+/* MainTreeRowShell 共享几何：本地主树与大纲使用同一行高和背景间隔。 */
+.main-tree-row {
   height: var(--main-tree-row-height, 32px);
   min-height: var(--main-tree-row-height, 32px);
   margin-bottom: 0;
   box-sizing: border-box;
 }
 
+/* 原生 button 的 UA 光标是 default，且不继承父级 cursor-pointer。
+ * 大纲标题、展开箭头、隐藏箭头图标都是 button，悬停文字区就会变回箭头。 */
+.main-tree-row,
+.main-tree-row :where(button, [role="button"]) {
+  cursor: pointer;
+}
+
+.main-tree-row :is(input, textarea) {
+  cursor: text;
+}
+
+/* 高于 rct title-container 的 border 重置，固定行高内保留 2px 背景间隙。 */
+.main-tree-row.main-tree-row {
+  border-top: 1px solid transparent !important;
+  border-bottom: 1px solid transparent !important;
+}
+
+/* 比各状态的 background 简写优先，避免裁切范围被重置回 border-box。 */
+.main-tree-row.main-tree-row {
+  background-clip: padding-box !important;
+}
+
 .rct-main-tree {
   min-height: 100%;
 }
 
-.rct-main-tree .main-tree-row--selected,
-.rct-main-tree .main-tree-row--hovered {
+.main-tree-row.main-tree-row--selected,
+.main-tree-row.main-tree-row--hovered {
   color: var(--goose-interactive-selected-fg) !important;
-  background: var(--goose-interactive-selected) !important;
+  background-color: var(--goose-interactive-selected) !important;
 }
 
 /* 右键菜单是 modal：遮罩一出现行就失去指针悬停。菜单开着时保住与选中一致的行底。
@@ -101,7 +124,7 @@
    且 uTools 旧内核会把同类 :hover 套到所有行。 */
 [data-goose-context-trigger][data-context-open="true"] .main-tree-row {
   color: var(--goose-interactive-selected-fg) !important;
-  background: var(--goose-interactive-selected) !important;
+  background-color: var(--goose-interactive-selected) !important;
 }
 
 /* 选中 / 悬停行内图标：lucide 均为 currentColor，但默认文件/文件夹图标自带
@@ -123,7 +146,7 @@
 /* 原行不随拖影消失：以半透明蓝色占位，持续展示来源层级和原位置。 */
 .main-tree-row--dragging {
   color: var(--sidebar-dnd-accent) !important;
-  background: var(--sidebar-dnd-accent-soft) !important;
+  background-color: var(--sidebar-dnd-accent-soft) !important;
   box-shadow: 0 0 0 1px var(--sidebar-dnd-accent-ring) inset !important;
   opacity: 0.66;
 }
@@ -131,7 +154,7 @@
 .main-tree-row--drop-target,
 .main-tree-row--drop-target-local {
   color: hsl(var(--foreground)) !important;
-  background: var(--sidebar-dnd-accent-soft) !important;
+  background-color: var(--sidebar-dnd-accent-soft) !important;
   box-shadow: 0 0 0 1px var(--sidebar-dnd-accent-ring) inset !important;
 }
 
@@ -184,7 +207,7 @@
 /* 拖动源保持选中底，避免半透明占位把当前操作对象“摘出”选中态。 */
 .rct-main-tree .main-tree-row.main-tree-row--selected.main-tree-row--dragging {
   color: var(--goose-interactive-selected-fg) !important;
-  background: var(--goose-interactive-selected) !important;
+  background-color: var(--goose-interactive-selected) !important;
   box-shadow: 0 0 0 1px var(--sidebar-dnd-accent-ring) inset !important;
   opacity: 1;
 }
