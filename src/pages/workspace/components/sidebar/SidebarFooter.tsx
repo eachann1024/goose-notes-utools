@@ -1,3 +1,4 @@
+import * as LucideIcons from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -6,10 +7,10 @@ import {
 } from "@/components/ui/tooltip";
 import { useWindowAlwaysOnTop } from "@/hooks/useWindowAlwaysOnTop";
 import { isElectronHost } from "@/lib/local-vault";
+import { cn, formatShortcut } from "@/lib/utils";
 import { useSettings } from "@/stores/settings";
 import { useSidebarView } from "@/stores/useSidebarView";
-
-interface SidebarFooterProps {
+export interface SidebarFooterProps {
   currentView: "pages" | "trash" | "outline";
   isSettingsOpen: boolean;
   hideTrash?: boolean;
@@ -53,106 +54,106 @@ export function SidebarFooter({
 
   return (
     <div className="mt-auto flex items-center justify-between gap-1 bg-[hsl(var(--goose-shell-bg))] px-2 pb-0 pt-1">
-      <div className="flex items-center gap-1">
-        {isElectronHost ? (
+        <div className="flex items-center gap-1">
+          {isElectronHost ? (
+            <TooltipProvider delayDuration={600}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(btnClass, alwaysOnTop && activeClass)}
+                    aria-label={alwaysOnTop ? "取消窗口置顶" : "窗口置顶"}
+                    aria-pressed={alwaysOnTop}
+                    data-active={alwaysOnTop ? "true" : "false"}
+                    onClick={toggleAlwaysOnTop}
+                  >
+                    <LucideIcons.Pin
+                      className={cn(
+                        "h-4 w-4",
+                        alwaysOnTop &&
+                          "fill-[var(--goose-interactive-selected-fg)]",
+                      )}
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <span>{alwaysOnTop ? "取消窗口置顶" : "窗口置顶"}</span>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : null}
           <TooltipProvider delayDuration={600}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className={cn(btnClass, alwaysOnTop && activeClass)}
-                  aria-label={alwaysOnTop ? "取消窗口置顶" : "窗口置顶"}
-                  aria-pressed={alwaysOnTop}
-                  data-active={alwaysOnTop ? "true" : "false"}
-                  onClick={toggleAlwaysOnTop}
+                  className={cn(btnClass, sidebarCollapsed && activeClass)}
+                  aria-label="收起侧栏"
+                  aria-pressed={sidebarCollapsed}
+                  data-active={sidebarCollapsed ? "true" : "false"}
+                  onClick={toggleSidebarCollapsed}
                 >
-                  <LucideIcons.Pin
-                    className={cn(
-                      "h-4 w-4",
-                      alwaysOnTop &&
-                        "fill-[var(--goose-interactive-selected-fg)]",
-                    )}
-                  />
+                  <LucideIcons.PanelLeft className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                <span>{alwaysOnTop ? "取消窗口置顶" : "窗口置顶"}</span>
+                <div className="flex items-center gap-2">
+                  <span>收起侧栏</span>
+                  {toggleSidebarShortcutLabel && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {toggleSidebarShortcutLabel}
+                    </span>
+                  )}
+                </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        ) : null}
+          {!hideTrash && (
+            <button
+              type="button"
+              className={cn(
+                btnClass,
+                !isSettingsOpen && currentView === "trash" && activeClass,
+              )}
+              aria-label="垃圾箱"
+              aria-pressed={!isSettingsOpen && currentView === "trash"}
+              data-active={
+                !isSettingsOpen && currentView === "trash" ? "true" : "false"
+              }
+              onClick={onSwitchToTrash}
+            >
+              <LucideIcons.Trash2 className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            type="button"
+            className={cn(btnClass, isSettingsOpen && activeClass)}
+            aria-label="设置"
+            aria-pressed={isSettingsOpen}
+            data-active={isSettingsOpen ? "true" : "false"}
+            onClick={onOpenSettings}
+          >
+            <LucideIcons.Settings className="h-4 w-4" />
+          </button>
+        </div>
         <TooltipProvider delayDuration={600}>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className={cn(btnClass, sidebarCollapsed && activeClass)}
-                aria-label="收起侧栏"
-                aria-pressed={sidebarCollapsed}
-                data-active={sidebarCollapsed ? "true" : "false"}
-                onClick={toggleSidebarCollapsed}
+                className={cn(btnClass)}
+                aria-label={`主题：${themeLabel}，点击切换`}
+                data-active="false"
+                onClick={toggleDarkMode}
               >
-                <LucideIcons.PanelLeft className="h-4 w-4" />
+                <ThemeIcon className="h-4 w-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top">
-              <div className="flex items-center gap-2">
-                <span>收起侧栏</span>
-                {toggleSidebarShortcutLabel && (
-                  <span className="text-[11px] text-muted-foreground">
-                    {toggleSidebarShortcutLabel}
-                  </span>
-                )}
-              </div>
+              <span>{themeLabel}（点击切换）</span>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {!hideTrash && (
-          <button
-            type="button"
-            className={cn(
-              btnClass,
-              !isSettingsOpen && currentView === "trash" && activeClass,
-            )}
-            aria-label="垃圾箱"
-            aria-pressed={!isSettingsOpen && currentView === "trash"}
-            data-active={
-              !isSettingsOpen && currentView === "trash" ? "true" : "false"
-            }
-            onClick={onSwitchToTrash}
-          >
-            <LucideIcons.Trash2 className="h-4 w-4" />
-          </button>
-        )}
-        <button
-          type="button"
-          className={cn(btnClass, isSettingsOpen && activeClass)}
-          aria-label="设置"
-          aria-pressed={isSettingsOpen}
-          data-active={isSettingsOpen ? "true" : "false"}
-          onClick={onOpenSettings}
-        >
-          <LucideIcons.Settings className="h-4 w-4" />
-        </button>
-      </div>
-      <TooltipProvider delayDuration={600}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className={cn(btnClass)}
-              aria-label={`主题：${themeLabel}，点击切换`}
-              data-active="false"
-              onClick={toggleDarkMode}
-            >
-              <ThemeIcon className="h-4 w-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <span>{themeLabel}（点击切换）</span>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
     </div>
   );
 }
