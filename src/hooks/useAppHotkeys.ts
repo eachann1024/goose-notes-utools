@@ -256,6 +256,20 @@ export function useAppHotkeys() {
           window.dispatchEvent(new CustomEvent("goose-note:editor-find-open"));
         },
       },
+      // 页内替换：macOS 不用 Mod+H（会隐藏应用），与 VS Code 一样走 Mod+Alt+F。
+      {
+        id: "editor-find-replace-open",
+        match: (event) => matchShortcut(event, "Mod+Alt+F"),
+        handler: (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          window.dispatchEvent(
+            new CustomEvent("goose-note:editor-find-open", {
+              detail: { replace: true },
+            }),
+          );
+        },
+      },
       // cmd+g forward / cmd+shift+g backward — direction driven by shiftKey,
       // so we cannot use matchShortcut('Mod+G') (it would reject cmd+shift+g).
       {

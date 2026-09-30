@@ -185,6 +185,7 @@ export function EditorComposer({
   const [findBarOpen, setFindBarOpen] = useState(false);
   const [findSeedQuery, setFindSeedQuery] = useState("");
   const [findOpenNonce, setFindOpenNonce] = useState(0);
+  const [findOpenReplace, setFindOpenReplace] = useState(false);
   const [findNavigationRequest, setFindNavigationRequest] = useState<{
     id: number;
     direction: "next" | "previous";
@@ -299,17 +300,20 @@ export function EditorComposer({
   };
 
   useEffect(() => {
-    const handleOpenFind = () => {
+    const handleOpenFind = (event: Event) => {
       const findInputFocused = Boolean(
         document.activeElement?.closest?.("[data-goose-find-in-page]"),
       );
       const seed = findInputFocused
         ? ""
         : readEditorFindSeed(editor, editorContainerRef.current);
+      const openReplace =
+        (event as CustomEvent<{ replace?: unknown }>).detail?.replace === true;
       // 先关其它弹层，再开查找栏。setTimeout 让 Escape 引发的 commit 先跑完，
       // 避免被同步的 close 路径反吃掉。
       closeAllOverlays();
       setFindSeedQuery(seed);
+      setFindOpenReplace(openReplace);
       setFindOpenNonce((value) => value + 1);
       setTimeout(() => setFindBarOpen(true), 0);
     };
@@ -790,6 +794,8 @@ export function EditorComposer({
         open={findBarOpen}
         seedQuery={findSeedQuery}
         openNonce={findOpenNonce}
+        openReplace={findOpenReplace}
+        editable={editable}
         navigationRequest={findNavigationRequest}
         onClose={() => setFindBarOpen(false)}
       />

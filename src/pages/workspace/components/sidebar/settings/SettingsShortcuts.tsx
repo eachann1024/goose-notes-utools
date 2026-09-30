@@ -66,6 +66,7 @@ const UTOOLS_HIDDEN_APP_SHORTCUT_IDS = new Set([
 const ALWAYS_FIXED_SHORTCUT_VALUES = [
   FIXED_APP_SHORTCUTS.openSettings,
   FIXED_APP_SHORTCUTS.editorFindOpen,
+  "Mod+Alt+F",
   FIXED_APP_SHORTCUTS.newNote,
   "Mod+G",
   "Mod+Shift+G",
@@ -230,6 +231,7 @@ function makeCloseSetter(
 const FIXED_SHORTCUTS = [
   { label: "新建笔记", shortcut: FIXED_APP_SHORTCUTS.newNote },
   { label: "页内查找", shortcut: FIXED_APP_SHORTCUTS.editorFindOpen },
+  { label: "页内替换", shortcut: "Mod+Alt+F" },
   { label: "收起侧栏其它文件夹（当前选中笔记保持可见）", shortcut: "Escape" },
   { label: "恢复最近关闭的标签页（Chrome 逻辑）", shortcut: FIXED_APP_SHORTCUTS.reopenTab, tabOnly: true },
   { label: "打开设置", shortcut: FIXED_APP_SHORTCUTS.openSettings },
