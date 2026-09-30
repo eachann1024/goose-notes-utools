@@ -1,7 +1,7 @@
 /* BlockNote xl-ai AI 菜单样式覆盖：把 Mantine 默认外观对齐项目设计系统。
    目标：选中文字 → 点 AI 图标后弹出的 input + 命令列表。
    覆盖原 CSS：@blocknote/xl-ai/style.css 与 @blocknote/mantine/style.css。
-   注意：uTools 旧内核对 hsl(var(--xxx)/alpha) 支持差，本文件只用 rgba/hex。 */
+   注意：Electron 旧内核对 hsl(var(--xxx)/alpha) 支持差，本文件只用 rgba/hex。 */
 
 /* ---------- Popover 卡片（input + items 共用容器） ---------- */
 .bn-combobox {

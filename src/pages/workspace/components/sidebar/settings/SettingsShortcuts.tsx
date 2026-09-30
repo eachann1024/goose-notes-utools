@@ -23,7 +23,7 @@ import { SettingsSectionCard } from "./SettingsSectionCard"
 import { ShortcutField } from "./ShortcutField"
 import { getFixedAppShortcuts } from "@/lib/fixed-app-shortcuts"
 
-// Electron 桌面端（仅本地模式）：设置-快捷键页多出「桌面全局快捷键」分区；uTools 不出现。
+// Electron 桌面端（仅本地模式）：设置-快捷键页多出「桌面全局快捷键」分区；Electron 不出现。
 // 单元测试没有 vite define，用 typeof 兜底避免模块加载即 ReferenceError。
 const isElectronHost =
   typeof __HOST_TARGET__ !== "undefined" && __HOST_TARGET__ === "electron"

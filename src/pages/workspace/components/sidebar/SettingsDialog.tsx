@@ -69,7 +69,7 @@ const SETTINGS_TABS: SettingsTabConfig[] = [
   { id: "data", label: "数据管理", icon: LucideIcons.Database },
 ];
 
-// 设置侧栏鹅应用：图标分别取自各项目 plugin.json 指向的 logo.png
+// 设置侧栏鹅应用：图标使用各应用随包提供的 logo.png
 const GOOSE_APPS = [
   {
     id: "goose-quicknote",
@@ -104,7 +104,7 @@ const GOOSE_APPS = [
 const FEEDBACK_URL = "https://wj.qq.com/s2/25958121/2d2e/";
 const SETTINGS_APPS_BANNER_ID = "settings:recommended-apps-banner";
 
-// Electron 桌面端（仅本地模式）：无 uTools 生态，隐藏鹅的全家桶入口。
+// Electron 桌面端（仅本地模式）：无 Electron 生态，隐藏鹅的全家桶入口。
 const isElectronHost = __HOST_TARGET__ === "electron";
 
 const recordPreOverwriteHistory = async (id: string | undefined) => {
