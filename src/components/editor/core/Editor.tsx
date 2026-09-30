@@ -97,6 +97,7 @@ import { gooseSuppressMarkdownInSpecialBlocksExtension } from "@/components/edit
 import { gooseHeadingMarkSuppressExtension } from "@/components/editor/extensions/headingMarkSuppressExtension";
 import { gooseInlineCodeCaretExtension } from "@/components/editor/extensions/inlineCodeCaretExtension";
 import { gooseCodeTextDropExtension } from "@/components/editor/extensions/codeTextDropExtension";
+import { gooseLineBoundaryKeyboardExtension } from "@/components/editor/extensions/lineBoundaryKeyboardExtension";
 import { gooseTrailingBlankClickExtension } from "@/components/editor/extensions/trailingBlankClickExtension";
 import { createInlineCodePathTagExtension } from "@/components/editor/extensions/inlineCodePathTagExtension";
 import { createPageMentionClickExtension } from "@/components/editor/extensions/pageMentionClickExtension";
@@ -359,6 +360,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
         gooseTrailingBlankClickExtension,
         gooseInlineCodeCaretExtension,
         gooseCodeTextDropExtension(),
+        gooseLineBoundaryKeyboardExtension,
         gooseInlineCodeBacktickWrapExtension,
         gooseActiveListMarkerExtension,
         gooseActiveHeadingCaretExtension,

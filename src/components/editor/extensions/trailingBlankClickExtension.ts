@@ -68,6 +68,28 @@ function wrappedToNextLine(curr: CaretCoords, next: CaretCoords): boolean {
   return next.top >= curr.bottom - 1 && next.left < curr.left;
 }
 
+/** 从 `from` 沿同一视觉行走到第一个文档位置。 */
+export function extendToVisualLineStart(
+  coordsAtPos: (pos: number) => CaretCoords,
+  from: number,
+  textblockStart: number,
+): number {
+  let pos = from;
+  while (pos > textblockStart) {
+    let curr: CaretCoords;
+    let prev: CaretCoords;
+    try {
+      curr = coordsAtPos(pos);
+      prev = coordsAtPos(pos - 1);
+    } catch {
+      break;
+    }
+    if (wrappedToNextLine(prev, curr)) break;
+    pos -= 1;
+  }
+  return pos;
+}
+
 /** 从 `from` 沿同一视觉行走到最后一个文档位置。 */
 export function extendToVisualLineEnd(
   coordsAtPos: (pos: number) => CaretCoords,
@@ -218,6 +240,16 @@ export function resolveLineEndIfClickPastText(args: {
 
   const onLine = findPosOnVisualLine(coordsAtPos, start, end, clientY);
   if (onLine == null) return null;
+
+  // 点在这一行已有文字上时，交给浏览器把光标放在点击处。
+  // 只有真正点过该行最后一个字的右边，才收到行尾。
+  let clickCoords: CaretCoords;
+  try {
+    clickCoords = coordsAtPos(onLine);
+  } catch {
+    return null;
+  }
+  if (!isClickPastTextRight(clientX, clickCoords.right)) return null;
 
   const lineEnd = extendToVisualLineEnd(coordsAtPos, onLine, end);
   let endCoords: CaretCoords;
