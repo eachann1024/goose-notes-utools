@@ -39,7 +39,7 @@ import {
 import { FixedFormattingToolbarController } from "@/components/editor/toolbars/formatting/FixedFormattingToolbarController";
 import { GooseFormattingToolbarController } from "@/components/editor/toolbars/formatting/GooseFormattingToolbarController";
 import { getFormattingSelectionMode } from "@/components/editor/toolbars/formatting/helpers";
-import { AIExtension } from "@blocknote/xl-ai";
+import { GooseAIExtension } from "@/components/editor/ai/GooseAIExtension";
 import { GooseAIMenu } from "@/components/editor/ai/GooseAIMenu";
 import { GooseAIMenuController } from "@/components/editor/ai/GooseAIMenuController";
 import { useFormattingToolbarAi } from "@/components/editor/state/formattingToolbarAi";
@@ -293,7 +293,7 @@ export function EditorComposer({
       );
       return;
     }
-    const ai = editor.getExtension(AIExtension);
+    const ai = editor.getExtension(GooseAIExtension);
     if (ai && block?.id) {
       ai.openAIMenuAtBlock(block.id);
     }

@@ -8,7 +8,9 @@ import {
   type FloatingUIOptions,
 } from "@blocknote/react";
 import { autoUpdate, flip, offset, shift, size } from "@floating-ui/react";
-import { AIExtension, AIMenu, type AIMenuProps } from "@blocknote/xl-ai";
+import { GooseAIExtension } from "./GooseAIExtension";
+import { GooseAIMenu } from "./GooseAIMenu";
+import { useEditorPageContext } from "@/components/editor/platform/hostContext";
 import { TextSelection } from "prosemirror-state";
 import {
   AI_MENU_VIEWPORT_PAD_PX,
@@ -20,11 +22,10 @@ import {
   getEditorUiScale,
   getScaledEditorUiPx,
 } from "@/components/editor/utils/editorContextUi";
-import "@blocknote/xl-ai/style.css";
 import "@/pages/workspace/styles/editor-ai-menu.css";
 
 type GooseAIMenuControllerProps = {
-  aiMenu?: FC<AIMenuProps>;
+  aiMenu?: FC;
 };
 
 type BnColorScheme = "light" | "dark";
@@ -46,15 +47,18 @@ function resolveBnColorScheme(
 }
 
 /**
- * xl-ai 默认把菜单锚到整块并把浮层撑成块宽。格式栏入口需要锚到原文字选区，
+ * 格式栏入口锚到原文字选区，
  * 其它入口（空段落、斜杠菜单）则继续沿用块锚点。
  */
 export function GooseAIMenuController({
-  aiMenu: Component = AIMenu,
+  aiMenu: Component = GooseAIMenu,
 }: GooseAIMenuControllerProps) {
   const editor = useBlockNoteEditor();
-  const ai = useExtension(AIExtension);
-  const aiMenuState = useExtensionState(AIExtension, {
+  const { page } = useEditorPageContext();
+  const openedPageRef = useRef(page.id);
+  const openedDocumentRef = useRef(editor.prosemirrorState.doc);
+  const ai = useExtension(GooseAIExtension);
+  const aiMenuState = useExtensionState(GooseAIExtension, {
     editor,
     selector: (state) => state.aiMenuState,
   });
@@ -95,6 +99,10 @@ export function GooseAIMenuController({
 
   useEffect(() => {
     if (open && selection) {
+      if (!openedFromSelectionRef.current) {
+        openedPageRef.current = page.id;
+        openedDocumentRef.current = editor.prosemirrorState.doc;
+      }
       openedFromSelectionRef.current = true;
       return;
     }
@@ -108,30 +116,23 @@ export function GooseAIMenuController({
     }
     resetFormattingToolbarAi();
 
-    // xl-ai 关闭时会把焦点还给编辑器；下一帧恢复原范围，避免快捷键撤销
-    // 落到页面而不是 ProseMirror。该事务不进入 undo history。
-    if (selection) {
-      requestAnimationFrame(() => {
-        try {
-          const view = editor.prosemirrorView;
-          if (!view) return;
-          const docSize = view.state.doc.content.size;
-          const from = Math.min(selection.from, docSize);
-          const to = Math.min(selection.to, docSize);
-          if (from !== to) {
-            const tr = view.state.tr.setSelection(
-              TextSelection.create(view.state.doc, from, to),
-            );
-            tr.setMeta("addToHistory", false);
-            view.dispatch(tr);
-          }
-          view.focus();
-        } catch {
-          /* 关闭期间文档或页面可能已经切换。 */
+    // Same-page dismissal restores focus; an accepted draft must not restore stale offsets.
+    if (selection && openedPageRef.current === page.id) {
+      try {
+        const view = editor.prosemirrorView;
+        if (view.state.doc.eq(openedDocumentRef.current)) {
+          const tr = view.state.tr.setSelection(
+            TextSelection.create(view.state.doc, selection.from, selection.to),
+          );
+          tr.setMeta("addToHistory", false);
+          view.dispatch(tr);
         }
-      });
+        view.focus();
+      } catch {
+        /* The editor may have unmounted during dismissal. */
+      }
     }
-  }, [editor, open, resetFormattingToolbarAi, selection]);
+  }, [editor, open, page.id, resetFormattingToolbarAi, selection]);
 
   useEffect(
     () => () => {
@@ -185,14 +186,7 @@ export function GooseAIMenuController({
         middleware: sharedMiddleware,
         onOpenChange: (nextOpen) => {
           if (nextOpen || aiMenuState === "closed") return;
-          if (aiMenuState.status === "user-input") {
-            ai.closeAIMenu();
-          } else if (
-            aiMenuState.status === "user-reviewing" ||
-            aiMenuState.status === "error"
-          ) {
-            ai.rejectChanges();
-          }
+          ai.closeAIMenu();
         },
         whileElementsMounted(reference, floating, update) {
           return autoUpdate(reference, floating, update, {
