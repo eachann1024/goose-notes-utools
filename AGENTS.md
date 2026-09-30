@@ -28,3 +28,8 @@
 
 - 每次修改完了之后都要执行 `bun run build` 。
 - 样式、交互验证可以使用浏览器，基于全局 `browser-use` skill。
+
+## 演示视频与仓库文件
+
+- README 只保留一处 GitHub user-attachments 内联视频（单独一行的裸链接）；禁止添加「演示视频 / Watch the video / 旁白版」等文字链接，禁止链接仓库内 raw/blob 的 mp4。
+- 禁止向仓库提交视频副本、封面图、poster、contact sheet、临时脚本或相关文档描述。
