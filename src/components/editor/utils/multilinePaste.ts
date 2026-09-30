@@ -1,5 +1,6 @@
 import {
   htmlHasNonDefaultGooseBlockAttrs,
+  looksLikeMarkdownFragment,
   normalizeClipboardLineEndings,
 } from "./clipboard";
 
@@ -43,6 +44,32 @@ export function splitPlainTextPasteLines(text: string): string[] | null {
 
 export function htmlHasNonTextPasteBlocks(htmlText: string): boolean {
   return NON_TEXT_HTML_BLOCK.test(htmlText || "");
+}
+
+/** 系统剪贴板常丢掉 `blocknote/html`，只剩带 data-content-type 的内部切片。 */
+export function htmlLooksLikeBlockNoteClipboard(html: string): boolean {
+  const value = (html || "").trim();
+  if (!value) return false;
+  return (
+    /data-node-type\s*=\s*["']block(?:Container|Group)["']/i.test(value) ||
+    /data-content-type\s*=\s*["'][A-Za-z][A-Za-z0-9]+["']/i.test(value)
+  );
+}
+
+/** 有格式的 HTML 交给编辑器解析；仅带 alt 的表情图片可继续按文本拆行。 */
+export function htmlHasRichPasteContent(html: string): boolean {
+  if (htmlLooksLikeBlockNoteClipboard(html)) return true;
+  const hasImage = [...html.matchAll(/<img\b[^>]*>/gi)].some(([tag]) => {
+    const alt = tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1];
+    return !alt || !/^\p{Extended_Pictographic}[\uFE0F\u200D\p{Extended_Pictographic}]*$/u.test(alt);
+  });
+  return (
+    htmlHasNonTextPasteBlocks(html) ||
+    htmlHasNonDefaultGooseBlockAttrs(html) ||
+    /<\s*(strong|b|em|i|u|s|del|code|a|h[1-6]|ul|ol|li|blockquote)\b/i.test(html) ||
+    /\bstyle\s*=\s*["'][^"']*(?:font-weight|font-style|text-decoration|color|text-align)\s*:/i.test(html) ||
+    hasImage
+  );
 }
 
 function decodeHtmlEntities(text: string): string {
@@ -105,6 +132,27 @@ export function resolvePasteLines(
   return trimmed.length >= 2 ? trimmed : fromPlain;
 }
 
+/** 富文未编码纯文本中的换行时，优先保住段落，避免默认 HTML 粘贴挤成一行。 */
+export function shouldPreferPlainMultilinePaste(plain: string, html: string): boolean {
+  const lines = splitPlainTextPasteLines(plain);
+  if (
+    !html ||
+    !lines ||
+    htmlHasNonTextPasteBlocks(html) ||
+    htmlLooksLikeBlockNoteClipboard(html) ||
+    htmlHasNonDefaultGooseBlockAttrs(html)
+  ) {
+    return false;
+  }
+  const htmlLines = splitPlainTextPasteLines(
+    htmlToPlainTextForPaste(html.replace(/[\r\n]+/g, " ")),
+  );
+  return (
+    (htmlLines?.filter((line) => line.trim()).length ?? 1) <
+    lines.filter((line) => line.trim()).length
+  );
+}
+
 export function resolveInheritedPasteBlockType(
   currentType: string | null | undefined,
 ): string {
@@ -148,8 +196,8 @@ export function shouldSplitMultilinePaste(input: {
   if (input.inSoftWrap || input.inTable || input.multiBlockSelection) {
     return false;
   }
-  if (htmlHasNonTextPasteBlocks(input.htmlText)) return false;
-  if (htmlHasNonDefaultGooseBlockAttrs(input.htmlText)) return false;
+  if (htmlHasRichPasteContent(input.htmlText)) return false;
+  if (looksLikeMarkdownFragment(input.lines.join("\n"))) return false;
   return true;
 }
 

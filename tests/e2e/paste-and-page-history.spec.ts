@@ -32,6 +32,17 @@ async function text(page: Page) {
   return page.evaluate(() => (window as any).__gooseNoteEditor.prosemirrorState.doc.textContent);
 }
 
+async function paste(page: Page, plain: string, html = "") {
+  await page.evaluate(({ plain, html }) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", plain);
+    if (html) data.setData("text/html", html);
+    document.activeElement!.dispatchEvent(new ClipboardEvent("paste", {
+      clipboardData: data, bubbles: true, cancelable: true,
+    }));
+  }, { plain, html });
+}
+
 test.beforeEach(async ({ page }) => {
   const errors: string[] = [];
   imageNodeViewErrors.set(page, errors);
@@ -48,6 +59,44 @@ test.beforeEach(async ({ page }) => {
     const w = window as any;
     w.__historyNotebook = (await w.__gooseTest.setupMockNotebook()).notebookId;
   });
+});
+
+test("Markdown 粘贴保留粗体、待办、链接和 data 图片，不显示源码", async ({ page }) => {
+  const id = await createNote(page, "粘贴验收");
+  await openNote(page, id);
+  await focusBody(page, id);
+  await page.keyboard.press("Enter");
+  const src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6V8AAAAASUVORK5CYII=";
+  await paste(page, `**SAPI**\n\n- [ ] 排查请求\n- [x] [链接](https://example.com)\n\n![image.png](${src})`);
+  await expect(page.locator('.bn-editor strong').filter({ hasText: "SAPI" })).toBeVisible();
+  await expect(page.locator('.bn-editor [data-content-type="checkListItem"]')).toHaveCount(2);
+  await expect(page.locator('.bn-editor a[href="https://example.com"]')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).__gooseNoteEditor.document.some((b: any) => b.type === "image" && b.props.url.startsWith("data:image/")))).toBe(true);
+  expect(await text(page)).not.toContain("base64,");
+  await expect.poll(() => page.evaluate(() => {
+    const image = (window as any).__gooseNoteEditor.document.find((b: any) => b.type === "image");
+    return image?.props.caption ?? null;
+  })).toBe("");
+  await expect(page.locator('.bn-editor')).not.toContainText("image.png");
+
+});
+
+test("多行富文本保留内联样式与列表；空待办内单行粗体也不丢失", async ({ page }) => {
+  const id = await createNote(page, "富文本");
+  await openNote(page, id);
+  await focusBody(page, id);
+  await page.keyboard.press("Enter");
+  await paste(page, "粗体\n链接\n项目", '<p><strong>粗体</strong></p><p><a href="https://example.com">链接</a></p><ul><li>项目</li></ul>');
+  await expect(page.locator('.bn-editor strong').filter({ hasText: "粗体" })).toBeVisible();
+  await expect(page.locator('.bn-editor a[href="https://example.com"]')).toBeVisible();
+  await expect(page.locator('.bn-editor [data-content-type="bulletListItem"]')).toHaveCount(1);
+  await page.evaluate(() => {
+    const e = (window as any).__gooseNoteEditor;
+    e.insertBlocks([{ id: "empty-todo", type: "checkListItem", content: "" }], e.document.at(-1), "after");
+    e.setTextCursorPosition("empty-todo", "start"); e.focus();
+  });
+  await paste(page, "**待办粗体**");
+  await expect(page.locator('.bn-editor strong').filter({ hasText: "待办粗体" })).toBeVisible();
 });
 
 test("系统 Cmd+C/V 跨笔记复制待办内图片，保留 children、宽度且不复用源 ID", async ({ page }) => {

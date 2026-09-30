@@ -16,8 +16,10 @@ import {
 } from "../utils/clipboard";
 import {
   inspectPasteContainer,
+  htmlHasRichPasteContent,
   planMultilinePaste,
   resolvePasteLines,
+  shouldPreferPlainMultilinePaste,
   shouldSplitMultilinePaste,
 } from "../utils/multilinePaste";
 import {
@@ -378,7 +380,7 @@ export function useEditorPaste({
         const html = htmlText?.trim() ?? "";
         if (html && htmlHasInlineFormatting(html)) {
           void (async () => {
-            let blocks: unknown[] = [];
+            let blocks: unknown[];
             try {
               blocks = await editor.tryParseHTMLToBlocks(htmlText);
             } catch {
@@ -404,6 +406,21 @@ export function useEditorPaste({
           return;
         }
         insertSoftWrappedLines(editor, softWrapText);
+        return;
+      }
+
+      if (
+        !isMultiBlockTextSelection(editor) &&
+        !container.inTable &&
+        shouldPreferPlainMultilinePaste(plainText, htmlText)
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        pasteLinesAsBlocks(
+          editor,
+          pasteLines!,
+          container.listType ?? getCursorBlockType(editor),
+        );
         return;
       }
 
@@ -462,8 +479,7 @@ export function useEditorPaste({
         return;
       }
 
-      // 2.6 多行文本：每行一个块。列表 / 待办 / 有序继承当前块类型。
-      // 含 ** 的碎片也拆，避免 pasteMarkdown 把单换行当成空格、CJK 粘成一段。
+      // 2.6 无格式的多行文本才拆块；Markdown 和富文本保留源格式。
       if (
         shouldSplitMultilinePaste({
           lines: pasteLines,
@@ -484,7 +500,8 @@ export function useEditorPaste({
       }
 
       // 空列表项单行：就地注入，避免默认 HTML 粘贴把空列表换成段落。
-      if (container.listEmpty && !plainText.includes("\n")) {
+      if (container.listEmpty && !plainText.includes("\n") &&
+          !looksLikeMarkdownFragment(plainText) && !htmlHasRichPasteContent(htmlText)) {
         event.preventDefault();
         event.stopPropagation();
         insertPlainInline(editor, plainText);
@@ -494,7 +511,7 @@ export function useEditorPaste({
       // 3. 其他 Markdown 内容
       if (!looksLikeMarkdownFragment(plainText)) return;
 
-      if (htmlText && htmlText.trim()) return;
+      if (htmlHasRichPasteContent(htmlText)) return;
 
       event.preventDefault();
       event.stopPropagation();
