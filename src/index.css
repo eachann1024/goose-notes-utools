@@ -335,6 +335,8 @@
 @layer base {
   :root {
     --goose-shell-bg: 0 0% 95.69%; /* #f4f4f4 */
+    --goose-search-overlay: rgba(0, 0, 0, 0.34);
+    --goose-search-overlay-fallback: rgba(0, 0, 0, 0.55);
     --goose-selected-bg: 60 6.67% 94.12%;
     /* 鸢尾靛蓝：激活导航/选中项浅底（实色 hex，uTools 旧内核安全） */
     --goose-interactive-selected: #e0e7ff;
@@ -430,6 +432,8 @@
 
   .dark {
     --goose-shell-bg: 0 0% 12.55%;
+    --goose-search-overlay: rgba(0, 0, 0, 0.65);
+    --goose-search-overlay-fallback: var(--goose-search-overlay);
     --goose-selected-bg: 60 2.4% 16.1%;
     /* 暗色鸢尾靛蓝：浅底用 rgba 直写（uTools 旧内核安全） */
     --goose-interactive-selected: rgba(99, 102, 241, 0.2);
@@ -767,7 +771,7 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  background-color: rgba(0, 0, 0, 0.34);
+  background-color: var(--goose-search-overlay);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   transform: translateZ(0);
@@ -778,7 +782,7 @@
   (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))
 ) {
   [cmdk-overlay] {
-    background-color: rgba(0, 0, 0, 0.55);
+    background-color: var(--goose-search-overlay-fallback);
   }
 }
 
