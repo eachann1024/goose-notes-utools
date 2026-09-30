@@ -40,3 +40,7 @@ https://github.com/user-attachments/assets/95f9bf50-3992-4f99-a256-b52ee6f41b74
 开发说明见 [DEVELOP.md](DEVELOP.md)。
 
 桌面端 `.app` 未签名：微信无法直接发送 `.app`，请 zip 后发送；接收方解压后执行 `xattr -cr "Goose Note.app"` 再打开。
+
+## 许可
+
+当前源码使用 MIT；第三方部分保留原许可与署名，见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)。旧版本按原发布许可使用。

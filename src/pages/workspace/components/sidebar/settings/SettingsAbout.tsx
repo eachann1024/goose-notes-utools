@@ -142,11 +142,10 @@ export function SettingsAbout() {
       </SettingsSectionCard>
       <SettingsSectionCard title="Goose Note · 鹅的笔记">
         <p className="text-sm text-foreground">
-          Copyright © 2026 eachann 与贡献者
+          Copyright © 2026 eachann1024
         </p>
         <p className="text-sm leading-relaxed text-foreground">
-          本应用采用 GNU GPL
-          第三版（GPL-3.0-only）。你可以依照许可使用、修改和再分发本应用；本应用不提供任何担保，包括适销性或特定用途适用性的担保，法律另有强制规定的除外。
+          本应用采用 MIT 许可。你可以依照许可使用、修改和再分发本应用，但需保留版权与许可声明；本应用不提供任何担保，包括适销性或特定用途适用性的担保，法律另有强制规定的除外。
         </p>
         <a
           href={PROJECT_URL}
@@ -165,11 +164,11 @@ export function SettingsAbout() {
         </a>
         <details>
           <summary className="min-h-6 cursor-pointer text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">
-            查看 GPL 第三版全文
+            查看 MIT 许可全文
           </summary>
           <pre
             tabIndex={0}
-            aria-label="GPL 第三版许可全文"
+            aria-label="MIT 许可全文"
             className={textClass}
           >
             {licenseText}
@@ -178,8 +177,7 @@ export function SettingsAbout() {
       </SettingsSectionCard>
       <SettingsSectionCard title="对应版本源码">
         <p className="text-sm leading-relaxed text-foreground">
-          分发本应用时，分发者应按 GPL
-          提供与该版本匹配的完整源码及必要的构建、安装脚本。请使用随分发版本提供的源码包或源码下载地址；项目默认分支可能与已安装版本不同。
+          项目源码公开在 GitHub。构建步骤见下方说明；项目默认分支可能与已安装版本不同，可按版本标签获取对应源码。
         </p>
         <details>
           <summary className="min-h-6 cursor-pointer text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">
@@ -197,8 +195,7 @@ export function SettingsAbout() {
       <SettingsSectionCard title="第三方与历史来源">
         <p className="text-sm leading-relaxed text-foreground">
           历史包含 Markdown Preview（Copyright © 2026 Pluk，MIT）及 Goose Note
-          早期 MIT 版本。BlockNote XL 采用 GPLv3 路径；BlockNote
-          基础库及其他组件保留各自的许可、版权和源码获取权利。
+          早期 MIT 版本。BlockNote 基础库（core/react/mantine）保留 MPL-2.0，其他组件保留各自的许可与版权声明。
         </p>
         {notices ? (
           <details open>

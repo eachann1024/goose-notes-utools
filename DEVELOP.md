@@ -108,8 +108,8 @@ bun run build
 
 ## 🔒 项目状态
 
-本项目是闭源专有软件，不接受未经授权的使用、复制、修改或分发，也不接受外部代码贡献。报告安全问题请参阅 [SECURITY.md](./SECURITY.md)。
+本项目以 MIT 许可开源。报告安全问题请参阅 [SECURITY.md](./SECURITY.md)。
 
 ## 📄 许可证
 
-专有软件，未经授权不得使用、复制、修改或分发。详见 [LICENSE](./LICENSE)。
+MIT。详见 [LICENSE](./LICENSE)。

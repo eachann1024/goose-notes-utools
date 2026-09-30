@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/eachann1024/goose-notes-utools.git"
   },
-  "license": "GPL-3.0-only",
+  "license": "MIT",
   "engines": {
     "node": ">=20"
   },
