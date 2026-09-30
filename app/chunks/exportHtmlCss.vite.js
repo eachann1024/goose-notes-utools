@@ -87,11 +87,12 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  min-height: 96px;
+  /* 普通代码块随内容撑高，避免单行内容被固定最小高度撑出额外留白。 */
+  min-height: 0;
   background-color: var(--code-bg, hsl(var(--muted) / 0.55));
   color: var(--code-fg, hsl(var(--foreground)));
   /* 外壳边框与文件块统一，不随代码主题走（--code-border 仅供内部分隔线使用） */
-  border: 1px solid hsl(var(--border) / 0.4);
+  border: 1px solid var(--goose-block-subtle-border);
   border-radius: var(--editor-code-block-radius, 8px);
   overflow: hidden;
 }
@@ -229,8 +230,12 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
 
 .goose-code-content-wrapper {
   --goose-code-font-size: 0.85em;
-  --goose-code-line-box: calc(var(--goose-code-font-size) * 1.7);
+  /* 高亮与 pre 共用已计算的字号/行高，避免 em 在不同层级重复缩放。 */
+  font-size: var(--goose-code-font-size);
+  line-height: 1.7;
+  --goose-code-line-box: 1lh;
   position: relative;
+  overflow: hidden;
   padding-top: var(--editor-code-toolbar-row-height, 36px);
 }
 
@@ -259,8 +264,8 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
     "Courier New",
     monospace
   );
-  font-size: var(--goose-code-font-size, 0.85em);
-  line-height: 1.7;
+  font-size: inherit;
+  line-height: inherit;
   overflow-x: auto;
 }
 
@@ -278,9 +283,13 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   line-height: inherit;
 }
 
-/* 当前代码行：铺满内容区（含行号列），对齐 pre 的行盒。 */
+/* 当前代码行：铺满内容区（含行号列），对齐 pre 的行盒。
+ * 限定到当前代码块的直接内容层；wrapper 自身负责裁切，避免高亮条越出代码块。 */
 .bn-block-outer[data-goose-code-active-line]
-  .goose-code-content-wrapper::before {
+  > .bn-block
+  > .bn-block-content
+  > .goose-code-block-node
+  > .goose-code-content-wrapper::before {
   content: "";
   position: absolute;
   left: 0;
@@ -832,6 +841,16 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   caret-color: var(--goose-inline-code-fg);
 }
 
+/* 当前行底色可能接近代码底色，保留代码边界以免融入整行高亮。 */
+:is(.workspace-editor-surface, .quicknote-editor-surface)
+  .bn-editor:focus-within
+  .bn-block-outer.goose-active-line
+  > .bn-block
+  > .bn-block-content
+  .bn-inline-content code {
+  border-color: var(--goose-inline-code-border-hover);
+}
+
 /* 内容 span 也强制强调色，避免继承链接色/表格色/正文色 */
 .workspace-editor-surface
   .bn-inline-content
@@ -1101,7 +1120,7 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   .bn-block-content[data-content-type="checkListItem"]
   > div
   > input:checked {
-  /* 对勾画在 background-image 上：uTools 旧内核的 <input> 不生成 ::after。
+  /* 对勾画在 background-image 上：Electron 旧内核的 <input> 不生成 ::after。
      size 用 100% 铺满 padding-box，避免旧内核忽略 background-position
      时对勾贴在左上角。 */
   background-color: var(--goose-interactive-selected-fg);
@@ -1236,7 +1255,7 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
 }
 
 /* 光标所在列表行的 marker 使用产品现有强调前景色。强调色令牌为实色，
-   避免 uTools 旧 Chromium 对 hsl(var(...)/alpha) 的错误回退。 */
+   避免 Electron 旧 Chromium 对 hsl(var(...)/alpha) 的错误回退。 */
 .workspace-shell
   .workspace-editor-surface
   .bn-editor:focus-within
@@ -1866,7 +1885,7 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
   zoom: 1;
 }
 
-/* 可交互触发器不使用 CSS zoom。uTools 旧内核会把 zoom 祖先的
+/* 可交互触发器不使用 CSS zoom。Electron 旧内核会把 zoom 祖先的
    getBoundingClientRect 再次放大，导致 Portal 面板与 tooltip 飘到右下方。
    改用真实布局尺寸，使定位与绘制共用 viewport 坐标系。 */
 .goose-editor-tooltip-surface {
@@ -1937,7 +1956,7 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
 }
 
 /* 块把手挂在 fixed 外壳上，用 translate(-50%) 对齐行中线。
-   CSS zoom 在 uTools 旧内核里往往只缩小绘制、不缩小定位盒，
+   CSS zoom 在 Electron 旧内核里往往只缩小绘制、不缩小定位盒，
    缩小后视觉中心会偏上。这里关掉 zoom，改用真实布局尺寸。 */
 .bn-side-menu > .goose-editor-inline-context-ui {
   zoom: 1;
@@ -2095,7 +2114,7 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
   width: 100%;
 }
 
-/* uTools 主窗固定全宽布局的左右留白：
+/* Electron 主窗固定全宽布局的左右留白：
    全宽态内容铺满窗口、左缘贴边，side menu(+/把手)锚在内容左缘再 translateX(-100%) 向左展开，
    需 ~56px gutter 让把手落进留白区不溢出窗口；右侧对称留白。
    注：side menu 锚在内容列左缘，translateX(-100%) 整颗 pill 落在 gutter。 */
@@ -2192,7 +2211,7 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
 }
 `,l=`/* 表格与分割线、链接、标注、表格扩展/拖拽手柄、图视频块间距。
  * 被 editor-base.css 按序 @import。
- * 依赖 --goose-interactive-selected-fg / --goose-accent-link / --border / --primary / --muted-foreground。
+ * 依赖 --goose-editor-selection-bg / --goose-interactive-selected-fg / --goose-accent-link / --border / --primary / --muted-foreground。
  */
 
 /* BlockNote 自身已让 block/content/tableWrapper 占满父级；这里只覆盖 table 的 auto 宽度。
@@ -2271,7 +2290,34 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
   color: inherit;
 }
 
-/* 跨出表格时只压住原生 ::selection，不要给所有表格盖不透明遮罩。 */
+/* 跨表格文档选区与 CellSelection 都在单元格背景层使用同一强调色，
+   避免伪元素遮罩盖住文字；这里的特异性也足以覆盖表头默认背景。 */
+:root
+  .workspace-editor-surface
+  .bn-editor.goose-table-span-select
+  [data-content-type="table"]
+  th,
+:root
+  .workspace-editor-surface
+  .bn-editor.goose-table-span-select
+  [data-content-type="table"]
+  td,
+:root .workspace-editor-surface .bn-editor .selectedCell {
+  background-color: var(
+    --goose-editor-selection-bg,
+    var(--goose-interactive-selected)
+  );
+}
+
+/* prosemirror-tables 默认用位于文字上方的 ::after 着色；只清空它的背景，
+   保留依赖提供的定位、层级与 pointer-events 行为。 */
+:root .workspace-editor-surface .bn-editor .selectedCell::after {
+  background: transparent;
+  background-color: transparent;
+}
+
+/* 跨表格文档选区用单元格背景连成一片；同时压住文字级
+   ::selection，避免 token 背景被重复叠加。 */
 :root
   .workspace-editor-surface
   .bn-editor.goose-table-span-select
@@ -2747,7 +2793,7 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
 
 /* 共享格式工具栏
    浮动外壳、固定底栏和按钮状态各自只在这里定义一次。浮动外壳不使用外投影：
-   uTools 旧内核会把「圆角元素 + 外投影 + 浮动层裁切」栅格化成直角灰块。
+   Electron 旧内核会把「圆角元素 + 外投影 + 浮动层裁切」栅格化成直角灰块。
    以清晰边框建立层级，避免用遮片修补渲染伪影。 */
 [data-formatting-toolbar] {
   min-width: 0;
@@ -3142,9 +3188,9 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
  * 常规笔记本的语义颜色令牌。
  *
  * BlockNote 默认深色方案把同色文字与同色背景放在相近明度，叠加后对比不足。
- * 这里保留 gray / blue / red 等文档语义，只在常规笔记本与原生编辑器的
+ * 这里保留 gray / blue / red 等文档语义，只在常规笔记本的
  * 深色渲染层拆成「高明度文字 + 低明度表面」。速记小窗不在覆盖范围内。
- * 使用 hex 实色，兼容 uTools 旧内核，也方便颜色面板复用同一套预览。
+ * 使用 hex 实色，确保颜色面板复用同一套预览。
  */
 :root {
   --goose-editor-highlight-gray-text: #9b9a97;
@@ -3189,8 +3235,7 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
 }
 
 /* 提高到 BlockNote 深色主题规则之上；只映射颜色，不改变已保存的文档数据。 */
-.dark .workspace-shell .bn-root[data-color-scheme="dark"],
-.dark .native-editor-root .bn-root[data-color-scheme="dark"] {
+.dark .workspace-shell .bn-root[data-color-scheme="dark"] {
   --bn-colors-highlights-gray-text: var(--goose-editor-highlight-gray-text);
   --bn-colors-highlights-gray-background: var(--goose-editor-highlight-gray-bg);
   --bn-colors-highlights-brown-text: var(--goose-editor-highlight-brown-text);
@@ -3230,7 +3275,7 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
 /* 左右各向编辑器现有留白借 6px，再用等量 padding 把内容放回原基线：
    - 背景比原内容区宽 12px；
    - 文字起点和实际可输入宽度不变；
-   - 显式使用物理方向属性，兼容 uTools 旧内核。 */
+   - 显式使用物理方向属性，确保跨平台布局一致。 */
 .bn-block-content[data-background-color] {
   box-sizing: border-box;
   width: calc(100% + 12px);
@@ -3260,7 +3305,7 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
   padding-top: 3px;
 }
 `,p=`/* 编辑器基础样式入口：按原文件书写顺序引入子文件，级联与拆分前一致。
- * 被 src/index.css、workspace/styles/index.css、native-editor/main.tsx 引入。
+ * 被 src/index.css、workspace/styles/index.css、editor/main.tsx 引入。
  * 子文件依赖 --editor-* / --goose-*（定义在 src/index.css）；本文件只负责顺序。
  */
 @import "./editor-base/shell.css";
