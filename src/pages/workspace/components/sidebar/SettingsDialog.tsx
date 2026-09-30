@@ -748,7 +748,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         hideClose
         overlayClassName="bg-transparent backdrop-blur-0"
         contentClassName="border-0 bg-[hsl(var(--goose-shell-bg))]"
-        bodyClassName="h-full animate-in fade-in duration-200"
+        bodyClassName="min-w-0 h-full animate-in fade-in duration-200"
       >
         <SettingsScaffold
           activeTab={activeTab}
