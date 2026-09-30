@@ -1,5 +1,8 @@
 import type { Node as PMNode, Slice } from "prosemirror-model";
 import type { EditorState } from "prosemirror-state";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import type { Root, RootContent } from "mdast";
 
 /** 连续列表项（含嵌套子列表）之间用单个换行。 */
 const COMPACT_LIST_BLOCK_TYPES = new Set([
@@ -123,6 +126,28 @@ export function getEditorSelectionPlainText(state: EditorState): string {
   const { from, to, empty } = state.selection;
   if (empty) return "";
   return serializeDocRangePlainText(state.doc, from, to);
+}
+
+const clipboardMarkdownParser = unified().use(remarkParse);
+
+export function normalizeClipboardListMarkers(text: string): string {
+  const offsets: number[] = [];
+  const visit = (node: Root | RootContent) => {
+    if (node.type === "list" && !node.ordered) {
+      for (const item of node.children) {
+        const offset = item.position?.start.offset;
+        if (offset != null && (text[offset] === "*" || text[offset] === "+")) {
+          offsets.push(offset);
+        }
+      }
+    }
+    if ("children" in node) node.children.forEach(visit);
+  };
+  visit(clipboardMarkdownParser.parse(text));
+  for (const offset of offsets.sort((a, b) => b - a)) {
+    text = text.slice(0, offset) + "-" + text.slice(offset + 1);
+  }
+  return text;
 }
 
 export function normalizeClipboardLineEndings(value: string): string {

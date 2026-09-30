@@ -499,6 +499,7 @@ declare global {
   const normalizeBlocks: typeof import('./components/editor/utils/blocknote-content/index').normalizeBlocks
   const normalizeCardThemeId: typeof import('./lib/imageExport/index').normalizeCardThemeId
   const normalizeClipboardLineEndings: typeof import('./components/editor/utils/clipboard').normalizeClipboardLineEndings
+  const normalizeClipboardListMarkers: typeof import('./components/editor/utils/clipboard').normalizeClipboardListMarkers
   const normalizeEditorUiScale: typeof import('./components/editor/utils/editorContextUi').normalizeEditorUiScale
   const normalizeExternalUrl: typeof import('./lib/openExternalUrl').normalizeExternalUrl
   const normalizeGeneratedStructureMarkdown: typeof import('./lib/ai-write/index').normalizeGeneratedStructureMarkdown
