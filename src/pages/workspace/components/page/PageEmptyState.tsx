@@ -243,32 +243,6 @@ export function PageEmptyState() {
   }, []);
 
   const onOpenLocalFolder = useCallback(async () => {
-    const utools = (
-      window as {
-        utools?: {
-          showOpenDialog?: (options: {
-            title: string;
-            properties: string[];
-          }) => Promise<string[]>;
-        };
-      }
-    ).utools;
-    if (typeof utools?.showOpenDialog === "function") {
-      const result = await utools.showOpenDialog({
-        title: "选择 Markdown 文件夹",
-        properties: ["openDirectory"],
-      });
-      if (result && result.length > 0) {
-        const folderPath = result[0];
-        const folderName = folderPath.split(/[\\/]/).pop() || "Unknown";
-        const notebookId = createLocalFolderNotebook(folderName, folderPath);
-        await loadLocalFolderPages(notebookId, folderPath, {
-          showWelcome: true,
-        });
-      }
-      return;
-    }
-
     try {
       const path = await dialogs.selectDirectory();
       if (path) {
