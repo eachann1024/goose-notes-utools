@@ -75,7 +75,7 @@ export function SplitEditorPane({
           </span>
         </div>
       ) : null}
-      <EditorHostBridge key={leaf.pageId} page={page} isEditorFullWidth>
+      <EditorHostBridge page={page} isEditorFullWidth>
         <div
           ref={(el) => {
             scrollElRef.current = el;

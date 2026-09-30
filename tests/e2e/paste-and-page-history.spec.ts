@@ -196,3 +196,42 @@ test("系统 Cmd+C/V 跨笔记复制待办内图片，保留 children、宽度�
   expect(imageNodeViewErrors.get(page)).toEqual([]);
 });
 
+test("切换笔记后 Cmd+Z 和 Cmd+Shift+Z 保留且互不串篇", async ({ page }) => {
+  const a = await createNote(page, "笔记A");
+  const b = await createNote(page, "笔记B");
+  await openNote(page, a);
+  await focusBody(page, a);
+  await page.keyboard.type(" edited-A");
+  await openNote(page, b);
+  await focusBody(page, b);
+  await page.keyboard.type(" edited-B");
+  await openNote(page, a);
+  await focusBody(page, a);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(() => text(page)).toBe("笔记A");
+  await openNote(page, b);
+  await expect.poll(() => text(page)).toBe("笔记B edited-B");
+  await openNote(page, a);
+  await focusBody(page, a);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect.poll(() => text(page)).toBe("笔记A edited-A");
+});
+
+test("访问第 11 篇淘汰最旧历史，最近 10 篇内仍可撤销", async ({ page }) => {
+  test.setTimeout(120_000);
+  const ids: string[] = [];
+  for (let i = 0; i < 11; i++) ids.push(await createNote(page, `记录${i}`));
+  for (let i = 0; i < ids.length; i++) {
+    await openNote(page, ids[i]);
+    await focusBody(page, ids[i]);
+    await page.keyboard.type(" edit");
+  }
+  await openNote(page, ids[1]);
+  await focusBody(page, ids[1]);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(() => text(page)).toBe("记录1");
+  await openNote(page, ids[0]);
+  await focusBody(page, ids[0]);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(() => text(page)).toBe("记录0 edit");
+});
