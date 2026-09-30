@@ -117,6 +117,18 @@ declare global {
     takePendingOpenMarkdownFiles: () => Promise<string[]>
     onOpenMarkdownFiles: (cb: (files: string[]) => void) => () => void
     notify: (n: { title: string; body: string }) => Promise<void>
+    getAppVersion?: () => Promise<string>
+    checkForUpdate?: () => Promise<{
+      status: "available" | "unavailable" | "up-to-date"
+      reason?: string
+      downloadUrl?: string
+      assetName?: string
+      version?: string
+    }>
+    downloadUpdate?: (
+      downloadUrl: string,
+      filename: string,
+    ) => Promise<{ path: string | null }>
     getWindowContext: () => Promise<{ windowId: string; kind: "workspace" | "quicknote" }>
     createWindow: (opts: {
       mode: "blank" | "currentTab"

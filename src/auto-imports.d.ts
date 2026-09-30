@@ -133,6 +133,9 @@ declare global {
   const ONBOARDING_THIRD_CHILD_CONTENT: typeof import('./lib/onboarding').ONBOARDING_THIRD_CHILD_CONTENT
   const ORB_PHASE_HOLD_MS: typeof import('./components/ui/ai-motion').ORB_PHASE_HOLD_MS
   const ORB_VISIBLE_MIN_MS: typeof import('./components/ui/ai-motion').ORB_VISIBLE_MIN_MS
+  const PUBLIC_RELEASES_API_URL: typeof import('./lib/appUpdateRelease').PUBLIC_RELEASES_API_URL
+  const PUBLIC_RELEASES_LATEST_URL: typeof import('./lib/appUpdateRelease').PUBLIC_RELEASES_LATEST_URL
+  const PUBLIC_RELEASES_REPO: typeof import('./lib/appUpdateRelease').PUBLIC_RELEASES_REPO
   const Popover: typeof import('./components/ui/popover').Popover
   const PopoverAction: typeof import('./components/ui/popover').PopoverAction
   const PopoverAnchor: typeof import('./components/ui/popover').PopoverAnchor
@@ -257,6 +260,7 @@ declare global {
   const collapseAllSidebarExpandedPages: typeof import('./lib/sidebarListCollapse').collapseAllSidebarExpandedPages
   const collectSidebarRevealAncestorIds: typeof import('./lib/sidebarListCollapse').collectSidebarRevealAncestorIds
   const commitAiWritePlan: typeof import('./lib/ai-write/index').commitAiWritePlan
+  const compareSemver: typeof import('./lib/appUpdateRelease').compareSemver
   const completePageTitleFocus: typeof import('./lib/page-title-focus').completePageTitleFocus
   const composerDraftHasContent: typeof import('./stores/useNotebookAiChats').composerDraftHasContent
   const compressIfNeeded: typeof import('./lib/imageProcessor').compressIfNeeded
@@ -425,6 +429,7 @@ declare global {
   const isElectronLocalFolderDirectory: typeof import('./lib/sidebarPageNavigation').isElectronLocalFolderDirectory
   const isEmptyInlineBlock: typeof import('./components/editor/utils/pasteAtCursor').isEmptyInlineBlock
   const isExternalFileDrag: typeof import('./lib/local-folder-target').isExternalFileDrag
+  const isGithubDownloadUrl: typeof import('./lib/appUpdateRelease').isGithubDownloadUrl
   const isImageUploadFile: typeof import('./components/editor/utils/pasteClipboardImage').isImageUploadFile
   const isImeKeyboardEvent: typeof import('./hooks/useImeInput').isImeKeyboardEvent
   const isInsideToggle: typeof import('./components/editor/utils/toggleNesting').isInsideToggle
@@ -524,6 +529,7 @@ declare global {
   const parseMarkdownTableToHtml: typeof import('./lib/markdownTableParser').parseMarkdownTableToHtml
   const parseMarkdownToHtml: typeof import('./lib/markdownTableParser').parseMarkdownToHtml
   const parsePersistedQuickNoteSlotNames: typeof import('./stores/useQuickNote').parsePersistedQuickNoteSlotNames
+  const parseReleaseTag: typeof import('./lib/appUpdateRelease').parseReleaseTag
   const parseWikiLinkInner: typeof import('./lib/wikiLink').parseWikiLinkInner
   const pasteBlocksAtCursor: typeof import('./components/editor/utils/pasteAtCursor').pasteBlocksAtCursor
   const pasteClipboardFilesFromClipboard: typeof import('./components/editor/utils/pasteClipboardFilesFromClipboard').pasteClipboardFilesFromClipboard
@@ -532,6 +538,7 @@ declare global {
   const permanentlyDeletePageWithCleanup: typeof import('./lib/page-delete-actions').permanentlyDeletePageWithCleanup
   const persistQuickNoteSlotNames: typeof import('./stores/useQuickNote').persistQuickNoteSlotNames
   const pickRandomPageIcon: typeof import('./lib/randomPageIcon').pickRandomPageIcon
+  const pickUpdateAsset: typeof import('./lib/appUpdateRelease').pickUpdateAsset
   const pickVaultParentDirectory: typeof import('./lib/local-vault').pickVaultParentDirectory
   const pinyinMatchIndices: typeof import('./lib/pinyin-search').pinyinMatchIndices
   const plainHasGooseMarkdownMarkers: typeof import('./components/editor/hooks/useEditorPaste').plainHasGooseMarkdownMarkers
@@ -767,6 +774,9 @@ declare global {
   // @ts-ignore
   export type { AiWriteAction, AiBlockRange, AiTargetMode, AiTargetSource, AiTargetSelection, AiTargetRef, AiStickyTarget, AiResolvedTarget, AiWritePlan, AiContextBundle, BlockTypeTransformIntent, BlockTypeTransformBlock, BlockTypeTransformPanelOpenDetail, BlockTypeTransformPlan, BlockTypeTransformResult, BlockTypeTransformSelectionSnapshot, BlockTypeTransformTarget, GeneratedBlockStructureExpectation, GeneratedBlockStructureValidationInput, GeneratedBlockStructureValidationResult, PseudoStructureMarkerIssue } from './lib/ai-write/index'
   import('./lib/ai-write/index')
+  // @ts-ignore
+  export type { GithubReleaseAsset, ParsedReleaseVersion } from './lib/appUpdateRelease'
+  import('./lib/appUpdateRelease')
   // @ts-ignore
   export type { DiskWriteError } from './lib/diskWriteError'
   import('./lib/diskWriteError')
