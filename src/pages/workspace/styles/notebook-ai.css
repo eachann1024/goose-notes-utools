@@ -51,24 +51,14 @@ html.is-electron .notebook-ai-fullscreen-host {
  gap: 0.125rem;
 }
 
-.electron-titlebar[data-ai-conversation-header] .notebook-ai-page-header-stack {
- min-width: 0;
- flex: 1;
- border-radius: 12px;
- background: hsl(var(--goose-editor-bg));
- padding-top: 0.25rem;
- padding-bottom: 0.25rem;
- margin-right: 8px;
-}
-
-.workspace-divider[data-ai-conversation-header],
-.electron-titlebar[data-ai-conversation-header] {
+.workspace-divider[data-ai-conversation-header] {
  height: auto;
  min-height: 3rem;
 }
 
+/* Electron AI 会话沿用笔记标签的一行顶栏和系统拖动区域。 */
 html.is-electron .electron-titlebar[data-ai-conversation-header] {
- min-height: var(--electron-titlebar-height, 2.75rem);
+ height: var(--electron-titlebar-height, 2.75rem);
 }
 
 /*

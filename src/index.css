@@ -528,6 +528,10 @@
   /* Electron 桌面端：顶栏在文档流里（overlay 融合条），无额外安全区。 */
   html.is-electron {
     --goose-top-safe-area: 0px;
+    /* 正文区顶边距 pt-1 + 代码块工具栏 top:8px，与 YAML 元数据行对齐。 */
+    --goose-toast-offset-top: calc(
+      var(--electron-titlebar-height, 2.75rem) + 12px
+    );
   }
 
   [data-sonner-toaster][data-y-position="top"] {
