@@ -4,6 +4,7 @@ import {
   splitRight,
   toggleZoom,
 } from "@/lib/editor-split/commands";
+import { isElectronRuntime } from "@/lib/electron/runtime";
 
 export type SplitPaletteAction = {
   id: "split-right" | "split-down" | "split-zoom" | "split-close";
@@ -57,6 +58,7 @@ export const SPLIT_PALETTE_ACTIONS: SplitPaletteAction[] = [
 export function matchingSplitPaletteActions(
   query: string,
 ): SplitPaletteAction[] {
+  if (!isElectronRuntime()) return [];
   const q = query.trim().toLowerCase();
   if (!q) return [];
   return SPLIT_PALETTE_ACTIONS.filter((action) => {

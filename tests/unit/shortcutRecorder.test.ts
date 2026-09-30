@@ -85,9 +85,9 @@ test("configured shortcut conflicts include fixed shortcuts", () => {
   const configured = getAllConfiguredShortcuts({}, "", "", "unused");
   expect(configured).toContain(normalizeShortcutForConflict("Mod+N"));
   expect(configured).toContain(normalizeShortcutForConflict("Mod+F"));
-  expect(configured).toContain(normalizeShortcutForConflict("Mod+Shift+T"));
-  expect(configured).toContain(normalizeShortcutForConflict("Mod+1"));
-  expect(configured).toContain(normalizeShortcutForConflict("Ctrl+Tab"));
+  expect(configured).not.toContain(normalizeShortcutForConflict("Mod+Shift+T"));
+  expect(configured).not.toContain(normalizeShortcutForConflict("Mod+1"));
+  expect(configured).not.toContain(normalizeShortcutForConflict("Ctrl+Tab"));
   expect(configured).toContain(normalizeShortcutForConflict("Mod+Shift+G"));
   expect(configured).toContain(normalizeShortcutForConflict("Shift+F3"));
   expect(configured).toContain(normalizeShortcutForConflict("Mod+S"));
@@ -130,13 +130,14 @@ test("single-tab mode ignores inactive tab-only shortcuts for conflict detection
   );
   expect(multiTab).toContain(normalizeShortcutForConflict("Mod+[", isMac));
   expect(multiTab).toContain(normalizeShortcutForConflict("Mod+]", isMac));
-  expect(multiTab).toContain(normalizeShortcutForConflict("Mod+T", isMac));
+  // uTools 不提供标签/分屏，这些键不占用。
+  expect(multiTab).not.toContain(normalizeShortcutForConflict("Mod+T", isMac));
   expect(multiTab).toContain(normalizeShortcutForConflict("Mod+W", isMac));
-  expect(multiTab).toContain(normalizeShortcutForConflict("Mod+1", isMac));
-  expect(multiTab).toContain(
+  expect(multiTab).not.toContain(normalizeShortcutForConflict("Mod+1", isMac));
+  expect(multiTab).not.toContain(
     normalizeShortcutForConflict("Mod+Shift+T", isMac),
   );
-  expect(multiTab).toContain(normalizeShortcutForConflict("Ctrl+Tab", isMac));
+  expect(multiTab).not.toContain(normalizeShortcutForConflict("Ctrl+Tab", isMac));
 
   const singleTab = getAllConfiguredShortcuts(
     appShortcuts,
@@ -188,7 +189,7 @@ test("new users start without a close-tab shortcut", () => {
   expect(DEFAULT_CLOSE_TAB_SHORTCUT).toBe("");
 });
 
-test("split shortcut defaults do not collide with close-tab or fixed keys", () => {
+test("uTools hides split shortcuts from conflict list", () => {
   const isMac = true;
   const configured = getAllConfiguredShortcuts(
     DEFAULT_APP_SHORTCUTS,
@@ -198,14 +199,14 @@ test("split shortcut defaults do not collide with close-tab or fixed keys", () =
     isMac,
     false,
   );
-  expect(configured).toContain(normalizeShortcutForConflict("Mod+D", isMac));
-  expect(configured).toContain(
+  expect(configured).not.toContain(normalizeShortcutForConflict("Mod+D", isMac));
+  expect(configured).not.toContain(
     normalizeShortcutForConflict("Mod+Shift+D", isMac),
   );
-  expect(configured).toContain(
+  expect(configured).not.toContain(
     normalizeShortcutForConflict("Mod+Alt+ArrowLeft", isMac),
   );
-  expect(configured).toContain(
+  expect(configured).not.toContain(
     normalizeShortcutForConflict("Mod+Shift+Enter", isMac),
   );
   expect(configured).not.toContain(normalizeShortcutForConflict("Mod+W", isMac));

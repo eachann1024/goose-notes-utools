@@ -48,6 +48,21 @@ const TAB_ONLY_APP_SHORTCUT_IDS = new Set([
   "newTab",
 ])
 
+/** uTools 插件不提供分屏/多标签，设置页隐藏且不占用可配置位。 */
+const UTOOLS_HIDDEN_APP_SHORTCUT_IDS = new Set([
+  "newTab",
+  "splitRight",
+  "splitDown",
+  "splitFocusLeft",
+  "splitFocusRight",
+  "splitFocusUp",
+  "splitFocusDown",
+  "splitFocusPrevious",
+  "splitFocusNext",
+  "splitZoom",
+  "closeSplitPane",
+])
+
 const ALWAYS_FIXED_SHORTCUT_VALUES = [
   FIXED_APP_SHORTCUTS.openSettings,
   FIXED_APP_SHORTCUTS.editorFindOpen,
@@ -98,9 +113,10 @@ export function getAllConfiguredShortcuts(
     searchHotkey?: string
   },
 ): string[] {
-  const fixedValues = singleTabMode
-    ? ALWAYS_FIXED_SHORTCUT_VALUES
-    : FIXED_SHORTCUT_VALUES
+  const fixedValues =
+    singleTabMode || !isElectronHost
+      ? ALWAYS_FIXED_SHORTCUT_VALUES
+      : FIXED_SHORTCUT_VALUES
   const shortcuts = fixedValues.map((shortcut) =>
     normalizeShortcutForConflict(shortcut, isMac),
   )
@@ -108,6 +124,7 @@ export function getAllConfiguredShortcuts(
     if (id === excludeId || !s) continue
     // 单标签模式下这些动作不注册热键，也不应占用可配置位。
     if (singleTabMode && TAB_ONLY_APP_SHORTCUT_IDS.has(id)) continue
+    if (!isElectronHost && UTOOLS_HIDDEN_APP_SHORTCUT_IDS.has(id)) continue
     // 应用内搜索与桌面「唤出搜索面板」是同一动作，允许共用 ⌘K / Ctrl+K。
     if (excludeId === "search-hotkey" && id === "openSearch") continue
     shortcuts.push(normalizeShortcutForConflict(s, isMac))
@@ -473,8 +490,8 @@ function DesktopGlobalHotkeysCard({
       <div className="mt-2">
         <ShortcutField
           id="search-hotkey"
-          title="唤出搜索面板"
-          description="全局聚焦主窗口并打开搜索面板（不隐藏主窗口）。"
+          title="唤出搜索面板（全局）"
+          description="在其他软件中也可唤出，默认 ⌘⇧K / Ctrl+Shift+K。点击输入框修改，清空即关闭，不影响应用内快捷键。"
           value={desktop.searchHotkeyEnabled ? desktop.searchHotkey : ""}
           onChange={makeDesktopSetter(
             "search-hotkey",
@@ -592,7 +609,7 @@ export function SettingsShortcuts({
         />
       )}
 
-      <SettingsSectionCard title="全局动作">
+      <SettingsSectionCard title="应用内动作">
         <ShortcutField
           id="shortcut-toggle-sidebar"
           title="收起 / 展开侧栏"
@@ -614,8 +631,8 @@ export function SettingsShortcuts({
         <div className="mt-2">
           <ShortcutField
             id="shortcut-open-search"
-            title="全局搜索"
-            description="打开全局搜索面板快速跳转页面。"
+            title="唤出搜索面板（应用内）"
+            description="仅在软件内生效，默认 ⌘K / Ctrl+K。点击输入框修改，清空即关闭，不影响全局快捷键。"
             value={appShortcuts.openSearch ?? DEFAULT_APP_SHORTCUTS.openSearch}
             onChange={safeSetAppShortcut("openSearch")}
             resetValue={DEFAULT_APP_SHORTCUTS.openSearch}
@@ -651,7 +668,7 @@ export function SettingsShortcuts({
             resetValue={DEFAULT_APP_SHORTCUTS.navForward}
           />
         </div>
-        {!singleTabMode && <>
+        {isElectronHost && !singleTabMode && <>
           <div className="mt-2">
           <ShortcutField
             id="shortcut-new-tab"
@@ -665,6 +682,7 @@ export function SettingsShortcuts({
         </>}
       </SettingsSectionCard>
 
+      {isElectronHost && (
       <SettingsSectionCard title="分屏">
         <ShortcutField
           id="shortcut-split-right"
@@ -726,6 +744,26 @@ export function SettingsShortcuts({
         </div>
         <div className="mt-2">
           <ShortcutField
+            id="shortcut-split-focus-previous"
+            title="切换到上一个分屏格"
+            description="按视觉顺序循环到上一个分屏格；不会占用笔记历史的 ⌘[ / ⌘]。"
+            value={appShortcuts.splitFocusPrevious ?? DEFAULT_APP_SHORTCUTS.splitFocusPrevious}
+            onChange={safeSetAppShortcut("splitFocusPrevious")}
+            resetValue={DEFAULT_APP_SHORTCUTS.splitFocusPrevious}
+          />
+        </div>
+        <div className="mt-2">
+          <ShortcutField
+            id="shortcut-split-focus-next"
+            title="切换到下一个分屏格"
+            description="按视觉顺序循环到下一个分屏格；不会占用笔记历史的 ⌘[ / ⌘]。"
+            value={appShortcuts.splitFocusNext ?? DEFAULT_APP_SHORTCUTS.splitFocusNext}
+            onChange={safeSetAppShortcut("splitFocusNext")}
+            resetValue={DEFAULT_APP_SHORTCUTS.splitFocusNext}
+          />
+        </div>
+        <div className="mt-2">
+          <ShortcutField
             id="shortcut-split-zoom"
             title="最大化分屏格"
             description="让当前格占满编辑区，再按一次恢复。"
@@ -745,6 +783,7 @@ export function SettingsShortcuts({
           />
         </div>
       </SettingsSectionCard>
+      )}
 
       <SettingsSectionCard title={singleTabMode ? "面板关闭" : "关闭行为"}>
         {!singleTabMode && <ShortcutField
@@ -780,7 +819,9 @@ export function SettingsShortcuts({
               </span>
             ))}
           </div>
-          {FIXED_SHORTCUTS.filter((item) => !singleTabMode || !item.tabOnly).map((item) => (
+          {FIXED_SHORTCUTS.filter(
+            (item) => !item.tabOnly || (isElectronHost && !singleTabMode),
+          ).map((item) => (
             <FixedShortcutRow
               key={item.label}
               label={item.label}
