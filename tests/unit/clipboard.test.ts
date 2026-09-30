@@ -6,6 +6,7 @@ import {
   getEditorSelectionPlainText,
   htmlHasNonDefaultGooseBlockAttrs,
   htmlHasPreservableFormatting,
+  normalizeClipboardListMarkers,
   serializeDocRangePlainText,
 } from "../../src/components/editor/utils/clipboard";
 
@@ -210,6 +211,13 @@ test("代码块内部空白保持原样", () => {
   });
   const text = serializeDocRangePlainText(editor.prosemirrorState.doc, from, to);
   expect(text).toBe("line one  \n  line two");
+});
+
+test("复制无序列表使用短横线，保留嵌套、格式、代码与分隔线", () => {
+  const source = "* **项目**\n  * 子项\n\n> * 引用列表\n\n+ 项目\n\n1. 有序\n\n***\n\n```md\n* 代码\n```\n\n    * 缩进代码\n\n`* 行内代码`";
+  expect(normalizeClipboardListMarkers(source)).toBe(
+    "- **项目**\n  - 子项\n\n> - 引用列表\n\n- 项目\n\n1. 有序\n\n***\n\n```md\n* 代码\n```\n\n    * 缩进代码\n\n`* 行内代码`",
+  );
 });
 
 test("htmlHasNonDefaultGooseBlockAttrs 空 html 为 false", () => {
