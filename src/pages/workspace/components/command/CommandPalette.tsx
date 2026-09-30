@@ -248,7 +248,10 @@ export function CommandPalette() {
 
       if (open && e.key === "Tab") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setSearchAllNotebooks(!searchAllNotebooks);
+        inputRef.current?.focus();
       }
     };
 
@@ -322,7 +325,7 @@ export function CommandPalette() {
     if (inputRef.current && document.activeElement !== inputRef.current) {
       inputRef.current.focus();
     }
-  }, [open, searchQuery]);
+  }, [open, searchQuery, searchAllNotebooks]);
 
   const openPageInTab = useCallback(
     (page: SearchResultPage | Page, query: string | null) => {
@@ -401,6 +404,7 @@ export function CommandPalette() {
             >
               <button
                 type="button"
+                tabIndex={-1}
                 onClick={() => setSearchAllNotebooks(!searchAllNotebooks)}
                 className={`px-2.5 py-1 rounded-[8px] text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
                   // 用实色交互变量而非 bg-foreground/8：Electron 旧内核解析不了 Tailwind 的
