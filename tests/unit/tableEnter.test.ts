@@ -7,6 +7,11 @@ import {
   applyTableEnter,
   applyTableShiftEnter,
 } from "../../src/components/editor/extensions/tableEnterExtension";
+import {
+  isTableExtendPointerClick,
+  TABLE_EXTEND_CLICK_SLOP_PX,
+} from "../../src/components/editor/menus/tableExtendClick";
+
 const TABLE_CONTENT = [
   {
     id: "tbl",
@@ -138,4 +143,14 @@ test("Shift+Enter 在单元格内换行，不加行", () => {
   expect(hardBreaks + (selectionText(editor).includes("\n") ? 1 : 0)).toBeGreaterThan(
     0,
   );
+});
+
+test("表格底部 + 的微移仍算点击", () => {
+  expect(isTableExtendPointerClick(0)).toBe(true);
+  expect(isTableExtendPointerClick(TABLE_EXTEND_CLICK_SLOP_PX - 1)).toBe(true);
+  expect(isTableExtendPointerClick(-(TABLE_EXTEND_CLICK_SLOP_PX - 1))).toBe(
+    true,
+  );
+  expect(isTableExtendPointerClick(TABLE_EXTEND_CLICK_SLOP_PX)).toBe(false);
+  expect(isTableExtendPointerClick(12)).toBe(false);
 });
