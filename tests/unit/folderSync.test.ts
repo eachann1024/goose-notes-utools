@@ -3,6 +3,7 @@ import type { JSONContent } from "../../src/types";
 import type { PagesState } from "../../src/stores/pages/types";
 import {
   clearLocalSaveTimers,
+  confirmRecoveredLocalSave,
   discardPendingLocalSave,
   flushAllPendingLocalSavesInternal,
   flushPendingLocalSaveByPageIdInternal,
@@ -13,6 +14,8 @@ import {
   pendingLocalSaveRevisions,
   queueLocalPageSave,
   migratePendingLocalSave,
+  isRecoveredLocalSaveConfirmationRequired,
+  restorePendingLocalSave,
 } from "../../src/stores/pages/folderSync";
 import {
   getRecoveryEntry,
@@ -33,6 +36,7 @@ function stateWithSave(
 }
 
 function resetFolderSyncState() {
+  discardPendingLocalSave(PAGE_ID);
   for (const pageId of new Set([
     ...localSaveDebounceTimers.keys(),
     ...localSaveMaxWaitTimers.keys(),
@@ -42,33 +46,37 @@ function resetFolderSyncState() {
   pendingLocalSaveContents.clear();
   pendingLocalSaveRevisions.clear();
   localSaveWriteChains.clear();
-  delete (globalThis as any).window;
+  delete (globalThis as { window?: unknown }).window;
 }
 
-function installRecoveryRuntime() {
+function installRecoveryRuntime(failPut?: (id: string) => boolean) {
   let rev = 0;
   const docs = new Map<string, { _id: string; _rev: string; data: unknown }>();
-  (globalThis as any).window = {
+  (globalThis as { window?: unknown }).window = {
     utools: {
       db: {
         get: (id: string) => docs.get(id) ?? null,
         put: (doc: { _id: string; _rev?: string; data: unknown }) => {
+          if (failPut?.(doc._id)) {
+            return { id: doc._id, ok: false, error: "fault-injected" };
+          }
           const current = docs.get(doc._id);
-          if (current && doc._rev !== current._rev) return { ok: false, error: "conflict" };
-          const stored = { ...doc, _rev: `rev-${++rev}` };
-          docs.set(doc._id, stored);
-          return { ok: true, id: doc._id, rev: stored._rev };
+          if (doc._rev !== current?._rev && current) {
+            return { id: doc._id, ok: false, error: "conflict" };
+          }
+          const nextRev = `rev-${++rev}`;
+          docs.set(doc._id, { ...doc, _rev: nextRev });
+          return { id: doc._id, ok: true, rev: nextRev };
         },
         remove: (id: string) => {
           docs.delete(id);
-          return { ok: true, id };
+          return { id, ok: true };
         },
         allDocs: (prefix = "") =>
           Array.from(docs.values()).filter((doc) => doc._id.startsWith(prefix)),
       },
     },
   };
-  return { docs, db: (globalThis as any).window.utools.db };
 }
 
 test.beforeEach(resetFolderSyncState);
@@ -87,6 +95,80 @@ test("false save result keeps pending content and rejects explicit flush", async
 
   expect(pendingLocalSaveContents.get(PAGE_ID)).toBe(draft);
   expect(localSaveWriteChains.has(PAGE_ID)).toBe(false);
+});
+
+test("恢复稿在未确认前不会被后台 flush 写盘", async () => {
+  const recovered = content("recovered-draft");
+  let attempts = 0;
+  restorePendingLocalSave(PAGE_ID, recovered, 1);
+
+  await flushAllPendingLocalSavesInternal(
+    stateWithSave(async () => {
+      attempts += 1;
+      return true;
+    }),
+  );
+
+  expect(attempts).toBe(0);
+  expect(pendingLocalSaveContents.get(PAGE_ID)).toEqual(recovered);
+});
+
+test("恢复稿只在用户编辑或放弃后解除待确认状态", () => {
+  restorePendingLocalSave(PAGE_ID, content("recovered-draft"), 1);
+  expect(isRecoveredLocalSaveConfirmationRequired(PAGE_ID)).toBe(true);
+
+  queueLocalPageSave(PAGE_ID, content("edited"), stateWithSave(async () => true));
+  expect(isRecoveredLocalSaveConfirmationRequired(PAGE_ID)).toBe(false);
+
+  restorePendingLocalSave(PAGE_ID, content("recovered-again"), 2);
+  discardPendingLocalSave(PAGE_ID);
+  expect(isRecoveredLocalSaveConfirmationRequired(PAGE_ID)).toBe(false);
+});
+
+test("显式保存恢复稿后清理待确认内容和恢复日志", () => {
+  installRecoveryRuntime();
+  const recovery = recordRecoveryEntry({
+    source: "local-file",
+    id: PAGE_ID,
+    content: content("recovered-draft"),
+  })!;
+  restorePendingLocalSave(PAGE_ID, content("recovered-draft"), recovery.revision);
+
+  confirmRecoveredLocalSave(PAGE_ID);
+
+  expect(isRecoveredLocalSaveConfirmationRequired(PAGE_ID)).toBe(false);
+  expect(pendingLocalSaveContents.has(PAGE_ID)).toBe(false);
+  expect(getRecoveryEntry("local-file", PAGE_ID)).toBeNull();
+});
+
+test("恢复稿在后续真实编辑后恢复正常自动保存", async () => {
+  installRecoveryRuntime();
+  const recovery = recordRecoveryEntry({
+    source: "local-file",
+    id: PAGE_ID,
+    content: content("recovered-draft"),
+  })!;
+  restorePendingLocalSave(
+    PAGE_ID,
+    content("recovered-draft"),
+    recovery.revision,
+  );
+  queueLocalPageSave(
+    PAGE_ID,
+    content("edited-after-recovery"),
+    stateWithSave(async () => true),
+    recovery.revision,
+  );
+
+  await flushAllPendingLocalSavesInternal(stateWithSave(async () => true));
+
+  expect(pendingLocalSaveContents.has(PAGE_ID)).toBe(false);
+});
+
+test("仅剩恢复日志确认时，后台 flush 不会伪报磁盘写入失败", async () => {
+  pendingLocalSaveRevisions.set(PAGE_ID, 7);
+
+  await flushAllPendingLocalSavesInternal(stateWithSave(async () => false));
 });
 
 test("flush 保留磁盘权限错误，而不是吞成通用保存未完成", async () => {
@@ -162,7 +244,7 @@ test("ACK 失败时保留 pending revision 供后续重试", async () => {
 });
 
 test("恢复日志迁移失败时保留旧 pageId 的 pending 状态", () => {
-  const { db } = installRecoveryRuntime();
+  installRecoveryRuntime((id) => id.endsWith(":new-id"));
   const draft = content("keep-old-id");
   const entry = recordRecoveryEntry({
     source: "local-file",
@@ -171,12 +253,6 @@ test("恢复日志迁移失败时保留旧 pageId 的 pending 状态", () => {
   })!;
   pendingLocalSaveContents.set("old-id", draft);
   pendingLocalSaveRevisions.set("old-id", entry.revision);
-  const originalPut = db.put;
-  db.put = (doc: any) =>
-    doc._id.endsWith(":new-id")
-      ? { ok: false, error: "fault-injected" }
-      : originalPut(doc);
-
   const result = migratePendingLocalSave("old-id", "new-id", stateWithSave(async () => true));
 
   expect(result.ok).toBe(false);
