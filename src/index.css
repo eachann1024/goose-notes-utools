@@ -512,6 +512,8 @@
     @apply bg-background text-foreground;
     user-select: none;
     -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: 0.01em;
@@ -627,12 +629,17 @@
     -webkit-user-select: none;
   }
 
-  /* Restore selection for inputs */
+  /* 标签与编辑区域保留文本选择能力。 */
+  label,
   input,
   textarea,
-  [contenteditable="true"] {
+  [contenteditable="true"],
+  [contenteditable="plaintext-only"],
+  .bn-editor {
     user-select: text;
     -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
 
   /*
