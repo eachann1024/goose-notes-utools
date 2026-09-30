@@ -213,6 +213,7 @@ function makeCloseSetter(
 const FIXED_SHORTCUTS = [
   { label: "新建笔记", shortcut: FIXED_APP_SHORTCUTS.newNote },
   { label: "页内查找", shortcut: FIXED_APP_SHORTCUTS.editorFindOpen },
+  { label: "收起侧栏其它文件夹（当前选中笔记保持可见）", shortcut: "Escape" },
   { label: "恢复最近关闭的标签页（Chrome 逻辑）", shortcut: FIXED_APP_SHORTCUTS.reopenTab, tabOnly: true },
   { label: "打开设置", shortcut: FIXED_APP_SHORTCUTS.openSettings },
   { label: "切换标签页（1~8 对应序号，9 到最后）", shortcut: "Mod+1~9", tabOnly: true },
