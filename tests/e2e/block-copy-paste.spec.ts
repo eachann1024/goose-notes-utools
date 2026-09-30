@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "playwright/test";
 
 // 验证「完整选中块正文 Ctrl/Cmd+C → 粘贴」后块类型与内联格式完整还原。
-// 折叠光标 Cmd+C 不会复制整块；须显式选中整块正文才会写入块级剪贴板 MIME。
+// 折叠光标 Cmd+C 复制当前块（与显式选中整块正文相同的块级剪贴板 MIME）。
 // 粘贴到空 inline 块：就地替换，不在下方再插一块；光标落在粘贴产物末尾。
 // 非空目标段落：块级粘贴插在目标段落之后（doc[targetIdx + 1]）。
 
@@ -124,20 +124,14 @@ async function waitForHydration(page: Page) {
 }
 
 async function openEditorPage(page: Page) {
-  await page.evaluate(() => {
-    const bridge = (
-      window as Window & {
-        __GOOSE_TEST__?: {
-          createPage: (parentId?: string, workspaceId?: string) => string;
-          openPermanentTab: (pageId: string, pin?: boolean) => void;
-          getNotebooksState: () => { activeNotebookId: string | null };
-        };
-      }
-    ).__GOOSE_TEST__;
-    if (!bridge) throw new Error("Test bridge unavailable");
-    const notebookId =
-      bridge.getNotebooksState().activeNotebookId ?? "default-notebook";
-    const pageId = bridge.createPage(undefined, notebookId);
+  await page.waitForFunction(() => Boolean(window.__gooseTest));
+  await page.evaluate(async () => {
+    const harness = window.__gooseTest;
+    const bridge = window.__GOOSE_TEST__;
+    if (!harness || !bridge) throw new Error("Local test harness unavailable");
+    const { notebookId } = await harness.setupMockNotebook();
+    const pageId = await harness.stores.usePages.getState().createLocalPage(undefined, notebookId);
+    if (!pageId) throw new Error("Could not create a local test page");
     bridge.openPermanentTab(pageId, true);
   });
   await page.waitForFunction(() =>
@@ -221,6 +215,9 @@ async function copyCollapsedThenPaste(
   sourceText: string,
   targetText: string,
 ) {
+  // 系统剪贴板跨浏览器 context 保留；空选区复制不应粘贴上一条用例的内容。
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => navigator.clipboard.writeText(""));
   await page.evaluate(
     `${HELPERS}
      (() => {
@@ -296,7 +293,7 @@ test.describe("block copy paste keeps formatting", () => {
     await page.addInitScript(() => {
       (window as Window & { __GOOSE_E2E__?: boolean }).__GOOSE_E2E__ = true;
     });
-    await page.goto("/");
+    await page.goto("/?e2eLocalMock");
     await waitForHydration(page);
   });
 
@@ -403,7 +400,7 @@ test.describe("block copy paste keeps formatting", () => {
     expect(blockText(pasted!)).toContain("第二行");
   });
 
-  test("collapsed cursor copy does not duplicate source block", async ({
+  test("collapsed cursor copy pastes current block after target", async ({
     page,
   }) => {
     test.setTimeout(120_000);
@@ -420,10 +417,13 @@ test.describe("block copy paste keeps formatting", () => {
     const countBefore = (await getDocument(page)).length;
     const doc = await copyCollapsedThenPaste(page, "加粗项目", "目标段落");
 
-    expect(doc.length).toBe(countBefore);
+    expect(doc.length).toBe(countBefore + 1);
+    const pasted = pastedBlockAfterTarget(doc, "目标段落");
+    expect(pasted, "pasted block should exist after target").toBeTruthy();
+    expect(pasted!.type).toBe("bulletListItem");
+    expect(hasBoldText(pasted!, "加粗项目")).toBe(true);
     const matches = doc.filter((block) => blockText(block) === "加粗项目");
-    expect(matches).toHaveLength(1);
-    expect(matches[0]?.type).toBe("bulletListItem");
+    expect(matches).toHaveLength(2);
   });
 
   test("paste into empty paragraph replaces in place with block colors", async ({

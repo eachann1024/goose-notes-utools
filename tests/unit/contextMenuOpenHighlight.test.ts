@@ -9,3 +9,12 @@ test("右键菜单打开由 floating-ui 聚焦第一可用项，关闭后清空�
   expect(source).toContain("if (!open) setActiveIndex(null)");
 });
 
+test("块左侧 + / grip 不弹出编辑器右键菜单，无整行选区时拷贝仍可用", () => {
+  const menu = readFileSync(
+    "src/components/editor/menus/EditorContextMenu.tsx",
+    "utf8",
+  );
+  expect(menu).toContain('target.closest(".bn-side-menu")');
+  expect(menu).toContain("resolveCopyBlockSelection");
+  expect(menu).toContain("disabled={!canCopy}");
+});

@@ -366,6 +366,7 @@ declare global {
   const getDefaultCustomAIBaseURL: typeof import('./lib/ai-provider/index').getDefaultCustomAIBaseURL
   const getEditorFontFamilies: typeof import('./lib/fontLoader').getEditorFontFamilies
   const getEditorSelectedBlocksForExport: typeof import('./components/editor/utils/selection').getEditorSelectedBlocksForExport
+  const getEditorSelectionPlainText: typeof import('./components/editor/utils/clipboard').getEditorSelectionPlainText
   const getEditorUiScale: typeof import('./components/editor/utils/editorContextUi').getEditorUiScale
   const getElementFromNode: typeof import('./components/editor/utils/selection').getElementFromNode
   const getFileUploadAvailability: typeof import('./lib/fileUploadAvailability').getFileUploadAvailability
@@ -610,7 +611,9 @@ declare global {
   const selectFavoritesCollapsed: typeof import('./stores/useSidebarView').selectFavoritesCollapsed
   const selectFocusedId: typeof import('./stores/useSidebarView').selectFocusedId
   const selectSelectedId: typeof import('./stores/useSidebarView').selectSelectedId
+  const serializeDocRangePlainText: typeof import('./components/editor/utils/clipboard').serializeDocRangePlainText
   const serializeQuickNoteSlotNames: typeof import('./stores/useQuickNote').serializeQuickNoteSlotNames
+  const serializeSlicePlainText: typeof import('./components/editor/utils/clipboard').serializeSlicePlainText
   const serializeWikiLinkMarkdown: typeof import('./lib/wikiLink').serializeWikiLinkMarkdown
   const setDbStorageItem: typeof import('./lib/storage').setDbStorageItem
   const setLocalFolderFileDropTarget: typeof import('./lib/local-folder-file-drop-target').setLocalFolderFileDropTarget
