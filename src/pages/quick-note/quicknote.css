@@ -16,7 +16,7 @@ body,
 .quicknote-root {
   box-sizing: border-box;
   height: 100vh;
-  height: 100dvh;
+  height: 100vh;
   min-height: 100%;
   width: 100vw;
   overflow: hidden;
@@ -208,7 +208,7 @@ body,
    滚动容器（标题栏已从视口扣掉）剩余高度。 */
 .quicknote-editor-surface .bn-editor {
   box-sizing: border-box;
-  min-height: calc(100% - 8px);
+  min-height: 100%;
 }
 
 /* 首块去掉 BlockNote 给 heading 的 18px 内置上间距：该间距是用来跟「上文」拉开
@@ -669,7 +669,6 @@ body,
   transition:
     opacity 0.14s cubic-bezier(0.16, 1, 0.3, 1),
     color 0.14s ease,
-    background 0.14s ease,
     box-shadow 0.14s ease;
 }
 
