@@ -168,6 +168,39 @@
     0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
+/* HeroUI 的 text-muted 表示弱化文字；本项目 --muted / --color-muted 是底色。
+ * 深色模式下 text-muted 会变成「深色底当字色」，关闭钮、菜单箭头等图标消失。
+ * Tabs 未选中态把 text-muted @apply 进 .tabs__tab，.class 覆盖不到。 */
+.text-muted {
+  color: hsl(var(--muted-foreground));
+}
+
+.close-button.close-button--default {
+  background-color: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.tabs__tab {
+  transition: none;
+}
+
+.tabs__tab:not([data-selected="true"]) {
+  color: hsl(var(--muted-foreground));
+}
+
+.tabs__tab:not([data-disabled="true"]):hover,
+.tabs__tab[data-hovered="true"]:not([data-disabled="true"]) {
+  opacity: 1;
+}
+
+.tabs__indicator {
+  display: none;
+}
+
+.tabs__panel[data-exiting="true"] {
+  position: static;
+}
+
 /* class 模式暗色：等价 v3 darkMode: ["class"] */
 @custom-variant dark (&:is(.dark *));
 
