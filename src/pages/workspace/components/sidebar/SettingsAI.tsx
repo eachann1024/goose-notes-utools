@@ -578,8 +578,7 @@ export function SettingsAI({
                           align="end"
                           className="w-[280px]"
                           style={{
-                            maxHeight:
-                              "min(360px, var(--radix-dropdown-menu-content-available-height))",
+                            maxHeight: "min(360px, var(--available-height))",
                           }}
                         >
                           <DropdownMenuRadioGroup

@@ -9,7 +9,7 @@
 @import "tw-animate-css";
 
 /* HeroUI v3（React Aria 内核）样式。v3 无 Provider，仅需一行 import。
- * 被替换的外壳基础控件（Input/Textarea/Switch/Badge）走 @heroui/react，
+ * 基础控件使用 HeroUI 与原生元素；有特殊焦点契约的浮层使用 Floating UI，
  * 视觉仍由各组件 className 还原 shadcn token，HeroUI 自身的 --accent*
  * 运行时令牌在下方 :root/.dark 映射到项目主色（neutral primary），
  * 保证任何 HeroUI 默认上色面（focus/selection 等）与品牌一致、不漏默认蓝。
@@ -204,26 +204,7 @@
   --font-serif: var(--font-serif), serif;
   --font-mono: var(--font-mono), monospace;
 
-  /* accordion 动画（原 tailwindcss-animate 之外的项目自定义 keyframes） */
-  --animate-accordion-down: accordion-down 0.2s ease-out;
-  --animate-accordion-up: accordion-up 0.2s ease-out;
 
-  @keyframes accordion-down {
-    from {
-      height: 0;
-    }
-    to {
-      height: var(--radix-accordion-content-height);
-    }
-  }
-  @keyframes accordion-up {
-    from {
-      height: var(--radix-accordion-content-height);
-    }
-    to {
-      height: 0;
-    }
-  }
 }
 
 /* v4 默认 ring 宽度为 1px、ring 颜色为 currentColor；
@@ -1231,13 +1212,8 @@ svg.lucide {
   stroke-width: 1.75;
 }
 
-/* ── uTools 旧内核兜底：模态菜单/弹层打开期间静默其余悬浮层 ──
-   Radix 模态层（右键菜单/下拉菜单/对话框）打开时 body 会带 data-scroll-locked。
-   旧内核可能丢失 pointerleave 等事件，导致 tooltip 等浮层卡住不关、
-   悬在菜单旁形成"幽灵阴影"。菜单打开期间这些浮层本就不该出现，直接隐藏。 */
-body[data-scroll-locked] [role="tooltip"],
-body[data-scroll-locked]
-  [data-radix-popper-content-wrapper]:has([role="tooltip"]) {
+/* 打开菜单或对话框时隐藏残留提示，兼容第三方与自有浮层。 */
+body:has([role="dialog"]:not([hidden]), [role="menu"]:not([hidden])) [role="tooltip"] {
   display: none !important;
 }
 
