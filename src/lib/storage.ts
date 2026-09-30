@@ -5,5 +5,6 @@ export {
   removeDbStorageItem,
   setDbStorageItem,
   uToolsStorage,
+  uToolsStorage as localStorageAdapter,
   writeDbStorageJSON,
 } from "./storage/utoolsDbStorage";
