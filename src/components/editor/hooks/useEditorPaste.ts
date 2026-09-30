@@ -32,8 +32,12 @@ import {
   isEmptyInlineBlock,
   pasteBlocksAtCursor,
 } from "../utils/pasteAtCursor";
-import { GOOSE_BLOCKNOTE_BLOCK_COPY_MIME } from "../extensions/copyCurrentBlockExtension";
+import {
+  GOOSE_BLOCKNOTE_BLOCK_COPY_MIME,
+  normalizeBlockNoteClipboardHtml,
+} from "../extensions/copyCurrentBlockExtension";
 import { selectionIsInsideFirstTitleBlock } from "../toolbars/formatting/helpers";
+import { normalizeParsedImageProps } from "../blocks/image/imageCaption";
 
 type Editor = ReturnType<typeof useCreateBlockNote>;
 
@@ -56,6 +60,10 @@ export function shouldPasteClipboardAsBlocks(
   clipboard: DataTransfer,
   htmlText: string,
 ): boolean {
+  // `blocknote/html` 是无损内部格式，交回 BlockNote 的默认 paste handler。
+  // 此处不能把它和旧 Goose MIME 一样转为普通 HTML，否则列表 children / 媒体 props
+  // 会经有损解析链路折返。
+  if (clipboard.getData("blocknote/html")) return false;
   if (clipboard.getData(GOOSE_BLOCKNOTE_BLOCK_COPY_MIME)) return true;
   return shouldPasteHtmlAsBlocks(htmlText);
 }
@@ -95,6 +103,37 @@ export function finishPasteAtAnchor(
   return last !== null;
 }
 
+/** 剪贴板 HTML 带有源块 ID；粘贴是副本，需由编辑器重新分配块 ID。 */
+function withoutCopiedBlockIds(blocks: unknown[]): unknown[] {
+  return blocks.map((block) => {
+    if (!block || typeof block !== "object" || Array.isArray(block)) return block;
+    const copy = { ...(block as Record<string, unknown>) };
+    delete copy.id;
+    if (copy.type === "image" && copy.props && typeof copy.props === "object") {
+      copy.props = normalizeParsedImageProps(
+        copy.props as Record<string, unknown>,
+      );
+    }
+    if (Array.isArray(copy.children)) {
+      copy.children = withoutCopiedBlockIds(copy.children);
+    }
+    return copy;
+  });
+}
+
+/** 原生粘贴由我们接管时，与 UniqueID 默认 transformPasted 一样清空容器 ID。 */
+function withoutBlockNoteClipboardIds(html: string): string {
+  if (!html || typeof DOMParser === "undefined") return html;
+  const document = new DOMParser().parseFromString(html, "text/html");
+  for (const block of document.querySelectorAll<HTMLElement>(
+    '[data-node-type="blockContainer"]',
+  )) {
+    block.removeAttribute("data-id");
+    block.removeAttribute("id");
+  }
+  return document.body.innerHTML;
+}
+
 export async function pasteClipboardHtmlAsBlocks(
   editor: Editor,
   htmlText: string,
@@ -107,7 +146,7 @@ export async function pasteClipboardHtmlAsBlocks(
     blocks = [];
   }
   if (!blocks || blocks.length === 0) return false;
-  return finishPasteAtAnchor(editor, blocks, target);
+  return finishPasteAtAnchor(editor, withoutCopiedBlockIds(blocks), target);
 }
 
 export function tryPasteGooseMarkdownFragment(
@@ -220,6 +259,10 @@ export function useEditorPaste({
         clipboard.getData("text/plain"),
       );
       const htmlText = clipboard.getData("text/html");
+      const blockNoteHtml = clipboard.getData("blocknote/html");
+      const normalizedBlockNoteHtml = normalizeBlockNoteClipboardHtml(
+        blockNoteHtml,
+      );
 
       if (looksLikeMermaidDiagram(plainText)) {
         event.preventDefault();
@@ -247,7 +290,11 @@ export function useEditorPaste({
           void (async () => {
             let blocks: any[] = [];
             try {
-              if (htmlText && htmlText.trim()) {
+              // 标题一不能接收结构块。这里仍从原生内部 HTML 解析为 Blocks，
+              // 再把完整树插到标题下方；普通位置则直接走下方无损原生粘贴。
+              if (normalizedBlockNoteHtml && normalizedBlockNoteHtml.trim()) {
+                blocks = await editor.tryParseHTMLToBlocks(normalizedBlockNoteHtml);
+              } else if (htmlText && htmlText.trim()) {
                 blocks = await editor.tryParseHTMLToBlocks(htmlText);
               } else if (plainText) {
                 blocks = await editor.tryParseMarkdownToBlocks(plainText);
@@ -259,12 +306,46 @@ export function useEditorPaste({
             const titleBlock = editor.document[0];
             if (!titleBlock) return;
             // 直接插到标题之后；原有正文顺移，不覆盖标题。
-            const inserted = editor.insertBlocks(blocks, titleBlock, "after");
+            const inserted = editor.insertBlocks(
+              withoutCopiedBlockIds(blocks),
+              titleBlock,
+              "after",
+            );
             const last = inserted[inserted.length - 1];
             if (last) focusPastedBlock(editor, last);
           })();
           return;
         }
+      }
+
+      // 笔记内复制的原生切片包含选区边界、嵌套 children 与全部 block props。
+      // 普通位置不拦截事件，让 BlockNote 直接粘贴；UniqueID 会为副本父子块分别分配 ID。
+      // 空段落沿用原有「原位替换」语义：BlockNote 默认会删掉目标块并新建 ID，
+      // 而此路径解析完整内部 HTML 后 updateBlock，可保留目标块 ID。
+      if (normalizedBlockNoteHtml) {
+        const target = cachePasteTarget(editor);
+        if (target && isEmptyInlineBlock(target)) {
+          event.preventDefault();
+          event.stopPropagation();
+          void pasteClipboardHtmlAsBlocks(editor, normalizedBlockNoteHtml, target);
+          return;
+        }
+
+        // 仅在需要清除旧 data URL 默认 caption 时接管原生 MIME。直接保留内部
+        // slice，并清空 blockContainer ID 让 UniqueID appendTransaction 重新生成；
+        // 不把完整结构转写为 Markdown 或外部 HTML。
+        if (normalizedBlockNoteHtml !== blockNoteHtml) {
+          event.preventDefault();
+          event.stopPropagation();
+          editor.pasteHTML(
+            withoutBlockNoteClipboardIds(normalizedBlockNoteHtml),
+            true,
+          );
+          return;
+        }
+
+        // 未改写的原生切片由 BlockNote 默认 paste handler 处理。
+        return;
       }
 
       // GOOSE MIME 或 HTML 含块级属性：块级粘贴（async 前同步缓存锚点）。
