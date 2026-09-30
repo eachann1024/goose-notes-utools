@@ -687,7 +687,8 @@ function MainTreeDragBetweenLine({
       : false;
   });
   const parentItem =
-    draggingPosition.targetType === "between-items"
+    draggingPosition.targetType === "between-items" ||
+    draggingPosition.targetType === "item"
       ? String(draggingPosition.parentItem)
       : undefined;
   const capturedParent = peekLocalFolderDropParent();
@@ -700,7 +701,7 @@ function MainTreeDragBetweenLine({
     const lineEl = lineRef.current;
     if (!lineEl) return;
     snapDragBetweenLine(lineEl, draggingPosition.linearIndex ?? 0);
-  }, [draggingPosition.linearIndex, draggingPosition.parentItem, hideSortLine]);
+  }, [draggingPosition.linearIndex, parentItem, hideSortLine]);
 
   if (hideSortLine) {
     return <div ref={lineRef} {...lineProps} className="hidden" />;
