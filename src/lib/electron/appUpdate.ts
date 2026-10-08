@@ -22,8 +22,8 @@ export async function checkAppUpdate(): Promise<AppUpdateCheck | null> {
 }
 
 export async function downloadAppUpdate(
-  downloadUrl: string,
-  filename: string,
+  downloadUrl: string | undefined,
+  filename: string | undefined,
 ): Promise<string | null> {
   const desktop = getGooseDesktop();
   if (!desktop?.downloadUpdate) return null;

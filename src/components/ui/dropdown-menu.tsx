@@ -258,16 +258,17 @@ function DropdownMenuCheckboxItem({
   children,
   checked,
   onCheckedChange,
+  onClick,
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & {
+}: ItemProps & {
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
 }) {
   return (
     <DropdownMenuItem
       className={className}
-      onClick={() => onCheckedChange?.(!checked)}
       {...props}
+      onClick={onClick ?? (() => onCheckedChange?.(!checked))}
     >
       {children}
     </DropdownMenuItem>
