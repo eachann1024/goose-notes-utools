@@ -28,8 +28,6 @@ Run the same checks CI runs, locally:
 ```bash
 bun run typecheck   # tsc -b --noEmit
 bun run lint        # eslint .
-bun run test:unit   # Playwright unit suite
-bun run test:e2e    # browser end-to-end suite
 bun run build       # full production build
 ```
 
@@ -70,7 +68,7 @@ Use this when reviewing internal pull requests.
 6. **Dual plugin** — Shared code must still build for both the main app and `GOOSE_BUILD_TARGET=quicknote` / `__GOOSE_LITE__`.
 7. **Data** — Persistence and local-folder sync changes must not lose or silently overwrite notes.
 8. **Security** — No hardcoded secrets or personal paths in defaults; see [SECURITY.md](./SECURITY.md).
-9. **Verification** — Ask for a short **Testing** note in the PR when behavior changes. CI runs typecheck, lint, unit tests, e2e tests, and the full build.
+9. **Verification** — Ask for a short **Testing** note in the PR when behavior changes. CI runs typecheck, lint, and the full build.
 
 Local uTools smoke test after `bun run build`: load `dist/plugin.json` in the uTools developer tools (see README).
 

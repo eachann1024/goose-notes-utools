@@ -483,13 +483,6 @@ export const bootstrap = async (
 
   try {
     await beforeInit?.();
-    // DEV-only: install in-memory gooseFs mock before initHostFs（让 scanner /
-    // saveLocalPageContent 走与 uTools 相同的 gooseFs 接口）。
-    // Tree-shaken out of production builds via the DEV+dynamic-import pattern.
-    if (import.meta.env.DEV && location.search.includes("e2eLocalMock")) {
-      const { installE2ELocalMock } = await import("@/lib/dev/e2eLocalMock");
-      await installE2ELocalMock();
-    }
 
     await initHostFs();
     if (!lean) {
@@ -526,10 +519,6 @@ export const bootstrap = async (
           onboardingCompleted: true,
         });
       }
-    }
-    if (import.meta.env.DEV) {
-      const { installTestBridge } = await import("@/testBridge");
-      installTestBridge();
     }
     if (!lean) {
       const pagesStore = usePages.getState();
