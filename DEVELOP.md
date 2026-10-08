@@ -101,8 +101,6 @@ bun run win
 ```bash
 bun run typecheck   # tsc -b --noEmit
 bun run lint        # eslint .
-bun run test:unit   # 单元测试
-bun run test:e2e    # 浏览器端到端测试
 bun run build
 ```
 
