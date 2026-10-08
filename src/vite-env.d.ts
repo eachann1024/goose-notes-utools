@@ -124,10 +124,12 @@ declare global {
       downloadUrl?: string
       assetName?: string
       version?: string
+      latestVersion?: string
+      releaseUrl?: string
     }>
     downloadUpdate?: (
-      downloadUrl: string,
-      filename: string,
+      downloadUrl: string | undefined,
+      filename: string | undefined,
     ) => Promise<{ path: string | null }>
     getWindowContext: () => Promise<{ windowId: string; kind: "workspace" | "quicknote" }>
     createWindow: (opts: {

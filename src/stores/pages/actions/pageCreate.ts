@@ -376,6 +376,7 @@ async function allocateLocalMarkdownFilePath(
   ) {
     return null;
   }
+  const notebookRoot = notebook.localPath;
 
   const resolveParentPath = () => {
     if (!parentId) return null;
@@ -386,7 +387,7 @@ async function allocateLocalMarkdownFilePath(
     const encoded = parentId.slice(prefix.length);
     try {
       const relativePath = decodeURIComponent(encoded);
-      return `${notebook.localPath}/${relativePath}`;
+      return `${notebookRoot}/${relativePath}`;
     } catch {
       return null;
     }
@@ -412,7 +413,7 @@ async function allocateLocalMarkdownFilePath(
   };
 
   const isPathInsideNotebookRoot = (candidate: string) => {
-    const root = notebook.localPath.replace(/\\/g, "/").replace(/\/$/, "");
+    const root = notebookRoot.replace(/\\/g, "/").replace(/\/$/, "");
     const normalized = candidate.replace(/\\/g, "/");
     return normalized === root || normalized.startsWith(`${root}/`);
   };
@@ -587,6 +588,7 @@ export const createLocalPageRecordAction = async (
   ) {
     return null;
   }
+  const notebookRoot = notebook.localPath;
 
   const randomIcon =
     useSettings.getState().randomIconOnCreate ? pickRandomPageIcon() : undefined;
@@ -603,7 +605,7 @@ export const createLocalPageRecordAction = async (
     const encoded = parentId.slice(prefix.length);
     try {
       const relativePath = decodeURIComponent(encoded);
-      return `${notebook.localPath}/${relativePath}`;
+      return `${notebookRoot}/${relativePath}`;
     } catch {
       return null;
     }
@@ -623,7 +625,7 @@ export const createLocalPageRecordAction = async (
     ? parentPage?.isFolder
       ? parentPath
       : parentPath.replace(/[^\/\\]+$/, "")
-    : notebook.localPath;
+    : notebookRoot;
   const normalizedBaseDir = baseDir.replace(/[\/\\]$/, "");
 
   const checkExists = async (path: string) => {
@@ -634,7 +636,7 @@ export const createLocalPageRecordAction = async (
   };
 
   const isPathInsideNotebookRoot = (candidate: string) => {
-    const root = notebook.localPath.replace(/\\/g, "/").replace(/\/$/, "");
+    const root = notebookRoot.replace(/\\/g, "/").replace(/\/$/, "");
     const normalized = candidate.replace(/\\/g, "/");
     return normalized === root || normalized.startsWith(`${root}/`);
   };
