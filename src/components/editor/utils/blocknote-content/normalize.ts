@@ -131,7 +131,7 @@ function extractInlinePiece(inline: any): string {
   return "";
 }
 
-function extractBlockContentText(block: any): string {
+export function extractBlockContentText(block: any): string {
   let contentText = "";
   if (typeof block.content === "string") contentText = block.content;
   else if (Array.isArray(block.content)) {
@@ -385,7 +385,8 @@ function normalizeBlock(block: any): PartialBlock[] {
   const sanitized: PartialBlock = { type };
   if (block.props || block.attrs) sanitized.props = block.props ?? block.attrs;
   if (block.content !== undefined) {
-    sanitized.content = type === "codeBlock" ? simpleExtractText(block) : block.content;
+    sanitized.content =
+      type === "codeBlock" ? extractBlockContentText(block) : block.content;
   }
   if (children?.length) sanitized.children = children;
 
