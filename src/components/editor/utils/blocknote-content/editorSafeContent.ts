@@ -1,7 +1,11 @@
 import type { PartialBlock } from "@blocknote/core";
 import type { BlockNoteContent } from "./emptyContent";
 import { createEmptyLocalPageContent } from "./emptyContent";
-import { hasStructuredBlocks, simpleExtractText } from "./normalize";
+import {
+  extractBlockContentText,
+  hasStructuredBlocks,
+  simpleExtractText,
+} from "./normalize";
 import { sanitizePageMentionProps } from "@/components/editor/inline/pageMention";
 
 type BlockSpecLike = {
@@ -356,7 +360,7 @@ function sanitizeBlock(
   } else if (contentKind !== "none" && block.content !== undefined) {
     next.content =
       rawType === "codeBlock"
-        ? simpleExtractText(block)
+        ? extractBlockContentText(block)
         : normalizeInlineContent(block.content);
   }
 

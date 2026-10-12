@@ -16,6 +16,7 @@ function treeSignature(page: Page): string {
     page.localReadState ?? "",
     page.isPinned ? "1" : "0",
     page.isFavorite ? "1" : "0",
+    String(page.favoriteOrder ?? ""),
     getPageTitle(page),
   ].join("\0");
 }
