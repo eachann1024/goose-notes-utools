@@ -60,6 +60,12 @@ import {
   generateConversationCompactSummary,
 } from "@/lib/notebook-ai/compactConversation";
 
+import {
+  markBatchUndoToolParts,
+  replaceBatchApprovalToolParts,
+  type BatchApprovalToolState,
+} from "./session/batchToolMessages";
+
 /** 流式响应持续无任何消息更新时自动收尾，避免旧 Electron 内核永久占用会话。 */
 const NOTEBOOK_AI_STREAM_IDLE_TIMEOUT_MS = 60_000;
 
@@ -159,6 +165,14 @@ interface NotebookAiSessionScope {
   generation: number;
 }
 
+function sessionScopeKey(scope: NotebookAiSessionScope) {
+  return JSON.stringify([
+    scope.notebookId,
+    scope.conversationId,
+    scope.generation,
+  ]);
+}
+
 export function NotebookAiSessionProvider({
   notebookId,
   children,
@@ -177,9 +191,11 @@ export function NotebookAiSessionProvider({
   const [composerRevision, setComposerRevision] = useState(0);
   const [suppressDefaultPageSeed, setSuppressDefaultPageSeed] = useState(false);
   const [isCompacting, setIsCompacting] = useState(false);
+  const batchWorkRef = useRef(new Map<string, number>());
+  const [, notifyBatchWorkChanged] = useState(0);
 
-  // WorkspaceLayout 不再用 key 重挂整个 Provider。这里在 render 期间把新笔记本
-  // 的会话状态一次性换好，React 会立即重渲染，子节点不会拿到旧 notebook 的消息。
+  // 当同一 Provider 实例收到新笔记本时，在 render 期间一次性切换会话状态，
+  // 让子节点不会拿到旧 notebook 的消息。
   // 真正停止旧 Chat/压缩任务留给 layout effect，避免在 render 中执行副作用。
   if (session.notebookId !== notebookId) {
     const nextConversationId = useNotebookAiChats
@@ -285,7 +301,9 @@ export function NotebookAiSessionProvider({
   });
 
   const isStreaming = status === "streaming" || status === "submitted";
-  const isBusy = isStreaming || isCompacting;
+  const isBatchRunning =
+    (batchWorkRef.current.get(sessionScopeKey(currentSessionScope)) ?? 0) > 0;
+  const isBusy = isStreaming || isCompacting || isBatchRunning;
   const unavailableReason = !modelCheck.ok ? modelCheck.reason : undefined;
   const aiStatusActiveRef = useRef(false);
   const messagesRef = useRef(messages);
@@ -309,6 +327,46 @@ export function NotebookAiSessionProvider({
       }
     };
   }, [notebookId]);
+
+  // SDK 的 functional updater 同步读取当前 Chat 的最新消息，避免 await 后
+  // 把新回复或另一个批次的结果覆盖成回调创建时的旧 render 快照。
+  const updateSessionMessages = useCallback(
+    (
+      scope: NotebookAiSessionScope,
+      update: (currentMessages: NotebookAiMessage[]) => NotebookAiMessage[],
+    ) => {
+      if (!isCurrentSession(scope)) return;
+      let nextMessages: NotebookAiMessage[] | undefined;
+      setMessages((currentMessages) => {
+        if (!isCurrentSession(scope)) return currentMessages;
+        nextMessages = update(currentMessages);
+        return nextMessages;
+      });
+      if (!nextMessages || !isCurrentSession(scope)) return;
+      messagesRef.current = nextMessages;
+      useNotebookAiChats
+        .getState()
+        .setMessages(scope.notebookId, scope.conversationId, nextMessages);
+    },
+    [isCurrentSession, setMessages],
+  );
+
+  const beginBatchWork = useCallback(
+    (scope: NotebookAiSessionScope) => {
+      const key = sessionScopeKey(scope);
+      batchWorkRef.current.set(key, (batchWorkRef.current.get(key) ?? 0) + 1);
+      notifyBatchWorkChanged((revision) => revision + 1);
+      return () => {
+        const remaining = (batchWorkRef.current.get(key) ?? 1) - 1;
+        if (remaining > 0) batchWorkRef.current.set(key, remaining);
+        else batchWorkRef.current.delete(key);
+        if (isCurrentSession(scope)) {
+          notifyBatchWorkChanged((revision) => revision + 1);
+        }
+      };
+    },
+    [isCurrentSession],
+  );
 
   const streamStateRef = useRef<{
     scope: NotebookAiSessionScope;
@@ -334,16 +392,16 @@ export function NotebookAiSessionProvider({
       return;
     }
 
-    const cleanedMessages = ensureNotebookAiMessageCreatedAt(
-      sanitizeNotebookAiMessages(messages),
+    // 先保存已完成回复，避免空闲回调前切换笔记本而丢失旧会话。
+    updateSessionMessages(scope, (currentMessages) =>
+      ensureNotebookAiMessageCreatedAt(
+        sanitizeNotebookAiMessages(currentMessages),
+      ),
     );
-    if (isCurrentSession(scope)) {
-      setMessages(cleanedMessages);
-    }
     const persist = () => {
-      useNotebookAiChats
-        .getState()
-        .setMessages(scope.notebookId, scope.conversationId, cleanedMessages);
+      // 空闲回调可能晚于审批／新消息；按原 scope 从 SDK 再读最新数组。
+      // 切换后 updater 会同时拒绝读取新 Chat 和写入旧会话。
+      updateSessionMessages(scope, (currentMessages) => currentMessages);
     };
     const ric = (
       globalThis as typeof globalThis & {
@@ -366,7 +424,7 @@ export function NotebookAiSessionProvider({
     messages,
     notebookId,
     sessionGeneration,
-    setMessages,
+    updateSessionMessages,
     status,
   ]);
 
@@ -555,7 +613,10 @@ export function NotebookAiSessionProvider({
   );
 
   const compactConversation = useCallback(() => {
-    if (isBusy) {
+    if (
+      isBusy ||
+      (batchWorkRef.current.get(sessionScopeKey(currentSessionScope)) ?? 0) > 0
+    ) {
       toast.warning("正在生成回复，请稍后再压缩");
       return;
     }
@@ -709,50 +770,25 @@ export function NotebookAiSessionProvider({
   const onBatchApproval = useCallback(
     async (response: BatchApprovalResponse) => {
       const scope = currentSessionScope;
+      if (!isCurrentSession(scope)) return;
+      if (compactAbortRef.current && !compactAbortRef.current.signal.aborted) {
+        toast.warning("正在压缩会话，请稍后再执行批量计划");
+        return;
+      }
       const replaceToolPart = (
-        state:
-          | "approval-responded"
-          | "output-available"
-          | "output-denied"
-          | "output-error",
+        state: BatchApprovalToolState,
         payload: { output?: unknown; errorText?: string } = {},
       ) => {
-        if (!isCurrentSession(scope)) return;
-        const nextMessages = messages.map((message) => ({
-          ...message,
-          parts: (message.parts ?? []).map((part) => {
-            if (
-              !(
-                typeof part === "object" &&
-                part &&
-                "toolCallId" in part &&
-                part.toolCallId === response.toolCallId
-              )
-            ) {
-              return part;
-            }
-            return {
-              ...part,
+        updateSessionMessages(scope, (currentMessages) =>
+          sanitizeNotebookAiMessages(
+            replaceBatchApprovalToolParts(
+              currentMessages,
+              response,
               state,
-              ...(payload.output !== undefined
-                ? { output: payload.output }
-                : {}),
-              ...(payload.errorText ? { errorText: payload.errorText } : {}),
-              approval: {
-                id: response.approvalId,
-                approved: response.approved,
-                reason: response.approved
-                  ? `用户批准执行 ${response.selectedOperationIds.length} 项操作`
-                  : "用户取消了整批计划",
-              },
-            } as unknown as typeof part;
-          }),
-        })) as NotebookAiMessage[];
-        const cleanedMessages = sanitizeNotebookAiMessages(nextMessages);
-        setMessages(cleanedMessages);
-        useNotebookAiChats
-          .getState()
-          .setMessages(notebookId, conversationId, cleanedMessages);
+              payload,
+            ),
+          ),
+        );
       };
 
       if (!response.approved) {
@@ -770,6 +806,7 @@ export function NotebookAiSessionProvider({
         return;
       }
 
+      const finishBatchWork = beginBatchWork(scope);
       replaceToolPart("approval-responded");
       try {
         const result = await executePreparedBatchPlan(
@@ -797,21 +834,28 @@ export function NotebookAiSessionProvider({
               ? executeError.message
               : "批量计划执行失败",
         });
+      } finally {
+        finishBatchWork();
       }
     },
     [
-      conversationId,
+      beginBatchWork,
       currentSessionScope,
       isCurrentSession,
-      messages,
-      notebookId,
-      setMessages,
+      updateSessionMessages,
     ],
   );
 
   const onBatchUndo = useCallback(
     async (toolCallId: string, runId: string): Promise<BatchUndoResult> => {
       const scope = currentSessionScope;
+      if (!isCurrentSession(scope)) {
+        return { ok: false, error: "会话已切换，已忽略过期结果" };
+      }
+      if (compactAbortRef.current && !compactAbortRef.current.signal.aborted) {
+        return { ok: false, error: "正在压缩会话，请稍后再撤回" };
+      }
+      const finishBatchWork = beginBatchWork(scope);
       try {
         const result = await undoBatchPlan(toolCallId, runId);
         if (!isCurrentSession(scope)) {
@@ -833,37 +877,11 @@ export function NotebookAiSessionProvider({
           result.results.flatMap((operation) => operation.pageIds),
         );
         pageIds.forEach(reloadEditorIfActive);
-        const nextMessages = messages.map((message) => ({
-          ...message,
-          parts: (message.parts ?? []).map((part) => {
-            if (
-              !(
-                typeof part === "object" &&
-                part &&
-                "toolCallId" in part &&
-                part.toolCallId === toolCallId &&
-                "output" in part &&
-                part.output &&
-                typeof part.output === "object"
-              )
-            ) {
-              return part;
-            }
-            return {
-              ...part,
-              output: {
-                ...(part.output as Record<string, unknown>),
-                status: "undone",
-                canUndo: false,
-              },
-            } as unknown as typeof part;
-          }),
-        })) as NotebookAiMessage[];
-        const cleanedMessages = sanitizeNotebookAiMessages(nextMessages);
-        setMessages(cleanedMessages);
-        useNotebookAiChats
-          .getState()
-          .setMessages(notebookId, conversationId, cleanedMessages);
+        updateSessionMessages(scope, (currentMessages) =>
+          sanitizeNotebookAiMessages(
+            markBatchUndoToolParts(currentMessages, toolCallId),
+          ),
+        );
         toast.success("已撤回本批变更");
         return {
           ok: true,
@@ -878,15 +896,15 @@ export function NotebookAiSessionProvider({
         const description = formatNotebookAiError(undoError, { phase: "undo" });
         toast.error("撤回失败", { description });
         return { ok: false, error: description };
+      } finally {
+        finishBatchWork();
       }
     },
     [
-      conversationId,
+      beginBatchWork,
       currentSessionScope,
       isCurrentSession,
-      messages,
-      notebookId,
-      setMessages,
+      updateSessionMessages,
     ],
   );
 
