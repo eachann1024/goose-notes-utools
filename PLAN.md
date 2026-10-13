@@ -38,7 +38,6 @@ description: 覆盖 PR 全链路：...
 - `src/stores/pages/actions/localFolder/write.ts` — 序列化已含 `---` 则不再 prepend
 - `src/stores/pages/index.ts` — 改 goose 设置时同步首块 YAML
 - `src/stores/pages/actions/pageCreate.ts` — 复制本地文件时不要「抽 body + prepend」弄出两份 YAML
-- `src/native-editor/markdown.ts` — 同样把 YAML 留在块里，序列化不再二次 prepend
 - `src/components/editor/blocks/code/codeBlockSpec.tsx` — `yaml-frontmatter` 当普通代码块，撤掉 visual preview
 - `src/lib/export/markdown/serialize.ts` — 保留已有 `yaml-frontmatter` → `---`（已改，留下）
 - `src/lib/export/markdown/parse/block.ts` — 已有文件头解析，不改逻辑
@@ -66,7 +65,7 @@ description: 覆盖 PR 全链路：...
 - [x] `saveLocalPageContent`：`blocksToMarkdown` 后若已以 `---` 开头，不要 prepend `localFrontmatter`。落盘后再从磁盘头同步 `localFrontmatter`。
 - [x] `updatePage` 改 goose 设置：现有 blob merge 之后，把结果写进首块 YAML，避免设置面板改了、编辑器还是旧 YAML。
 - [x] 复制本地页：优先整文件复制再 merge goose 键；内存回退时若 content 已有 YAML 块，不要再 prepend。
-- [x] 原生编辑器 `parseCandidate` / `serializeCandidate`：YAML 留在 blocks，`frontmatter` 不再二次拼接。
+- [x] 原生编辑器 `parseCandidate` / `serializeCandidate`：YAML 留在 blocks，`frontmatter` 不再二次拼接。（历史记录；该独立目标已于 2026-10-13 清理）
 - [x] `codeBlockSpec`：`isFrontmatter` 不进 `isVisualBlock` / `canPreview`。YAML 默认源码编辑。
 - [x] 单测：pearl 风格 SKILL.md 打开能看到 `name`/`description`；改 YAML 写盘仍是单段 `---`；不会写出 \`\`\`yaml-frontmatter。
 
