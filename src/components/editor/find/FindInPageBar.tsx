@@ -21,7 +21,6 @@ type FindInPageBarProps = {
   openNonce?: number;
   openReplace?: boolean;
   editable?: boolean;
-  navigationRequest?: { id: number; direction: "next" | "previous" } | null;
   onClose: () => void;
 };
 
@@ -35,7 +34,6 @@ export function FindInPageBar({
   openNonce = 0,
   openReplace = false,
   editable = true,
-  navigationRequest = null,
   onClose,
 }: FindInPageBarProps) {
   const editorUiScale = useEditorUiScale();
@@ -87,15 +85,6 @@ export function FindInPageBar({
       clearFind(editor);
     }
   }, [open, editor]);
-
-  useEffect(() => {
-    if (!open || !editor || !navigationRequest) return;
-    const state = getFindState(editor);
-    if (state?.matches.length) {
-      stepFindMatch(editor, navigationRequest.direction === "next" ? 1 : -1);
-      setTick((value) => value + 1);
-    }
-  }, [editor, navigationRequest, open]);
 
   if (!open) return null;
 

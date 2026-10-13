@@ -186,11 +186,6 @@ export function EditorComposer({
   const [findSeedQuery, setFindSeedQuery] = useState("");
   const [findOpenNonce, setFindOpenNonce] = useState(0);
   const [findOpenReplace, setFindOpenReplace] = useState(false);
-  const [findNavigationRequest, setFindNavigationRequest] = useState<{
-    id: number;
-    direction: "next" | "previous";
-  } | null>(null);
-  const findNavigationRequestIdRef = useRef(0);
   const { ai: aiSettings } = useEditorSettings();
   const { onPromotePreview, searchPages, showLocalFileTitle } =
     useEditorPageContext();
@@ -238,9 +233,9 @@ export function EditorComposer({
 
     const allowEnterAi = !isQuickNoteEditorPage(page);
     if (
-      (!__GOOSE_EDITOR_AI__ && __HOST_TARGET__ !== "native-editor") ||
+      !__GOOSE_EDITOR_AI__ ||
       !isInlineAiEmptyParagraphTriggerKey(event.key, allowEnterAi) ||
-      (page?.localFilePath && __HOST_TARGET__ !== "native-editor") ||
+      page?.localFilePath ||
       Boolean(page?.localUnsaved)
     ) {
       return;
@@ -285,14 +280,6 @@ export function EditorComposer({
     event.preventDefault();
     event.stopPropagation();
     event.nativeEvent.stopImmediatePropagation();
-    if (__HOST_TARGET__ === "native-editor") {
-      window.dispatchEvent(
-        new CustomEvent("goose-note:native-ai-entry", {
-          detail: { source: "empty-paragraph" },
-        }),
-      );
-      return;
-    }
     const ai = editor.getExtension(GooseAIExtension);
     if (ai && block?.id) {
       ai.openAIMenuAtBlock(block.id);
@@ -321,30 +308,6 @@ export function EditorComposer({
     return () =>
       window.removeEventListener("goose-note:editor-find-open", handleOpenFind);
   }, [editor, editorContainerRef]);
-
-  useEffect(() => {
-    // 原生 AppKit 菜单通过桥接事件驱动查找导航。uTools 有自己的热键链路，
-    // 不在共享编辑器里接管，避免原生宿主接线改变其它宿主的运行时行为。
-    if (__HOST_TARGET__ !== "native-editor") return;
-
-    const handleFindNavigation = (event: Event) => {
-      const direction = (event as CustomEvent<{ direction?: unknown }>).detail
-        ?.direction;
-      if (direction !== "next" && direction !== "previous") return;
-      setFindBarOpen(true);
-      findNavigationRequestIdRef.current += 1;
-      setFindNavigationRequest({
-        id: findNavigationRequestIdRef.current,
-        direction,
-      });
-    };
-    window.addEventListener("goose-note:editor-find-nav", handleFindNavigation);
-    return () =>
-      window.removeEventListener(
-        "goose-note:editor-find-nav",
-        handleFindNavigation,
-      );
-  }, []);
 
   useEffect(() => {
     const handleOpen = () => {
@@ -728,7 +691,7 @@ export function EditorComposer({
                 }
               }}
             />
-            {__GOOSE_LITE__ || __HOST_TARGET__ === "native-editor" ? null : (
+            {__GOOSE_LITE__ ? null : (
               <SuggestionMenuController
                 triggerCharacter="@"
                 getItems={getMentionItems}
@@ -796,7 +759,6 @@ export function EditorComposer({
         openNonce={findOpenNonce}
         openReplace={findOpenReplace}
         editable={editable}
-        navigationRequest={findNavigationRequest}
         onClose={() => setFindBarOpen(false)}
       />
     </EditorContextMenu>

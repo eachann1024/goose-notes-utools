@@ -22,7 +22,6 @@ node_modules
 dist
 dist-ssr
 dist-quicknote/
-dist-native-editor/
 dist-electron/
 dist-desktop/
 dist-tauri/
@@ -63,8 +62,6 @@ scripts/*
 !scripts/utools-build.js
 !scripts/check-utools-size.js
 !scripts/utools-size-baseline.json
-!scripts/audit-native-editor.mjs
-!scripts/serve-native-editor.mjs
 !scripts/collect-desktop-artifacts.mjs
 !scripts/compile-electron.mjs
 !scripts/electron-build-linux.mjs

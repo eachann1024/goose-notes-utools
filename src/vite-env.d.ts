@@ -8,7 +8,7 @@ interface ImportMetaEnv {
 }
 
 declare global {
-  const __HOST_TARGET__: "utools" | "native-editor" | "electron";
+  const __HOST_TARGET__: "utools" | "electron";
 
   /**
    * 速记小窗（plugin B / dist-quicknote）精简构建标志。
@@ -21,9 +21,8 @@ declare global {
   const __GOOSE_EDITOR_COMPACT__: boolean;
 
   /**
-   * 编辑器 AI 能力编译开关。主笔记本为 true；速记和原生 macOS 编辑器产物为 false。
-   * 与 __GOOSE_LITE__ 分离，确保原生编辑器保留数学、Mermaid、视频和代码格式化，
-   * 同时不会把 AI SDK 或 AI 菜单带入生产包。
+   * 编辑器 AI 能力编译开关。主笔记本为 true；速记小窗为 false，
+   * 避免把 AI SDK 或 AI 菜单带入小窗包。
    */
   const __GOOSE_EDITOR_AI__: boolean;
 

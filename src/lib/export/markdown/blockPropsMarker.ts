@@ -129,24 +129,6 @@ function decodeMarker(encoded: string, isCurrent: boolean): PersistedBlockProps 
   }
 }
 
-/** native-editor 的 lossless 比较将可恢复的旧命名空间归一为 v1 标记。 */
-export function canonicalizeBlockPropsMarkers(markdown: string): string {
-  return markdown.replace(
-    /<!--[ \t]*goose-note:(native-)?block-props=([^\s]+)[ \t]*-->/gi,
-    (source, legacyNamespace: string | undefined, encoded: string) => {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(encoded)) as Record<string, unknown>;
-        if (!legacyNamespace && parsed.v !== 1) return source;
-        const metadata = restorePersistedBlockProps(parsed);
-        if (Object.keys(metadata).length === 0) return source;
-        return `<!-- goose-note:block-props=${encodeURIComponent(JSON.stringify({ v: 1, ...metadata }))} -->`;
-      } catch {
-        return source;
-      }
-    },
-  );
-}
-
 function localCssColor(color: string, palette: Record<string, string>) {
   return palette[color] ?? color;
 }
@@ -363,7 +345,7 @@ export function encodeBlockPropsMarkers(blocks: BlockNoteContent): BlockNoteCont
   }) as BlockNoteContent;
 }
 
-/** 恢复当前标记及 native-editor 旧标记；损坏内容保持原样，保证正文仍可打开。 */
+/** 恢复当前及旧版块样式标记；损坏内容保持原样，保证正文仍可打开。 */
 export function restoreBlockPropsMarkers(blocks: BlockNoteContent): BlockNoteContent {
   return (blocks as MarkdownBlock[]).map((block) => {
     const children = Array.isArray(block.children)

@@ -18,10 +18,6 @@
   "scripts": {
     "dev": "vite",
     "build": "node src/lib/vite-stubs/assert-present.mjs && vite build && GOOSE_BUILD_TARGET=quicknote vite build && node scripts/utools-build.js",
-    "build:native-editor": "vite build --config vite.native-editor.config.ts",
-    "dev:native-editor": "bun run build:native-editor && node scripts/serve-native-editor.mjs --mock ${NATIVE_EDITOR_PORT:-6012}",
-    "audit:native-editor": "node scripts/audit-native-editor.mjs",
-    "verify:native-editor": "bun run build:native-editor && bun run audit:native-editor",
     "build:debug": "node src/lib/vite-stubs/assert-present.mjs && GOOSE_DEBUG=1 vite build && GOOSE_DEBUG=1 GOOSE_BUILD_TARGET=quicknote vite build && GOOSE_DEBUG=1 node scripts/utools-build.js",
     "mac": "bun run build:electron && node scripts/electron-build-mac.mjs && node scripts/collect-desktop-artifacts.mjs",
     "mac:dev": "GOOSE_BUILD_TARGET=electron node scripts/electron-dev.mjs",
