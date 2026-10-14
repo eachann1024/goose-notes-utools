@@ -251,7 +251,6 @@ declare global {
   const deletePageWithUndo: typeof import('./lib/page-delete-actions').deletePageWithUndo
   const deleteWebdavBackup: typeof import('./lib/webdavSync').deleteWebdavBackup
   const describeDiskWriteError: typeof import('./lib/diskWriteError').describeDiskWriteError
-  const detectBlockScopeHeuristic: typeof import('./lib/ai-block-scope').detectBlockScopeHeuristic
   const downloadWebdavBackup: typeof import('./lib/webdavSync').downloadWebdavBackup
   const editorSplitPersistKey: typeof import('./stores/useEditorSplit').editorSplitPersistKey
   const effectiveSingleTabMode: typeof import('./lib/tabMode').effectiveSingleTabMode
@@ -273,7 +272,6 @@ declare global {
   const exportToWord: typeof import('./lib/docxExport/index').exportToWord
   const extractAssetReferencesFromMarkdown: typeof import('./lib/local-folder-asset-maintenance').extractAssetReferencesFromMarkdown
   const extractBlockNoteTitle: typeof import('./components/editor/utils/blocknote-content/index').extractBlockNoteTitle
-  const extractBlocksInRange: typeof import('./lib/ai-block-scope').extractBlocksInRange
   const extractClipboardImageFiles: typeof import('./components/editor/utils/pasteClipboardImage').extractClipboardImageFiles
   const extractFirstHeadingText: typeof import('./lib/local-title-binding').extractFirstHeadingText
   const extractFrontmatter: typeof import('./lib/markdown-raw-guard').extractFrontmatter
@@ -702,9 +700,6 @@ declare global {
   // @ts-ignore
   export type { TabType, TabItem } from './stores/useTabs'
   import('./stores/useTabs')
-  // @ts-ignore
-  export type { AiBlockScopeKind, AiBlockScopeRange, AiBlockScope } from './lib/ai-block-scope'
-  import('./lib/ai-block-scope')
   // @ts-ignore
   export type { CustomAIProtocol, AIProviderIdLike, AIModelOption, AIReasoningLevel, AISettingsLike, AIMessage, AIStreamPhase, AIStreamUpdate, AIRequestOverrides, RunAITextOptions, RunAITextStreamOptions, AIProviderId, AIProviderPreset } from './lib/ai-provider/index'
   import('./lib/ai-provider/index')
