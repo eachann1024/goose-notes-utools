@@ -104,6 +104,7 @@ declare global {
   const Input: typeof import('./components/ui/input').Input
   const Kbd: typeof import('./components/ui/kbd').Kbd
   const LEGACY_BLOCK_TYPES: typeof import('./components/editor/utils/blocknote-content/index').LEGACY_BLOCK_TYPES
+  const LEGACY_ONBOARDING_GUIDE_TITLE: typeof import('./lib/onboardingContent').LEGACY_ONBOARDING_GUIDE_TITLE
   const LIST_PASTE_BLOCK_TYPES: typeof import('./components/editor/utils/multilinePaste').LIST_PASTE_BLOCK_TYPES
   const LOCAL_FOLDER_EDITOR_CANDIDATES: typeof import('./lib/local-folder-open-apps').LOCAL_FOLDER_EDITOR_CANDIDATES
   const LOCAL_FOLDER_FILE_MANAGER_CANDIDATES: typeof import('./lib/local-folder-open-apps').LOCAL_FOLDER_FILE_MANAGER_CANDIDATES
@@ -118,6 +119,7 @@ declare global {
   const NOTEBOOK_AI_TAB_PAGE_ID_PREFIX: typeof import('./stores/useTabs').NOTEBOOK_AI_TAB_PAGE_ID_PREFIX
   const NOTEBOOK_THEME: typeof import('./lib/imageExport/index').NOTEBOOK_THEME
   const ONBOARDING_CHILD_PAGE_CONTENT: typeof import('./lib/onboarding').ONBOARDING_CHILD_PAGE_CONTENT
+  const ONBOARDING_GUIDE_TITLE: typeof import('./lib/onboardingContent').ONBOARDING_GUIDE_TITLE
   const ONBOARDING_PAGE_CONTENT: typeof import('./lib/onboarding').ONBOARDING_PAGE_CONTENT
   const ONBOARDING_SECOND_CHILD_CONTENT: typeof import('./lib/onboarding').ONBOARDING_SECOND_CHILD_CONTENT
   const ONBOARDING_THIRD_CHILD_CONTENT: typeof import('./lib/onboarding').ONBOARDING_THIRD_CHILD_CONTENT

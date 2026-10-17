@@ -79,7 +79,7 @@ export const quickNoteWindow = {
 
   /**
    * B 插件保存：通过 utools.redirect 把草稿内容回传 A 插件落库。
-   * A 插件 pluginName="鹅的笔记"，feature cmds=["速记入库"]。
+   * 匹配键仍是 feature cmd「鹅的笔记」（plugin.json 保留该关键词），不是显示名。
    * blocks 直接传 PartialBlock[] 原值，A 侧落库时自行 normalize。
    */
   redirectSaveToMainApp(blocks: unknown): boolean {

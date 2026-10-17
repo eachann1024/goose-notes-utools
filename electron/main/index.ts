@@ -25,6 +25,7 @@ const DEFAULT_WAKE = "CmdOrCtrl+Alt+N";
 const DEFAULT_QUICKNOTE = "CmdOrCtrl+Alt+Q";
 const DEFAULT_SEARCH = "CmdOrCtrl+K";
 
+// userData 目录跟着这个名字走，升级后不能改。
 app.setName("Goose Note");
 
 if (process.platform === "linux") {
