@@ -87,7 +87,7 @@ export async function inspectNotebookImportZip(
     pageCount += 1;
   });
   if (notebookNames.size === 0 || pageCount === 0) {
-    throw new Error("ZIP 中没有可恢复的鹅的笔记数据");
+    throw new Error("ZIP 中没有可恢复的思绪 · Thinkly 数据");
   }
   return {
     source: "folders",

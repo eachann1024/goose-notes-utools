@@ -1,4 +1,6 @@
-# 鹅的笔记 · goose-notes
+# 思绪 · Thinkly
+
+Thinkly: Keep every passing thought. Ask your past anytime.
 
 A local-first, Notion-style note-taking app — built as a [uTools](https://u.tools/) plugin, also runnable in the browser.
 

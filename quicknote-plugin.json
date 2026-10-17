@@ -2,7 +2,7 @@
   "name": "goose-quicknote",
   "title": "鹅的小窗",
   "pluginName": "鹅的小窗",
-  "description": "鹅的笔记 · 独立速记小窗。置顶草稿便签，快捷键展开或收起，写完可一键存进鹅的笔记。",
+  "description": "思绪 · Thinkly 的独立速记小窗。置顶草稿便签，快捷键展开或收起，写完可一键存进思绪 · Thinkly。",
   "author": "Antigravity",
   "homepage": "https://github.com/eachann1024/goose-notes",
   "version": "0.0.2",

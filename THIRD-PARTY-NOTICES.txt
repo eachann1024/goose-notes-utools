@@ -1,4 +1,4 @@
-Goose Note — Copyright (c) 2026 eachann1024
+Thinkly — Copyright (c) 2026 eachann1024
 Project: https://github.com/eachann1024/goose-notes-utools
 Current project license: MIT (see LICENSE).
 No warranty. Third-party portions retain their original notices and licenses.
