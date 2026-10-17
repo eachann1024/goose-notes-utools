@@ -1,6 +1,6 @@
 "use strict";
 
-/** 主插件「打开鹅的笔记」feature.code，与 plugin.json 一致。 */
+/** 主插件「打开思绪 · Thinkly」feature.code，与 plugin.json 一致。 */
 const MAIN_FEATURE_CODE = "gn";
 
 /**

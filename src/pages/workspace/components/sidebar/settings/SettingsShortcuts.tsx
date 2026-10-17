@@ -452,7 +452,7 @@ function DesktopGlobalHotkeysCard({
       <ShortcutField
         id="wake-hotkey"
         title="主窗口唤出 / 隐藏"
-        description="全局唤出或隐藏 Goose Note 主窗口。"
+        description="全局唤出或隐藏思绪 · Thinkly 主窗口。"
         value={desktop.wakeHotkeyEnabled ? desktop.wakeHotkey : ""}
         onChange={makeDesktopSetter(
           "wake-hotkey",

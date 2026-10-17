@@ -8,7 +8,7 @@ export const isElectronHost = __HOST_TARGET__ === "electron";
 
 const WELCOME_FILE_NAME = "欢迎.md";
 
-const WELCOME_MARKDOWN = `# 欢迎使用鹅的笔记
+const WELCOME_MARKDOWN = `# 欢迎使用思绪 · Thinkly
 
 这个文件夹就是你的笔记仓库，所有内容都以 Markdown 文件保存在本地磁盘。
 

@@ -8,6 +8,10 @@ import {
   ONBOARDING_SECOND_CHILD_CONTENT,
   ONBOARDING_THIRD_CHILD_CONTENT,
 } from "@/lib/onboarding";
+import {
+  ONBOARDING_GUIDE_TITLE,
+  LEGACY_ONBOARDING_GUIDE_TITLE,
+} from "@/lib/onboardingContent";
 import { savePagesMeta } from "@/lib/storage/pageRepository";
 import { persistPageSnapshot, persistPageSnapshots } from "../../persistence";
 import type { StoreSet, StoreGet } from "../hydrate";
@@ -20,12 +24,14 @@ export const createOnboardingPagesAction = (set: StoreSet, get: StoreGet) => {
   const workspaceId = DEFAULT_NOTEBOOK;
 
   set((state) => {
-    const hasExistingOnboardingPage = Object.values(state.pages).some(
-      (page) =>
-        page.workspaceId === workspaceId &&
-        !page.trashedAt &&
-        extractTitleFromContent(page.content) === "鹅的笔记 · 新手指南",
-    );
+    const hasExistingOnboardingPage = Object.values(state.pages).some((page) => {
+      if (page.workspaceId !== workspaceId || page.trashedAt) return false;
+      const title = extractTitleFromContent(page.content);
+      return (
+        title === ONBOARDING_GUIDE_TITLE ||
+        title === LEGACY_ONBOARDING_GUIDE_TITLE
+      );
+    });
 
     if (state.onboardingCompleted || hasExistingOnboardingPage) {
       if (state.onboardingCompleted) return state;

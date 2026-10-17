@@ -419,7 +419,7 @@ export function createWorkspaceWindow(
   const id = allocWindowId(opts.windowId);
   const bounds = resolveCreateBounds(opts);
   const win = new BrowserWindow({
-    title: "Goose Note",
+    title: "思绪 · Thinkly",
     width: bounds.width ?? MAIN_WIDTH,
     height: bounds.height ?? MAIN_HEIGHT,
     ...(bounds.x != null && bounds.y != null ? { x: bounds.x, y: bounds.y } : {}),

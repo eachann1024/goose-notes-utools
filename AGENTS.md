@@ -1,4 +1,4 @@
-# 鹅的笔记 · uTools 插件
+# 思绪 · Thinkly · uTools 插件
 
 - 本仓长期维护 uTools 插件版，只发布插件包；同源 Electron 桌面版在 `goose-notes`，不沿用桌面 App 的交付流程。
 - 开始任务先判断目标属于速记小窗、常规笔记本或两者共享；速记小窗是独立轻量草稿，入口 `quicknote.html`，由 `__GOOSE_LITE__` 和 `quicknote.css` 隔离。
