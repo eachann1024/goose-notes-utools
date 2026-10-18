@@ -332,6 +332,27 @@ body,
   background: hsl(var(--muted-foreground) / 0.4);
 }
 
+.quicknote-help-store {
+  flex: 0 0 auto;
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.quicknote-help-store-link {
+  color: #2563eb;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.dark .quicknote-help-store-link {
+  color: #60a5fa;
+}
+
 /* 选中文字后的格式栏属于速记小窗：横向铺满并吸附窗口底边，不做悬浮胶囊。 */
 .goose-formatting-toolbar-dock [data-formatting-toolbar] {
   width: 100%;
