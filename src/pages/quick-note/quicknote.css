@@ -455,9 +455,15 @@ body,
 
 .quicknote-slot-switcher[data-scrubbing="true"],
 .quicknote-slot-switcher[data-scrubbing="true"] .quicknote-slot-btn {
-  cursor: ew-resize;
   user-select: none;
   touch-action: none;
+}
+
+/* 只在真正横滑时盖住光标。按下瞬间改按钮 cursor，Chromium 会把
+   ew-resize 粘在鼠标上，松手后仍显示按住光标。 */
+html.quicknote-slot-scrubbing,
+html.quicknote-slot-scrubbing * {
+  cursor: ew-resize !important;
 }
 
 .quicknote-slot-btn-label {

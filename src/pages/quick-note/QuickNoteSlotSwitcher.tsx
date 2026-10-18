@@ -82,6 +82,7 @@ export function QuickNoteSlotSwitcher({
   };
 
   const commitAndEnd = (slot: QuickNoteSlot) => {
+    releaseScrubCursor();
     if (!scrubbingRef.current) return;
     scrubbingRef.current = false;
     previewSlotRef.current = null;
@@ -92,6 +93,7 @@ export function QuickNoteSlotSwitcher({
   };
 
   const endScrubWithoutCommit = () => {
+    releaseScrubCursor();
     if (!scrubbingRef.current) return;
     scrubbingRef.current = false;
     previewSlotRef.current = null;
@@ -178,13 +180,41 @@ export function QuickNoteSlotSwitcher({
   };
 
   const stopWindowScrubListeners = useRef<(() => void) | null>(null);
+  const scrubCursorArmedRef = useRef(false);
 
   const detachWindowScrubListeners = () => {
     stopWindowScrubListeners.current?.();
     stopWindowScrubListeners.current = null;
   };
 
-  useEffect(() => () => detachWindowScrubListeners(), []);
+  const releaseScrubCursor = () => {
+    if (!scrubCursorArmedRef.current) return;
+    scrubCursorArmedRef.current = false;
+    const root = document.documentElement;
+    root.classList.remove("quicknote-slot-scrubbing");
+    // 拖动中改过光标时，松手后 Chromium 会留着按下态光标，强制刷回默认再清掉。
+    root.style.cursor = "default";
+    requestAnimationFrame(() => {
+      root.style.removeProperty("cursor");
+    });
+  };
+
+  const armScrubCursor = () => {
+    if (scrubCursorArmedRef.current) return;
+    scrubCursorArmedRef.current = true;
+    setScrubbing(true);
+    document.documentElement.classList.add("quicknote-slot-scrubbing");
+  };
+
+  useEffect(
+    () => () => {
+      detachWindowScrubListeners();
+      scrubCursorArmedRef.current = false;
+      document.documentElement.classList.remove("quicknote-slot-scrubbing");
+      document.documentElement.style.removeProperty("cursor");
+    },
+    [],
+  );
 
   const onPointerDown = (
     e: ReactPointerEvent<HTMLButtonElement>,
@@ -198,12 +228,19 @@ export function QuickNoteSlotSwitcher({
     scrubbingRef.current = true;
     pointerStartSlotRef.current = slot;
     pointerMovedAcrossSlotsRef.current = false;
-    setScrubbing(true);
     updatePreview(slot);
+    const originX = e.clientX;
+    const originY = e.clientY;
 
     const onMove = (ev: PointerEvent) => {
       if (!scrubbingRef.current) return;
       const next = slotFromPoint(ev.clientX, ev.clientY);
+      const dx = ev.clientX - originX;
+      const dy = ev.clientY - originY;
+      const dragged =
+        dx * dx + dy * dy >= 16 ||
+        (next != null && next !== pointerStartSlotRef.current);
+      if (dragged) armScrubCursor();
       if (next != null) {
         if (next !== pointerStartSlotRef.current) {
           pointerMovedAcrossSlotsRef.current = true;
@@ -214,6 +251,7 @@ export function QuickNoteSlotSwitcher({
 
     const finish = (ev: PointerEvent) => {
       if (!scrubbingRef.current) {
+        releaseScrubCursor();
         detachWindowScrubListeners();
         return;
       }
