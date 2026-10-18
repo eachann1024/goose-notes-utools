@@ -1,6 +1,4 @@
-# 思绪 · Thinkly
-
-Thinkly: Keep every passing thought. Ask your past anytime.
+# 鹅的笔记
 
 A local-first, Notion-style note-taking app — built as a [uTools](https://u.tools/) plugin, also runnable in the browser.
 
@@ -71,7 +69,7 @@ bun run win:dev
 bun run win
 ```
 
-正式桌面版在独立仓库 goose-note。这里若仍打出 `.app`，文件名保持 `Goose Note.app`（userData 目录跟着这个名字，不能改）；界面显示名是「思绪 · Thinkly」。未签名包请先 zip 再发，接收方解压后若提示已损坏，执行 `xattr -cr "/path/to/Goose Note.app"`。
+正式桌面版在独立仓库 goose-note。这里若仍打出 `.app`，文件名保持 `Goose Note.app`（userData 目录跟着这个名字，不能改）；界面显示名是「鹅的笔记」。未签名包请先 zip 再发，接收方解压后若提示已损坏，执行 `xattr -cr "/path/to/Goose Note.app"`。
 
 桌面端 = Obsidian 式「仅本地文件夹」：无自带/内置笔记本（不种 default-notebook、不种新手引导页、UI 无「新建记事本」），仓库 = local-folder 挂载列表；无仓库时为空态（打开文件夹 / 新建仓库），允许移除最后一个仓库回到空态。残留的旧内置页（web-db `gn:page:*`）不灌进侧栏，可在「设置 → 本地文件夹」一次性导出为 .md（不静默迁移、不自动删除）。
 

@@ -136,7 +136,7 @@ export const hostRuntime: HostRuntime = {
   showNotification: (body: string) => {
     const api = getGooseDesktop();
     if (api) {
-      void api.notify({ title: "思绪 · Thinkly", body }).catch(() => {});
+      void api.notify({ title: "鹅的笔记", body }).catch(() => {});
       return;
     }
     try {

@@ -1,12 +1,10 @@
-# 思绪 · Thinkly
+# 鹅的笔记
 
 ![封面](cover.png)
 
-> 思绪 Thinkly：安放每一瞬念头，随时向过去提问
-> Thinkly: Keep every passing thought. Ask your past anytime.
+> 本地化的 Notion 风格笔记，uTools 插件。
 
-> **uTools 插件版**：本仓库是「思绪 · Thinkly」的 uTools 插件版（同时可在浏览器中运行），与桌面版 [eachann1024/goose-note](https://github.com/eachann1024/goose-note) 各自独立开发、独立发布。
-> This repository is the uTools plugin edition of Thinkly. It is developed and released independently from the desktop edition, [eachann1024/goose-note](https://github.com/eachann1024/goose-note).
+> 本仓库只发布 uTools 插件。桌面版已改名为「思绪 · Thinkly」，在 [eachann1024/goose-note](https://github.com/eachann1024/goose-note)，两边分开开发和发布。
 
 把本机 Markdown 文件夹和独立速记小窗收成一本可被助手读写的笔记，而不是再做一个云端 Notion。
 
@@ -14,7 +12,7 @@
 
 https://github.com/user-attachments/assets/95f9bf50-3992-4f99-a256-b52ee6f41b74
 
-<sub>75 秒看完思绪 · Thinkly，视频取自桌面版。其中 Git 同步为桌面版功能，uTools 插件版没有；其余本地 Markdown、速记小窗、块编辑器、WebDAV 备份、自带 Key 的 AI、历史里程碑与导出，插件版都有。</sub>
+<sub>视频取自桌面版。其中 Git 同步为桌面版功能，uTools 插件没有；其余本地 Markdown、速记小窗、块编辑器、WebDAV 备份、自带 Key 的 AI、历史里程碑与导出，插件都有。</sub>
 
 ## 大功能
 

@@ -29,7 +29,7 @@ const linuxMaintainer =
   (pkg.author?.email
     ? `${pkg.author.name} <${pkg.author.email}>`.trim()
     : undefined) ||
-  "Thinkly <goose-note@users.noreply.github.com>";
+  "Goose Note <goose-note@users.noreply.github.com>";
 
 rmSync(pack, { recursive: true, force: true });
 mkdirSync(pack, { recursive: true });
@@ -96,7 +96,7 @@ writeFileSync(
   `appId: com.goosenote.desktop
 # productName 决定安装包文件名和 userData，保持 Goose Note。
 productName: Goose Note
-copyright: Copyright © Thinkly
+copyright: Copyright © Goose Note
 directories:
   output: ../packaged
 asar: true
@@ -140,8 +140,8 @@ mac:
   gatekeeperAssess: false
   extendInfo:
     LSMultipleInstancesProhibited: true
-    NSAppleEventsUsageDescription: 思绪 · Thinkly 需要发送系统事件，以便用快捷键唤出主窗口和速记小窗。
-    NSAccessibilityUsageDescription: 思绪 · Thinkly 需要辅助功能权限，以便在其他应用处于前台时用快捷键唤出主窗口和速记小窗。
+    NSAppleEventsUsageDescription: 鹅的笔记 需要发送系统事件，以便用快捷键唤出主窗口和速记小窗。
+    NSAccessibilityUsageDescription: 鹅的笔记 需要辅助功能权限，以便在其他应用处于前台时用快捷键唤出主窗口和速记小窗。
   target:
     - target: dir
       arch:
@@ -170,8 +170,8 @@ linux:
     - rpm
   desktop:
     entry:
-      Name: "思绪 · Thinkly"
-      Comment: "Thinkly: Keep every passing thought. Ask your past anytime."
+      Name: "鹅的笔记"
+      Comment: "鹅的笔记"
       Categories: Office;Note;
       MimeType: text/markdown;text/x-markdown;
       StartupWMClass: goose-note

@@ -269,7 +269,7 @@ function BootstrapScreen({ lean, error }: { lean: boolean; error?: unknown }) {
       </div>
       {error ? (
         <>
-          <h1>思绪 · Thinkly 暂时无法打开</h1>
+          <h1>鹅的笔记 暂时无法打开</h1>
           <p>
             {lean
               ? "速记初始化没有完成，草稿数据仍保留在本地。"
@@ -282,7 +282,7 @@ function BootstrapScreen({ lean, error }: { lean: boolean; error?: unknown }) {
         </>
       ) : (
         <>
-          <h1>{lean ? "正在打开速记" : "正在打开思绪 · Thinkly"}</h1>
+          <h1>{lean ? "正在打开速记" : "正在打开鹅的笔记"}</h1>
           <p>{lean ? "正在恢复草稿…" : "正在恢复本地笔记与设置…"}</p>
           <span className="bootstrap-screen__progress" aria-hidden="true" />
         </>

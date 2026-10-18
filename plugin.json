@@ -1,6 +1,6 @@
 {
-  "pluginName": "思绪 · Thinkly",
-  "description": "思绪 Thinkly：安放每一瞬念头，随时向过去提问",
+  "pluginName": "鹅的笔记",
+  "description": "本地化的Notion风格笔记",
   "author": "Antigravity",
   "homepage": "https://github.com/eachann1024/goose-notes-utools",
   "version": "9.0.4",
@@ -12,10 +12,10 @@
   "features": [
     {
       "code": "gn",
-      "explain": "打开思绪 · Thinkly",
+      "explain": "打开鹅的笔记",
       "cmds": [
-        "思绪",
-        "Thinkly",
+        "Goose Note",
+        "鹅的笔记",
         "笔记",
         "gn"
       ]
@@ -37,14 +37,14 @@
         {
           "type": "files",
           "fileType": "directory",
-          "label": "用思绪 · Thinkly 打开",
+          "label": "用鹅的笔记 打开",
           "maxLength": 1
         },
         {
           "type": "files",
           "fileType": "file",
           "match": "/\\.(md|markdown)$/i",
-          "label": "用思绪 · Thinkly 打开",
+          "label": "用鹅的笔记 打开",
           "minLength": 1,
           "maxLength": 1
         }
@@ -61,7 +61,7 @@
   ],
   "tools": {
     "list_notebooks": {
-      "description": "列出思绪 · Thinkly 中可访问的记事本，包括应用内记事本与已挂载的本地文件夹记事本。",
+      "description": "列出鹅的笔记 中可访问的记事本，包括应用内记事本与已挂载的本地文件夹记事本。",
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -122,7 +122,7 @@
       }
     },
     "list_notes": {
-      "description": "分页列出思绪 · Thinkly 中的笔记内容，支持按记事本、来源、排序和回收站状态过滤。",
+      "description": "分页列出鹅的笔记 中的笔记内容，支持按记事本、来源、排序和回收站状态过滤。",
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -256,7 +256,7 @@
       }
     },
     "search_notes": {
-      "description": "按关键词搜索思绪 · Thinkly 标题和正文，默认不包含文件夹节点。",
+      "description": "按关键词搜索鹅的笔记 标题和正文，默认不包含文件夹节点。",
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -476,7 +476,7 @@
       }
     },
     "get_mcp_capabilities": {
-      "description": "获取思绪 · Thinkly MCP 能力、版本与写入约束，用于客户端发现可用工具。",
+      "description": "获取鹅的笔记 MCP 能力、版本与写入约束，用于客户端发现可用工具。",
       "inputSchema": {
         "type": "object",
         "additionalProperties": false
@@ -666,5 +666,5 @@
   "main": "app/index.html",
   "preload": "preload/preload.cjs",
   "name": "goose-notes",
-  "title": "思绪 · Thinkly"
+  "title": "鹅的笔记"
 }

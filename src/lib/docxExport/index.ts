@@ -96,7 +96,7 @@ async function buildDocxDocument(page: Page): Promise<Document> {
       });
 
   return new Document({
-    creator: "Thinkly",
+    creator: "Goose Note",
     title,
     styles: {
       default: {

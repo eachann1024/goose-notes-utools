@@ -684,7 +684,7 @@ export function HistoryReader() {
         title={indexError ? "历史列表无法读取" : "暂无历史版本"}
         description={
           indexError ??
-          "停笔一段时间后，思绪 · Thinkly 会自动保存可回看的历史。"
+          "停笔一段时间后，鹅的笔记 会自动保存可回看的历史。"
         }
       />
     );

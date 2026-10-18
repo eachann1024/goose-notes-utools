@@ -3,9 +3,9 @@ import type { BlockNoteContent } from "@/components/editor/utils/blocknote-conte
 import { getFixedAppShortcuts } from "@/lib/fixed-app-shortcuts";
 import { formatShortcut } from "@/lib/utils";
 
-export const ONBOARDING_GUIDE_TITLE = "思绪 · Thinkly · 新手指南";
-/** 已写入旧版笔记的标题。识别时仍算同一份新手指南，避免升级后重复创建。 */
-export const LEGACY_ONBOARDING_GUIDE_TITLE = "鹅的笔记 · 新手指南";
+export const ONBOARDING_GUIDE_TITLE = "鹅的笔记 · 新手指南";
+/** 曾误写成桌面版名字的标题。识别时仍算同一份新手指南，避免再开一份。 */
+export const LEGACY_ONBOARDING_GUIDE_TITLE = "思绪 · Thinkly · 新手指南";
 
 const WELCOME_IMAGE =
   "https://goose-notion-1257312034.cos.ap-guangzhou.myqcloud.com/welcome-cover.png";
@@ -322,7 +322,7 @@ function buildShortcutSection(section: ShortcutSection): PartialBlock[] {
 export const onboardingPageContent: BlockNoteContent = [
   heading(1, ONBOARDING_GUIDE_TITLE),
   paragraph(
-    "欢迎使用思绪 · Thinkly。这份文档不是功能堆砌，而是带你快速建立第一套使用习惯。",
+    "欢迎使用鹅的笔记。这份文档不是功能堆砌，而是带你快速建立第一套使用习惯。",
   ),
   paragraph("先用 3 分钟扫完，再边试边改，你会比死记快捷键更快上手。"),
   callout(
@@ -423,7 +423,7 @@ export const onboardingPageContent: BlockNoteContent = [
   heading(2, "示例区块"),
   paragraph("下面这些示例块可以直接改，边改边熟悉编辑体验。"),
   quote("灵感先记下来，结构可以稍后再整理。"),
-  codeBlock('print("Hello, Thinkly")\nlog("记录想法，比回忆更可靠")'),
+  codeBlock('print("Hello, Goose Note")\nlog("记录想法，比回忆更可靠")'),
   paragraph("行内公式示例：E=mc^2，适合穿插在普通句子里。"),
   codeBlock("f(x)=\\int_0^1 x^2 \, dx", "math"),
   codeBlock(
@@ -495,7 +495,7 @@ export const onboardingSecondChildContent: BlockNoteContent = [
 export const onboardingThirdChildContent: BlockNoteContent = [
   heading(1, "生产 HTML 与图片指南"),
   paragraph(
-    "思绪 · Thinkly 不仅是本地知识库，更是强大的内容生产与分享工具。你可以一键生成精美长图/选区卡片、导出单文件离线 HTML 网页，或借助 AI 创作可交互的 HTML 小组件。",
+    "鹅的笔记不仅是本地知识库，更是强大的内容生产与分享工具。你可以一键生成精美长图/选区卡片、导出单文件离线 HTML 网页，或借助 AI 创作可交互的 HTML 小组件。",
   ),
   callout(
     "🎨",
