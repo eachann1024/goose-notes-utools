@@ -1,6 +1,6 @@
 # MCP 工具
 
-思绪 · Thinkly 通过 uTools 插件清单中的 `tools` + `utools.registerTool` 暴露原生 MCP 工具。安装构建产物后，支持 uTools MCP 的客户端会自动发现这些工具；不需要另行启动 HTTP / stdio MCP 服务，也不会把笔记数据上传到第三方。
+鹅的笔记 通过 uTools 插件清单中的 `tools` + `utools.registerTool` 暴露原生 MCP 工具。安装构建产物后，支持 uTools MCP 的客户端会自动发现这些工具；不需要另行启动 HTTP / stdio MCP 服务，也不会把笔记数据上传到第三方。
 
 正文对外只走 **Markdown 字符串**，不会把 BlockNote JSON 交给模型。
 
