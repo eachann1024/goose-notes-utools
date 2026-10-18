@@ -40,11 +40,20 @@ import {
 } from "./quickNoteShortcuts";
 import { isImeKeyboardEvent } from "@/hooks/useImeInput";
 import { formatShortcut, getPlatformKind } from "@/lib/utils";
+import { openExternalUrl } from "@/lib/openExternalUrl";
+import {
+  readPersistentDismissState,
+  writePersistentDismissState,
+} from "@/lib/dismiss-state";
 import { useSettings } from "@/stores/settings";
 import {
   computeEditorUiScale,
   EDITOR_UI_SCALE_CHANGE_EVENT,
 } from "@/lib/appearance";
+
+const QUICKNOTE_STORE_HINT_ID = "quicknote-note-store-hint";
+const GOOSE_NOTE_STORE_URL =
+  "https://www.u-tools.cn/plugins/detail/%E9%B9%85%E7%9A%84%E7%AC%94%E8%AE%B0/";
 
 const POSITION_POLL_IDLE_MS = 500;
 const POSITION_POLL_DRAG_MS = 120;
@@ -108,6 +117,9 @@ export function QuickNoteApp() {
    */
   const [previewSlot, setPreviewSlot] = useState<QuickNoteSlot | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [showStoreHint, setShowStoreHint] = useState(
+    () => !readPersistentDismissState(QUICKNOTE_STORE_HINT_ID),
+  );
   const [renamingSlot, setRenamingSlot] = useState<QuickNoteSlot | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -280,9 +292,15 @@ export function QuickNoteApp() {
     [flushEditor, setActiveSlot],
   );
 
-  const handleHelpOpenChange = useCallback((open: boolean) => {
-    setHelpOpen(open);
-  }, []);
+  const handleHelpOpenChange = useCallback(
+    (open: boolean) => {
+      setHelpOpen(open);
+      if (open || !showStoreHint) return;
+      writePersistentDismissState(QUICKNOTE_STORE_HINT_ID, true);
+      setShowStoreHint(false);
+    },
+    [showStoreHint],
+  );
 
   /** 拖动预览：只改显示槽，不写 activeSlot。 */
   const handlePreviewSlot = useCallback(
@@ -635,6 +653,19 @@ export function QuickNoteApp() {
                   收起。草稿、位置、尺寸和缩放都会保留。
                 </li>
               </ul>
+              {showStoreHint ? (
+                <p className="quicknote-help-store">
+                  本应用为鹅的笔记编外插件，感兴趣可以移步「
+                  <button
+                    type="button"
+                    className="quicknote-help-store-link"
+                    onClick={() => openExternalUrl(GOOSE_NOTE_STORE_URL)}
+                  >
+                    鹅的笔记
+                  </button>
+                  」
+                </p>
+              ) : null}
             </PopoverContent>
           </Popover>
           <button
