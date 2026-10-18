@@ -1,8 +1,53 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { TextSelection } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import { needsBodyParagraphAfterTitle } from "@/components/editor/utils/blocknote-content";
 import { isBottomEditorBlankClick } from "./EditorComposer";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import type { EditorInstance } from "./editorTypes";
+
+const BOTTOM_BLANK_DRAG_SLOP_PX = 4;
+
+/**
+ * 末块之下的 mousedown 时，ProseMirror 会挂上 LeftMouseDown，拖动超过 4px 后
+ * 把选区更新让给浏览器。空白处浏览器选不中文字，选区就停在文末。
+ * 接管手势前先结束这次鼠标跟踪，后续选区才能画到 DOM 上。
+ */
+function endProseMirrorMouseDrag(view: EditorView | null | undefined) {
+  const mouseDown = (
+    view as { input?: { mouseDown?: { done?: () => void } | null } } | null
+  )?.input?.mouseDown;
+  mouseDown?.done?.();
+}
+
+/** 从文末锚点拉到指针下的位置。指针仍在末块之下时保持折叠。 */
+function selectUpFromBottomBlank(
+  view: EditorView,
+  anchor: number,
+  clientX: number,
+  clientY: number,
+) {
+  if (!view.dom.isConnected) return;
+  const hit = view.posAtCoords({ left: clientX, top: clientY });
+  const doc = view.state.doc;
+  const max = doc.content.size;
+  const safeAnchor = Math.max(0, Math.min(anchor, max));
+  const safeHead = Math.max(0, Math.min(hit?.pos ?? safeAnchor, max));
+  let selection: TextSelection;
+  try {
+    selection = TextSelection.between(
+      doc.resolve(safeAnchor),
+      doc.resolve(safeHead),
+      safeHead <= safeAnchor ? -1 : 1,
+    );
+  } catch {
+    return;
+  }
+  if (selection.eq(view.state.selection)) return;
+  view.dispatch(
+    view.state.tr.setSelection(selection).setMeta("addToHistory", false),
+  );
+}
 
 export function useEditorFocus({
   editor,
@@ -74,18 +119,59 @@ export function useEditorFocus({
     focusEditorSafely();
   }, [editor, focusEditorSafely]);
 
+  const stopBottomDragRef = useRef<(() => void) | null>(null);
+
+  const beginBottomBlankDrag = useCallback(
+    (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      suppressFormattingToolbarRef.current = true;
+      setSuppressFormattingToolbar(true);
+      event.preventDefault();
+      endProseMirrorMouseDrag(editor.prosemirrorView);
+      focusEditorEnd();
+
+      const view = editor.prosemirrorView;
+      if (!view) return;
+      const anchor = view.state.selection.anchor;
+      const originX = event.clientX;
+      const originY = event.clientY;
+      let dragged = false;
+
+      const onMove = (ev: PointerEvent) => {
+        if (!dragged) {
+          const dx = ev.clientX - originX;
+          const dy = ev.clientY - originY;
+          if (dx * dx + dy * dy < BOTTOM_BLANK_DRAG_SLOP_PX ** 2) return;
+          dragged = true;
+        }
+        ev.preventDefault();
+        selectUpFromBottomBlank(view, anchor, ev.clientX, ev.clientY);
+      };
+
+      const stop = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", stop);
+        window.removeEventListener("pointercancel", stop);
+        if (stopBottomDragRef.current === stop) stopBottomDragRef.current = null;
+      };
+
+      stopBottomDragRef.current?.();
+      stopBottomDragRef.current = stop;
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", stop);
+      window.addEventListener("pointercancel", stop);
+    },
+    [editor, focusEditorEnd, setSuppressFormattingToolbar, suppressFormattingToolbarRef],
+  );
+
   const handleEditorBlankMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (!editable || event.button !== 0) return;
       const container = editorContainerRef.current;
       if (!container || !isBottomEditorBlankClick(event, container)) return;
-
-      suppressFormattingToolbarRef.current = true;
-      setSuppressFormattingToolbar(true);
-      event.preventDefault();
-      focusEditorEnd();
+      beginBottomBlankDrag(event.nativeEvent);
     },
-    [editable, focusEditorEnd],
+    [editable, beginBottomBlankDrag, editorContainerRef],
   );
 
   // 补丁：EditorContextMenu 容器高度 = 内容高度（flex-1 min-h-0），
@@ -114,18 +200,15 @@ export function useEditorFocus({
       if (!lastBlock) return;
       if (event.clientY < lastBlock.getBoundingClientRect().bottom) return;
 
-      // 点击确实在末块之下，阻止默认行为并聚焦末尾
-      suppressFormattingToolbarRef.current = true;
-      setSuppressFormattingToolbar(true);
-      event.preventDefault();
-      focusEditorEnd();
+      beginBottomBlankDrag(event);
     };
 
     document.addEventListener("mousedown", handleDocMouseDown, true);
     return () => {
       document.removeEventListener("mousedown", handleDocMouseDown, true);
+      stopBottomDragRef.current?.();
     };
-  }, [editable, focusEditorEnd]);
+  }, [editable, beginBottomBlankDrag, editorContainerRef]);
 
   // 消闪 mouseup 清理：空白区域 mousedown 后抑制格式化工具栏，mouseup 时恢复。
   // 兜底 blur：鼠标拖出窗口松开时 document mouseup 不触发，window blur 覆盖此场景。
