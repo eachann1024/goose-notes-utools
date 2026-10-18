@@ -5,8 +5,8 @@
 > 思绪 Thinkly：安放每一瞬念头，随时向过去提问
 > Thinkly: Keep every passing thought. Ask your past anytime.
 
-> **uTools 插件版**：本仓库是「思绪 · Thinkly」的 uTools 插件版（同时可在浏览器中运行），与桌面版 [eachann1024/goose-notes](https://github.com/eachann1024/goose-notes) 各自独立开发、独立发布。
-> This repository is the uTools plugin edition of Thinkly. It is developed and released independently from the desktop edition, [eachann1024/goose-notes](https://github.com/eachann1024/goose-notes).
+> **uTools 插件版**：本仓库是「思绪 · Thinkly」的 uTools 插件版（同时可在浏览器中运行），与桌面版 [eachann1024/goose-note](https://github.com/eachann1024/goose-note) 各自独立开发、独立发布。
+> This repository is the uTools plugin edition of Thinkly. It is developed and released independently from the desktop edition, [eachann1024/goose-note](https://github.com/eachann1024/goose-note).
 
 把本机 Markdown 文件夹和独立速记小窗收成一本可被助手读写的笔记，而不是再做一个云端 Notion。
 
@@ -30,7 +30,7 @@ https://github.com/user-attachments/assets/95f9bf50-3992-4f99-a256-b52ee6f41b74
 
 ## 同系列
 
-- [思绪 · Thinkly](https://github.com/eachann1024/goose-notes)
+- [思绪 · Thinkly（桌面版）](https://github.com/eachann1024/goose-note)
 - [鹅的书签](https://github.com/eachann1024/goose-mark)
 - [鹅的监控](https://github.com/eachann1024/goose-monitor)
 - [鹅的验证](https://github.com/eachann1024/goose-2fa)
@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/95f9bf50-3992-4f99-a256-b52ee6f41b74
 
 开发说明见 [DEVELOP.md](DEVELOP.md)。
 
-桌面端 `.app` 未签名：微信无法直接发送 `.app`，请 zip 后发送；接收方解压后执行 `xattr -cr "Goose Note.app"` 再打开。
+桌面版安装包在 [goose-note](https://github.com/eachann1024/goose-note)。磁盘上的包名仍是 `Goose Note.app`，用来保住已有数据目录。
 
 ## 许可
 

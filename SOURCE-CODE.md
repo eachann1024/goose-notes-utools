@@ -2,7 +2,7 @@
 
 项目：https://github.com/eachann1024/goose-notes-utools（uTools 插件版，MIT）
 
-桌面版仓库：https://github.com/eachann1024/goose-notes
+桌面版仓库：https://github.com/eachann1024/goose-note
 
 项目源码已公开，当前源码使用 MIT。历史版本沿用其发布时的许可。
 

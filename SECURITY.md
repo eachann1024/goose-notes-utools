@@ -2,10 +2,10 @@
 
 ## Reporting a vulnerability
 
-If you discover a security vulnerability in goose-note, **please do not open a
+If you discover a security vulnerability in this uTools plugin, **please do not open a
 public issue**. Instead, report it privately:
 
-- Use GitHub's [private vulnerability reporting](https://github.com/eachann1024/goose-notes/security/advisories/new)
+- Use GitHub's [private vulnerability reporting](https://github.com/eachann1024/goose-notes-utools/security/advisories/new)
   (Security → Advisories → Report a vulnerability), or
 - Open a minimal issue asking for a private contact channel without disclosing details.
 
@@ -21,7 +21,7 @@ disclosure.
 
 ## Scope
 
-goose-note is a local-first note-taking app. Of particular interest:
+This plugin is a local-first note-taking app. Of particular interest:
 
 - Issues that could expose or corrupt local notebook data
 - Issues in the local-folder mounting / file-system access paths

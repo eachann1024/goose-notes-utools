@@ -1,6 +1,6 @@
 # Internal development guide
 
-goose-note is licensed under the MIT License; see [LICENSE](./LICENSE).
+This uTools plugin is licensed under the MIT License; see [LICENSE](./LICENSE).
 Contributions must be compatible with that license and preserve third-party
 notices (see [THIRD-PARTY-NOTICES.txt](./THIRD-PARTY-NOTICES.txt)).
 
