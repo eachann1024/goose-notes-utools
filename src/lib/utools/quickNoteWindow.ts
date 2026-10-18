@@ -79,14 +79,14 @@ export const quickNoteWindow = {
 
   /**
    * B 插件保存：通过 utools.redirect 把草稿内容回传 A 插件落库。
-   * 匹配键仍是 feature cmd「鹅的笔记」（plugin.json 保留该关键词），不是显示名。
+   * 匹配键是主插件 feature cmd「思绪」，不是窗口标题。
    * blocks 直接传 PartialBlock[] 原值，A 侧落库时自行 normalize。
    */
   redirectSaveToMainApp(blocks: unknown): boolean {
     const ut = getUToolsApi();
     if (!ut || typeof ut.redirect !== "function") return false;
     try {
-      ut.redirect(["鹅的笔记", "速记入库"], JSON.stringify(blocks));
+      ut.redirect(["思绪", "速记入库"], JSON.stringify(blocks));
       return true;
     } catch {
       return false;

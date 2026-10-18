@@ -2,7 +2,7 @@
   "pluginName": "思绪 · Thinkly",
   "description": "思绪 Thinkly：安放每一瞬念头，随时向过去提问",
   "author": "Antigravity",
-  "homepage": "https://github.com/eachann1024/goose-notes",
+  "homepage": "https://github.com/eachann1024/goose-notes-utools",
   "version": "9.0.4",
   "logo": "logo.png",
   "pluginSetting": {
@@ -14,12 +14,10 @@
       "code": "gn",
       "explain": "打开思绪 · Thinkly",
       "cmds": [
-        "Goose Note",
-        "鹅的笔记",
-        "笔记",
-        "gn",
         "思绪",
-        "Thinkly"
+        "Thinkly",
+        "笔记",
+        "gn"
       ]
     },
     {

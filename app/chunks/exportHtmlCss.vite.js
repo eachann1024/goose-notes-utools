@@ -1226,8 +1226,9 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
 /* 飞书式列表圆点：不用字体字形 / radial-gradient（硬切边在旧 Chromium
    锯齿明显），改用 border-radius 几何圆。圆心仍固定在 center-x、首行
    垂直中心 0.75em；默认 16px 正文下一级圆点直径 6.75px，随字号缩放。
-   marker 槽总占位仍为 1.5em（左右 margin 补齐），避免正文起点偏移。 */
-.workspace-shell
+   marker 槽总占位仍为 1.5em（左右 margin 补齐），避免正文起点偏移。
+   速记小窗没有 .workspace-shell，但编辑面同样带 .workspace-editor-surface。 */
+:is(.workspace-shell, .quicknote-root)
   .workspace-editor-surface
   .bn-block-content[data-content-type="bulletListItem"]::before {
   content: "" !important;
@@ -1292,8 +1293,14 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   > .bn-block
   > .bn-block-content[data-content-type="bulletListItem"]::before {
   content: "" !important;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  /* BlockNote 给 ::before 的 min-width:24px 会把圆环拉成横椭圆。 */
+  min-width: 0;
   width: calc(2 * var(--goose-bullet-marker-radius-nested));
   height: calc(2 * var(--goose-bullet-marker-radius-nested));
+  padding: 0;
   margin-top: calc(0.75em - var(--goose-bullet-marker-radius-nested));
   margin-left: calc(
     var(--goose-bullet-marker-center-x) - var(--goose-bullet-marker-radius-nested)
@@ -1322,8 +1329,13 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   > .bn-block
   > .bn-block-content[data-content-type="bulletListItem"]::before {
   content: "" !important;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  min-width: 0;
   width: var(--goose-bullet-marker-square);
   height: var(--goose-bullet-marker-square);
+  padding: 0;
   margin-top: calc(0.75em - var(--goose-bullet-marker-square) / 2);
   margin-left: calc(
     var(--goose-bullet-marker-center-x) - var(--goose-bullet-marker-square) / 2
