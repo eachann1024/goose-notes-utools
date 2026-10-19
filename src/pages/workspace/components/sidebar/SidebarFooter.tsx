@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as LucideIcons from "lucide-react";
 import { FeedbackSheet } from "@/components/FeedbackSheet";
+import { checkFeedbackUnread, useFeedbackUnread } from "@/lib/feedback";
 import {
   Tooltip,
   TooltipContent,
@@ -27,6 +28,21 @@ export function SidebarFooter({
   onSwitchToTrash,
   onOpenSettings,
 }: SidebarFooterProps) {
+  const unreadFeedback = useFeedbackUnread();
+  useEffect(() => {
+    const check = () => {
+      void checkFeedbackUnread("notes");
+    };
+    check();
+    const timer = setInterval(check, 60000);
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, []);
   const theme = useSettings((s) => s.theme);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const toggleDarkMode = useSettings((s) => s.toggleDarkMode);
@@ -42,7 +58,11 @@ export function SidebarFooter({
     ? formatShortcut(toggleSidebarShortcut)
     : "";
   const themeLabel =
-    theme === "system" ? "跟随系统" : theme === "dark" ? "深色模式" : "浅色模式";
+    theme === "system"
+      ? "跟随系统"
+      : theme === "dark"
+        ? "深色模式"
+        : "浅色模式";
   const ThemeIcon =
     theme === "system"
       ? LucideIcons.Laptop
@@ -57,117 +77,125 @@ export function SidebarFooter({
 
   return (
     <div className="mt-auto flex items-center justify-between gap-1 bg-[hsl(var(--goose-shell-bg))] px-2 pb-0 pt-1">
-        <div className="flex items-center gap-1">
-          {isElectronHost ? (
-            <TooltipProvider delayDuration={600}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(btnClass, alwaysOnTop && activeClass)}
-                    aria-label={alwaysOnTop ? "取消窗口置顶" : "窗口置顶"}
-                    aria-pressed={alwaysOnTop}
-                    data-active={alwaysOnTop ? "true" : "false"}
-                    onClick={toggleAlwaysOnTop}
-                  >
-                    <LucideIcons.Pin
-                      className={cn(
-                        "h-4 w-4",
-                        alwaysOnTop &&
-                          "fill-[var(--goose-interactive-selected-fg)]",
-                      )}
-                    />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <span>{alwaysOnTop ? "取消窗口置顶" : "窗口置顶"}</span>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : null}
+      <div className="flex items-center gap-1">
+        {isElectronHost ? (
           <TooltipProvider delayDuration={600}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className={cn(btnClass, sidebarCollapsed && activeClass)}
-                  aria-label="收起侧栏"
-                  aria-pressed={sidebarCollapsed}
-                  data-active={sidebarCollapsed ? "true" : "false"}
-                  onClick={toggleSidebarCollapsed}
+                  className={cn(btnClass, alwaysOnTop && activeClass)}
+                  aria-label={alwaysOnTop ? "取消窗口置顶" : "窗口置顶"}
+                  aria-pressed={alwaysOnTop}
+                  data-active={alwaysOnTop ? "true" : "false"}
+                  onClick={toggleAlwaysOnTop}
                 >
-                  <LucideIcons.PanelLeft className="h-4 w-4" />
+                  <LucideIcons.Pin
+                    className={cn(
+                      "h-4 w-4",
+                      alwaysOnTop &&
+                        "fill-[var(--goose-interactive-selected-fg)]",
+                    )}
+                  />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                <div className="flex items-center gap-2">
-                  <span>收起侧栏</span>
-                  {toggleSidebarShortcutLabel && (
-                    <span className="text-[11px] text-muted-foreground">
-                      {toggleSidebarShortcutLabel}
-                    </span>
-                  )}
-                </div>
+                <span>{alwaysOnTop ? "取消窗口置顶" : "窗口置顶"}</span>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          {!hideTrash && (
-            <button
-              type="button"
-              className={cn(
-                btnClass,
-                !isSettingsOpen && currentView === "trash" && activeClass,
-              )}
-              aria-label="垃圾箱"
-              aria-pressed={!isSettingsOpen && currentView === "trash"}
-              data-active={
-                !isSettingsOpen && currentView === "trash" ? "true" : "false"
-              }
-              onClick={onSwitchToTrash}
-            >
-              <LucideIcons.Trash2 className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            className={btnClass}
-            aria-label="反馈"
-            title="反馈"
-            data-feedback-entry
-            onClick={() => setFeedbackOpen(true)}
-          >
-            <LucideIcons.MessageSquare className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className={cn(btnClass, isSettingsOpen && activeClass)}
-            aria-label="设置"
-            aria-pressed={isSettingsOpen}
-            data-active={isSettingsOpen ? "true" : "false"}
-            onClick={onOpenSettings}
-          >
-            <LucideIcons.Settings className="h-4 w-4" />
-          </button>
-        </div>
+        ) : null}
         <TooltipProvider delayDuration={600}>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className={cn(btnClass)}
-                aria-label={`主题：${themeLabel}，点击切换`}
-                data-active="false"
-                onClick={toggleDarkMode}
+                className={cn(btnClass, sidebarCollapsed && activeClass)}
+                aria-label="收起侧栏"
+                aria-pressed={sidebarCollapsed}
+                data-active={sidebarCollapsed ? "true" : "false"}
+                onClick={toggleSidebarCollapsed}
               >
-                <ThemeIcon className="h-4 w-4" />
+                <LucideIcons.PanelLeft className="h-4 w-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top">
-              <span>{themeLabel}（点击切换）</span>
+              <div className="flex items-center gap-2">
+                <span>收起侧栏</span>
+                {toggleSidebarShortcutLabel && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {toggleSidebarShortcutLabel}
+                  </span>
+                )}
+              </div>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      {feedbackOpen ? <FeedbackSheet project="notes" onClose={() => setFeedbackOpen(false)} /> : null}
+        {!hideTrash && (
+          <button
+            type="button"
+            className={cn(
+              btnClass,
+              !isSettingsOpen && currentView === "trash" && activeClass,
+            )}
+            aria-label="垃圾箱"
+            aria-pressed={!isSettingsOpen && currentView === "trash"}
+            data-active={
+              !isSettingsOpen && currentView === "trash" ? "true" : "false"
+            }
+            onClick={onSwitchToTrash}
+          >
+            <LucideIcons.Trash2 className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          type="button"
+          className={cn(btnClass, "relative")}
+          aria-label={unreadFeedback ? "反馈，有新回复" : "反馈"}
+          title="反馈"
+          data-feedback-entry
+          onClick={() => setFeedbackOpen(true)}
+        >
+          <LucideIcons.MessageSquare className="h-4 w-4" />
+          {unreadFeedback ? (
+            <span
+              className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive"
+              aria-hidden
+            />
+          ) : null}
+        </button>
+        <button
+          type="button"
+          className={cn(btnClass, isSettingsOpen && activeClass)}
+          aria-label="设置"
+          aria-pressed={isSettingsOpen}
+          data-active={isSettingsOpen ? "true" : "false"}
+          onClick={onOpenSettings}
+        >
+          <LucideIcons.Settings className="h-4 w-4" />
+        </button>
+      </div>
+      <TooltipProvider delayDuration={600}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className={cn(btnClass)}
+              aria-label={`主题：${themeLabel}，点击切换`}
+              data-active="false"
+              onClick={toggleDarkMode}
+            >
+              <ThemeIcon className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <span>{themeLabel}（点击切换）</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {feedbackOpen ? (
+        <FeedbackSheet project="notes" onClose={() => setFeedbackOpen(false)} />
+      ) : null}
     </div>
   );
 }
