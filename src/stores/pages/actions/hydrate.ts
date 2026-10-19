@@ -18,6 +18,7 @@ import {
 } from "@/lib/storage/recoveryJournal";
 import { toast } from "@/components/ui/sonner";
 import { getContentSignature } from "@/components/editor/utils/blocknote-content";
+import { hintSidebarPages } from "../sidebarCatalog";
 import {
   repairLegacyTitleChildrenInPages,
   repairNormalizedContentInPages,
@@ -121,6 +122,7 @@ export const hydrateFromStorageAction = async (set: StoreSet) => {
   }
 
   seedLocalPageMetadataCache(localPageMetas);
+  hintSidebarPages("rebuild");
   set({
     pages: recoveredPages,
     activePageId: null,

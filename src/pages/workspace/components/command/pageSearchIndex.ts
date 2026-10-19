@@ -84,6 +84,7 @@ function getInstance(): MiniSearch<IndexDoc> {
  * @param pages 当前全量 pages map（含已筛好的范围）
  */
 export function syncIndex(pages: Record<string, Page>): void {
+  indexQueueToken += 1;
   const ms = getInstance();
   const pageIds = new Set(Object.keys(pages));
 
@@ -139,6 +140,61 @@ export function syncIndex(pages: Record<string, Page>): void {
       try { ms.add(doc); } catch { /* ignore */ }
     }
   }
+}
+
+let indexQueueToken = 0;
+
+/** 空闲预热用：每段不超过 8 毫秒，避免一次 addAll 堵住侧栏切换。 */
+export function enqueueIndex(pages: readonly Page[]): void {
+  const token = ++indexQueueToken;
+  const ms = getInstance();
+  let cursor = 0;
+  const step = () => {
+    if (token !== indexQueueToken) return;
+    const batch: IndexDoc[] = [];
+    const start = performance.now();
+    while (
+      cursor < pages.length &&
+      batch.length < 24 &&
+      performance.now() - start < 8
+    ) {
+      const page = pages[cursor++];
+      if (!page) continue;
+      const current = indexedVersions.get(page.id);
+      if (
+        current &&
+        current.updatedAt === page.updatedAt &&
+        current.content === page.content
+      ) {
+        continue;
+      }
+      const title = getPageTitle(page);
+      const body = bodyForSearchIndex(page, title);
+      const doc: IndexDoc = {
+        id: page.id,
+        title: isPlaceholderTitle(title) ? "" : title,
+        body,
+      };
+      indexedVersions.set(page.id, {
+        updatedAt: page.updatedAt,
+        content: page.content,
+      });
+      if (current === undefined) batch.push(doc);
+      else {
+        try {
+          ms.replace(doc);
+        } catch {
+          try { ms.discard(doc.id); } catch { /* ignore */ }
+          batch.push(doc);
+        }
+      }
+    }
+    if (batch.length > 0) ms.addAll(batch);
+    if (cursor < pages.length && token === indexQueueToken) {
+      setTimeout(step, 0);
+    }
+  };
+  setTimeout(step, 0);
 }
 
 /**

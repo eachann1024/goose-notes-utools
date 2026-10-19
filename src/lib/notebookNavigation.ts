@@ -1,10 +1,8 @@
 import { useNotebooks } from "@/stores/useNotebooks";
 import { usePages } from "@/stores/usePages";
 import { useTabs } from "@/stores/useTabs";
+import { landingPageId } from "@/stores/pages/sidebarCatalog";
 import type { Page } from "@/types";
-
-const compareBySidebarOrder = (a: Page, b: Page) =>
-  (a.order ?? a.createdAt) - (b.order ?? b.createdAt);
 
 const isActiveNotebookPage = (page: Page | undefined, notebookId: string) =>
   !!page && page.workspaceId === notebookId && !page.trashedAt;
@@ -25,11 +23,7 @@ export function resolveNotebookLandingPageId(
     return lastPageId;
   }
 
-  const firstValidPage = Object.values(pages)
-    .filter((page) => isActiveNotebookPage(page, notebookId))
-    .sort(compareBySidebarOrder)[0];
-
-  return firstValidPage?.id ?? null;
+  return landingPageId(notebookId, pages);
 }
 
 export async function activateNotebook(

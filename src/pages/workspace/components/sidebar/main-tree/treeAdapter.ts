@@ -80,3 +80,50 @@ export function pagesToTreeItems(
 
   return items;
 }
+
+export function pagesToTreeItemsFromIndex(
+  pages: Record<string, Page>,
+  notebookId: string,
+  isLocalFolder: boolean,
+  getChildIds: (parentId: string | undefined) => readonly string[],
+  pending: Page | null,
+): Record<TreeItemIndex, TreeItem<Page>> {
+  const items: Record<TreeItemIndex, TreeItem<Page>> = {};
+
+  const fill = (parentId: string | undefined): TreeItemIndex[] => {
+    const ids: TreeItemIndex[] = [...getChildIds(parentId)];
+    if (
+      pending &&
+      pending.workspaceId === notebookId &&
+      (pending.parentId || undefined) === parentId
+    ) {
+      ids.unshift(pending.id);
+    }
+    const visible: TreeItemIndex[] = [];
+    for (const id of ids) {
+      const page = id === pending?.id ? pending : pages[String(id)];
+      if (!page) continue;
+      const children = id === pending?.id ? [] : fill(String(id));
+      items[id] = {
+        index: id,
+        children,
+        isFolder: isLocalFolder ? !!page.isFolder : true,
+        data: page,
+        canMove: !page.localPendingCreate,
+        canRename: false,
+      };
+      visible.push(id);
+    }
+    return visible;
+  };
+
+  items.root = {
+    index: "root",
+    children: fill(undefined),
+    isFolder: true,
+    data: ROOT_PLACEHOLDER,
+    canMove: false,
+    canRename: false,
+  };
+  return items;
+}

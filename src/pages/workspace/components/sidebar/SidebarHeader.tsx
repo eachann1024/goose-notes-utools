@@ -1,12 +1,24 @@
 import { NotebookSwitcher } from "./NotebookSwitcher";
-import { getPageTitle } from "@/components/editor/utils/page-title";
 import type { Page } from "@/types";
+
+const PINNED_SLOT = 36;
+const PINNED_WINDOW = 12;
+const pinnedBodyCache = new WeakMap<object, boolean>();
+
+function windowPinnedIds(ids: readonly string[], start: number) {
+  const from = Math.max(0, start);
+  return ids.slice(from, from + PINNED_WINDOW);
+}
 import { tryShowPageInFocusedSplit } from "@/lib/editor-split/commands";
 import { closeNotebookAiIfFullscreen } from "@/pages/workspace/components/notebook-ai/useNotebookAiPanel";
 import { isElectronHost } from "@/lib/local-vault";
 import { useSidebarView } from "@/stores/useSidebarView";
-import { useStoreWithEqualityFn } from "zustand/traditional";
-import { areSidebarPagesEqual } from "@/stores/pages/areSidebarPagesEqual";
+import {
+  pinnedIdsFor,
+  pinnedPosition,
+  sidebarPageTitle,
+  useSidebarCatalogVersion,
+} from "@/stores/pages/sidebarCatalog";
 
 interface SidebarHeaderProps {
   dragGuide: {
@@ -22,11 +34,7 @@ export function SidebarHeader({
   onOpenPinnedPage,
   selectedPageId,
 }: SidebarHeaderProps) {
-  const pages = useStoreWithEqualityFn(
-    usePages,
-    (state) => state.pages,
-    areSidebarPagesEqual,
-  );
+  const catalogVersion = useSidebarCatalogVersion();
   const activePageId = usePages((state) => state.activePageId);
   const highlightedPageId = selectedPageId ?? activePageId;
   const setExpandPageId = usePages((state) => state.setExpandPageId);
@@ -49,19 +57,49 @@ export function SidebarHeader({
     width: number;
     height: number;
   } | null>(null);
+  const [pinnedWindowStart, setPinnedWindowStart] = useState(0);
+  const pinnedIds = useMemo(() => {
+    void catalogVersion;
+    return pinnedIdsFor(usePages.getState().pages);
+  }, [catalogVersion]);
   const pinnedPages = useMemo(() => {
-    return Object.values(pages)
-      .filter((page) => !page.trashedAt && page.isPinned)
-      .sort((a, b) => {
-        const pinA = a.pinnedAt ?? 0;
-        const pinB = b.pinnedAt ?? 0;
-        if (pinA !== pinB) return pinB - pinA;
-        return b.updatedAt - a.updatedAt;
-      });
-  }, [pages]);
+    const pages = usePages.getState().pages;
+    const visibleIds =
+      pinnedIds.length > 24 ? windowPinnedIds(pinnedIds, pinnedWindowStart) : pinnedIds;
+    const result: Page[] = [];
+    for (const id of visibleIds) {
+      const page = pages[id];
+      if (page) result.push(page);
+    }
+    return result;
+  }, [catalogVersion, pinnedIds, pinnedWindowStart]);
 
   // 胶囊位置实测选中按钮的 offset*，nav 即 offsetParent，坐标不受 scrollLeft 影响
   const measurePinnedPill = useCallback(() => {
+    if (pinnedIds.length > 24 && highlightedPageId) {
+      const index = pinnedPosition(highlightedPageId);
+      if (index >= 0) {
+        const nextBox = {
+          left: 4 + index * PINNED_SLOT,
+          top: 4,
+          width: 32,
+          height: 32,
+        };
+        setPillBox((prev) => {
+          if (
+            prev &&
+            prev.left === nextBox.left &&
+            prev.top === nextBox.top &&
+            prev.width === nextBox.width &&
+            prev.height === nextBox.height
+          ) {
+            return prev;
+          }
+          return nextBox;
+        });
+        return;
+      }
+    }
     const activeButton = activePinnedRef.current;
     if (!activeButton) {
       setPillBox((prev) => (prev === null ? prev : null));
@@ -85,11 +123,9 @@ export function SidebarHeader({
       }
       return nextBox;
     });
-  }, []);
+  }, [highlightedPageId, pinnedIds.length]);
 
-  const pinnedMeasureKey = pinnedPages
-    .map((page) => `${page.id}:${page.icon ?? ""}:${getPageTitle(page)}`)
-    .join("|");
+  const pinnedMeasureKey = `${catalogVersion}:${pinnedIds.length}:${highlightedPageId ?? ""}`;
 
   useLayoutEffect(() => {
     measurePinnedPill();
@@ -211,7 +247,16 @@ export function SidebarHeader({
     const scroller = pinnedScrollerRef.current;
     if (!scroller) return;
 
-    const handleScroll = () => syncPinnedScrollState();
+    const handleScroll = () => {
+      if (pinnedIds.length > 24) {
+        const start = Math.max(
+          0,
+          Math.floor((scroller.scrollLeft - 4) / PINNED_SLOT) - 2,
+        );
+        setPinnedWindowStart((prev) => (prev === start ? prev : start));
+      }
+      syncPinnedScrollState();
+    };
     scroller.addEventListener("scroll", handleScroll, { passive: true });
 
     const observer = new ResizeObserver(() => {
@@ -241,10 +286,20 @@ export function SidebarHeader({
   useEffect(() => {
     if (activePinnedRef.current) {
       activePinnedRef.current.scrollIntoView({
-        behavior: "smooth",
         block: "nearest",
         inline: "nearest",
       });
+    } else if (pinnedIds.length > 24) {
+      const index = highlightedPageId ? pinnedPosition(highlightedPageId) : -1;
+      const scroller = pinnedScrollerRef.current;
+      if (index >= 0 && scroller) {
+        const left = 4 + index * PINNED_SLOT;
+        const viewRight = scroller.scrollLeft + scroller.clientWidth;
+        if (left < scroller.scrollLeft || left + PINNED_SLOT > viewRight) {
+          scroller.scrollLeft = Math.max(0, left - PINNED_SLOT);
+          setPinnedWindowStart(Math.max(0, index - 2));
+        }
+      }
     }
     const rafId = requestAnimationFrame(syncPinnedScrollState);
     const timerId = window.setTimeout(syncPinnedScrollState, 220);
@@ -255,6 +310,10 @@ export function SidebarHeader({
   }, [activePageId, pinnedMeasureKey, syncPinnedScrollState]);
 
   const pageHasVisibleContent = useCallback((page: Page): boolean => {
+    const content = page.content;
+    if (!content || typeof content !== "object") return false;
+    const cached = pinnedBodyCache.get(content);
+    if (cached !== undefined) return cached;
     const visit = (node: unknown): boolean => {
       if (!node || typeof node !== "object") return false;
       const value = node as {
@@ -278,7 +337,9 @@ export function SidebarHeader({
       }
       return typeof value.type === "string" && value.type.length > 0;
     };
-    return visit(page.content);
+    const visible = visit(content);
+    pinnedBodyCache.set(content, visible);
+    return visible;
   }, []);
 
   const renderPinnedIcon = useCallback(
@@ -393,9 +454,19 @@ export function SidebarHeader({
               <nav
                 aria-label="置顶页面"
                 ref={pinnedScrollerRef}
-                className="relative flex items-center gap-1 overflow-x-auto px-1 py-1 scroll-px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className={cn(
+                  "relative flex items-center overflow-x-auto px-1 py-1 scroll-px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                  pinnedIds.length > 24 ? "gap-0" : "gap-1",
+                )}
                 onWheel={handlePinnedWheel}
               >
+                {pinnedIds.length > 24 && (
+                  <div
+                    aria-hidden
+                    className="h-8 shrink-0"
+                    style={{ width: pinnedWindowStart * PINNED_SLOT }}
+                  />
+                )}
                 {pillBox && (
                   <span
                     aria-hidden
@@ -415,34 +486,59 @@ export function SidebarHeader({
                 )}
                 {pinnedPages.map((page) => {
                   const isActive = highlightedPageId === page.id;
-                  const title = getPageTitle(page);
+                  const title = sidebarPageTitle(page);
+                  const button = (
+                    <button
+                      ref={isActive ? activePinnedRef : null}
+                      type="button"
+                      aria-label={title}
+                      aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "relative z-[1] h-8 w-8 shrink-0 scroll-mx-1 rounded-full inline-flex items-center justify-center",
+                        "transition-colors duration-150 active:[&_svg]:scale-[0.97]",
+                        "focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--goose-interactive-selected-fg)]",
+                        isActive
+                          ? "text-[var(--goose-interactive-selected-fg)]"
+                          : "text-muted-foreground hover:bg-[var(--goose-interactive-selected)] hover:text-[var(--goose-interactive-selected-fg)]",
+                      )}
+                      onClick={() => handleOpenPinnedPage(page.id)}
+                    >
+                      {renderPinnedIcon(page, isActive)}
+                    </button>
+                  );
                   return (
                     <TooltipProvider key={page.id} delayDuration={600}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
-                            ref={isActive ? activePinnedRef : null}
-                            type="button"
-                            aria-label={title}
-                            aria-current={isActive ? "page" : undefined}
-                            className={cn(
-                              "relative z-[1] h-8 w-8 shrink-0 scroll-mx-1 rounded-full inline-flex items-center justify-center",
-                              "transition-colors duration-150 active:[&_svg]:scale-[0.97]",
-                              "focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--goose-interactive-selected-fg)]",
-                              isActive
-                                ? "text-[var(--goose-interactive-selected-fg)]"
-                                : "text-muted-foreground hover:bg-[var(--goose-interactive-selected)] hover:text-[var(--goose-interactive-selected-fg)]",
-                            )}
-                            onClick={() => handleOpenPinnedPage(page.id)}
-                          >
-                            {renderPinnedIcon(page, isActive)}
-                          </button>
+                          {pinnedIds.length > 24 ? (
+                            <span
+                              className="inline-flex h-8 w-9 shrink-0 items-center justify-start"
+                              style={{ width: PINNED_SLOT }}
+                            >
+                              {button}
+                            </span>
+                          ) : (
+                            button
+                          )}
                         </TooltipTrigger>
                         <TooltipContent side="bottom">{title}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   );
                 })}
+                {pinnedIds.length > 24 && (
+                  <div
+                    aria-hidden
+                    className="h-8 shrink-0"
+                    style={{
+                      width: Math.max(
+                        0,
+                        (pinnedIds.length - pinnedWindowStart - pinnedPages.length) *
+                          PINNED_SLOT,
+                      ),
+                    }}
+                  />
+                )}
               </nav>
             )}
 

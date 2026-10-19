@@ -18,6 +18,7 @@ import { getPageTitle } from "@/components/editor/utils/page-title";
 import { requestPageTitleFocus } from "@/lib/page-title-focus";
 import { useNotebooks } from "@/stores/useNotebooks";
 import { usePages } from "@/stores/usePages";
+import { treeChildIds } from "@/stores/pages/sidebarCatalog";
 import { useSettings } from "@/stores/useSettings";
 import { effectiveSingleTabMode } from "@/lib/tabMode";
 import { openPageFromSidebar } from "@/lib/sidebarPageNavigation";
@@ -172,11 +173,10 @@ export function SortablePageRow({
     return live ? live.icon : page.icon;
   });
   const displayHasChildren = usePages((s) => {
-    const pid = page.id;
-    for (const p of Object.values(s.pages)) {
-      if (p.parentId === pid && !p.trashedAt) return true;
-    }
-    return false;
+    if (!showExpandControls) return false;
+    const live = s.pages[page.id];
+    if (!live) return false;
+    return treeChildIds(live.workspaceId, page.id, s.pages).length > 0;
   });
 
   // 拖动时原行留在树中作为位置锚点，真正跟随指针的内容由 DragOverlay 渲染。

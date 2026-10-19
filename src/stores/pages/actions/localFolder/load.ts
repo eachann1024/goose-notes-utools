@@ -29,6 +29,7 @@ import {
 import { restorePendingLocalSave } from "../../folderSync";
 import { toast } from "@/components/ui/sonner";
 import { getContentSignature } from "@/components/editor/utils/blocknote-content";
+import { hintSidebarPages } from "../../sidebarCatalog";
 import type { StoreSet, StoreGet } from "../hydrate";
 
 interface LocalFolderLoadTask {
@@ -183,6 +184,7 @@ const loadLocalFolderPagesOnce = async (
     if (latestLocalFolderLoadRequest.get(notebookId) !== requestId) return;
 
     set((state) => {
+      hintSidebarPages("rebuild");
       const pagesOutsideNotebook = Object.fromEntries(
         Object.entries(state.pages).filter(
           ([, page]) => page.workspaceId !== notebookId,

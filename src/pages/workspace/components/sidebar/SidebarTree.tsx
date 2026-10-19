@@ -7,12 +7,15 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNotebooks } from "@/stores/useNotebooks";
 import { usePages } from "@/stores/usePages";
-import { useStoreWithEqualityFn } from "zustand/traditional";
-import { areSidebarPagesEqual } from "@/stores/pages/areSidebarPagesEqual";
+import {
+  favoriteTitleCount,
+  sidebarPageTitle,
+  useSidebarCatalogVersion,
+} from "@/stores/pages/sidebarCatalog";
 import type { Page } from "@/types";
 import { LocalFolderLoadingSkeleton } from "./LocalFolderLoadingSkeleton";
 import { buildSidebarTitleDisambiguationMap } from "./sidebar-title-disambiguation";
@@ -34,14 +37,14 @@ interface SidebarTreeProps {
   viewportHeight: number;
   onCreatePage: () => void;
   onDragGuideChange?: (guide: SidebarDragGuide | null) => void;
-  rootPageIds?: string[];
+  rootPageIds?: readonly string[];
   fitContent?: boolean;
   showEmptyState?: boolean;
   allowNest?: boolean;
   resolveSiblings?: (parentId: string | undefined) => Page[];
   onReorder?: (ids: string[], parentId: string | undefined) => void;
   showAddChildButton?: boolean;
-  draggablePageIds?: string[];
+  draggablePageIds?: readonly string[];
   flatRoots?: boolean;
 }
 
@@ -55,6 +58,46 @@ class LeftButtonPointerSensor extends PointerSensor {
         !nativeEvent.ctrlKey,
     },
   ];
+}
+
+const FAVORITE_TRACK_ROWS = 4000;
+const FAVORITE_VIEW_CAP = 24;
+
+function favoriteTrackHeight(count: number, rowHeight: number) {
+  return Math.min(Math.max(count, 0), FAVORITE_TRACK_ROWS) * Math.max(1, rowHeight);
+}
+
+function favoriteWindow(
+  count: number,
+  rowHeight: number,
+  viewport: number,
+  scrollTop: number,
+): { rows: VirtualItem[]; height: number } {
+  const safeRow = Math.max(1, rowHeight);
+  const visible = Math.min(
+    FAVORITE_VIEW_CAP,
+    Math.ceil(Math.min(Math.max(viewport, 1), 320) / safeRow) + 6,
+  );
+  const height = favoriteTrackHeight(count, safeRow);
+  const maxScroll = Math.max(1, height - viewport);
+  const progress =
+    height <= viewport ? 0 : Math.min(1, Math.max(0, scrollTop) / maxScroll);
+  const maxStart = Math.max(0, count - visible);
+  const from = Math.min(maxStart, Math.floor(progress * maxStart));
+  const rows: VirtualItem[] = [];
+  for (let index = from; index < Math.min(count, from + visible); index += 1) {
+    const local = index - from;
+    const start = scrollTop + local * safeRow;
+    rows.push({
+      index,
+      key: index,
+      start,
+      size: safeRow,
+      end: start + safeRow,
+      lane: 0,
+    });
+  }
+  return { rows, height };
 }
 
 export function SidebarTree({
@@ -76,11 +119,8 @@ export function SidebarTree({
   draggablePageIds,
   flatRoots = false,
 }: SidebarTreeProps) {
-  const pages = useStoreWithEqualityFn(
-    usePages,
-    (s) => s.pages,
-    areSidebarPagesEqual,
-  );
+  const catalogVersion = useSidebarCatalogVersion();
+  const pages = usePages.getState().pages;
   const activePageId = usePages((s) => s.activePageId);
   const reorderPages = usePages((s) => s.reorderPages);
   const getChildren = usePages((s) => s.getChildren);
@@ -110,25 +150,45 @@ export function SidebarTree({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const dragGuideKeyRef = useRef<string>("__init__");
 
-  const visibleItems = useMemo(
-    () =>
-      buildVisibleTree({
-        pages,
-        openIds: openPageIds,
-        workspaceId: activeNotebookId || undefined,
-        isLocalNotebook,
-        rootPageIds,
-        flatRoots,
-      }),
-    [
-      pages,
-      openPageIds,
-      activeNotebookId,
+  const largeFlat = Boolean(flatRoots && rootPageIds && rootPageIds.length > 48);
+
+  const visibleItems = useMemo(() => {
+    const livePages = usePages.getState().pages;
+    if (flatRoots && rootPageIds && rootPageIds.length > 0) {
+      if (largeFlat) return [];
+      const items: FlatTreeItem[] = [];
+      for (const id of rootPageIds) {
+        const page = livePages[id];
+        if (!page || page.trashedAt) continue;
+        if (activeNotebookId && page.workspaceId !== activeNotebookId) continue;
+        items.push({
+          id: page.id,
+          page,
+          depth: 0,
+          parentId: undefined,
+          hasChildren: false,
+          isOpen: false,
+        });
+      }
+      return items;
+    }
+    return buildVisibleTree({
+      pages: livePages,
+      openIds: openPageIds,
+      workspaceId: activeNotebookId || undefined,
       isLocalNotebook,
       rootPageIds,
       flatRoots,
-    ],
-  );
+    });
+  }, [
+    catalogVersion,
+    openPageIds,
+    activeNotebookId,
+    isLocalNotebook,
+    rootPageIds,
+    flatRoots,
+    largeFlat,
+  ]);
 
   const activeDescendantIds = useMemo(() => {
     // flatRoots 模式（收藏区平铺列表）下所有 item 视为虚拟根的直接子项，
@@ -158,16 +218,19 @@ export function SidebarTree({
         : visibleItems,
     [visibleItems, activeId, activeDescendantIds],
   );
-  const titleDisambiguationMap = useMemo(
-    () =>
-      buildSidebarTitleDisambiguationMap({
-        pages,
-        activeNotebookId,
-        notebook,
-        rootPageIds,
-      }),
-    [pages, activeNotebookId, notebook, rootPageIds],
-  );
+  const titleDisambiguationMap = useMemo(() => {
+    const livePages = usePages.getState().pages;
+    if (flatRoots && rootPageIds && rootPageIds.length > 0 && !largeFlat) {
+      return disambiguateFlatTitles(rootPageIds, livePages);
+    }
+    if (largeFlat) return new Map<string, string>();
+    return buildSidebarTitleDisambiguationMap({
+      pages: livePages,
+      activeNotebookId,
+      notebook,
+      rootPageIds,
+    });
+  }, [catalogVersion, activeNotebookId, notebook, rootPageIds, flatRoots, largeFlat]);
 
   const flatItems = useMemo(
     () =>
@@ -214,11 +277,39 @@ export function SidebarTree({
   }, []);
 
   const virtualizer = useVirtualizer({
-    count: renderItems.length,
+    count: largeFlat ? 0 : renderItems.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => rowHeight,
-    overscan: 10,
+    overscan: 8,
+    initialRect: { width: 240, height: 320 },
   });
+  const [flatScrollTop, setFlatScrollTop] = useState(0);
+  const [flatViewport, setFlatViewport] = useState(320);
+  const flatWindow =
+    largeFlat && rootPageIds
+      ? favoriteWindow(rootPageIds.length, rowHeight, flatViewport, flatScrollTop)
+      : null;
+
+  useLayoutEffect(() => {
+    if (!largeFlat) return;
+    const element = scrollRef.current;
+    if (!element) return;
+    const publish = () => {
+      if (element.hidden || element.clientHeight === 0) return;
+      const nextHeight = element.clientHeight;
+      const nextTop = element.scrollTop;
+      setFlatViewport((prev) => (prev === nextHeight ? prev : nextHeight));
+      setFlatScrollTop((prev) => (prev === nextTop ? prev : nextTop));
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(element);
+    element.addEventListener("scroll", publish, { passive: true });
+    return () => {
+      observer.disconnect();
+      element.removeEventListener("scroll", publish);
+    };
+  }, [largeFlat, scrollRef]);
 
   const handleToggle = useCallback((id: string) => {
     setOpenPageIds((prev) => {
@@ -269,10 +360,26 @@ export function SidebarTree({
     });
 
     const timer = window.setTimeout(() => {
-      const index = renderItems.findIndex((item) => item.id === expandPageId);
-      if (index >= 0) {
-        virtualizer.scrollToIndex(index, { align: "center" });
+      const index =
+        largeFlat && rootPageIds
+          ? rootPageIds.indexOf(expandPageId)
+          : renderItems.findIndex((item) => item.id === expandPageId);
+      if (index < 0) return;
+      if (largeFlat && rootPageIds && scrollRef.current) {
+        const element = scrollRef.current;
+        const viewport = element.clientHeight || 320;
+        const height = favoriteTrackHeight(rootPageIds.length, rowHeight);
+        const visible = Math.min(
+          FAVORITE_VIEW_CAP,
+          Math.ceil(Math.min(viewport, 320) / Math.max(1, rowHeight)) + 6,
+        );
+        const maxStart = Math.max(0, rootPageIds.length - visible);
+        const start = Math.min(maxStart, Math.max(0, index - 4));
+        const maxScroll = Math.max(0, height - viewport);
+        element.scrollTop = maxStart === 0 ? 0 : (start / maxStart) * maxScroll;
+        return;
       }
+      virtualizer.scrollToIndex(index, { align: "center" });
     }, 80);
 
     setExpandPageId(null);
@@ -283,6 +390,9 @@ export function SidebarTree({
     activeNotebookId,
     setExpandPageId,
     renderItems,
+    rootPageIds,
+    largeFlat,
+    rowHeight,
     virtualizer,
   ]);
 
@@ -317,6 +427,35 @@ export function SidebarTree({
     };
   }, [resetTitleReveal]);
 
+  const resolveFlatItem = useCallback((id: string): FlatTreeItem | undefined => {
+    const page = usePages.getState().pages[id];
+    if (!page) return undefined;
+    return {
+      id,
+      page,
+      depth: 0,
+      parentId: undefined,
+      hasChildren: false,
+      isOpen: false,
+    };
+  }, [catalogVersion]);
+  const edgeIds =
+    largeFlat && rootPageIds && rootPageIds.length > 0
+      ? {
+          first: rootPageIds[0],
+          last: rootPageIds[rootPageIds.length - 1],
+        }
+      : undefined;
+  const dragIndexMap = (() => {
+    if (!largeFlat || !rootPageIds || !flatWindow) return visibleIndexMap;
+    const map = new Map<string, number>();
+    for (const row of flatWindow.rows) {
+      const id = rootPageIds[row.index];
+      if (id) map.set(id, row.index);
+    }
+    return map;
+  })();
+
   const {
     handleDragCancel,
     handleDragEnd,
@@ -329,6 +468,8 @@ export function SidebarTree({
     dropIntent,
     emitDragGuide,
     flatItems,
+    edgeIds,
+    resolveFlatItem: largeFlat ? resolveFlatItem : undefined,
     getSiblingPages,
     isLocalNotebook,
     itemHeight,
@@ -341,14 +482,14 @@ export function SidebarTree({
     setActiveId,
     setDropIntent,
     setOpenPageIds,
-    visibleIndexMap,
+    visibleIndexMap: dragIndexMap,
   });
 
   if (shouldShowLocalSkeleton) {
     return <LocalFolderLoadingSkeleton />;
   }
 
-  if (flatItems.length === 0) {
+  if (!largeFlat && flatItems.length === 0) {
     if (!showEmptyState) return null;
     return (
       <div className="flex min-h-0 w-full flex-1 flex-col">
@@ -362,7 +503,10 @@ export function SidebarTree({
 
   const contentHeight = fitContent
     ? Math.max(renderItems.length * rowHeight, rowHeight)
-    : Math.max(virtualizer.getTotalSize(), viewportHeight || 0);
+    : flatWindow
+      ? flatWindow.height
+      : Math.max(virtualizer.getTotalSize(), viewportHeight || 0);
+  const virtualItems = flatWindow ? flatWindow.rows : virtualizer.getVirtualItems();
 
   return (
     <TreeViewport
@@ -385,13 +529,84 @@ export function SidebarTree({
       scrollRef={scrollRef}
       sensors={sensors}
       showAddChildButton={showAddChildButton}
-      titleDisambiguationMap={titleDisambiguationMap}
+      titleDisambiguationMap={
+        largeFlat && rootPageIds
+          ? disambiguateVisibleFavorites(
+              virtualItems.map((row) => rootPageIds[row.index]).filter((id): id is string => !!id),
+            )
+          : titleDisambiguationMap
+      }
       showExpandControls={!flatRoots}
       titleRevealResetSignal={titleRevealResetSignal}
-      virtualItems={virtualizer.getVirtualItems()}
+      virtualItems={virtualItems}
+      resolveItem={
+        largeFlat && rootPageIds
+          ? (index) => resolveFlatItem(rootPageIds[index] ?? "")
+          : undefined
+      }
+      sortableIds={
+        largeFlat && rootPageIds
+          ? virtualItems
+              .map((row) => rootPageIds[row.index])
+              .filter((id): id is string => !!id)
+          : undefined
+      }
       viewportHeight={viewportHeight}
       width={width}
       onToggleOpen={handleToggle}
     />
   );
+}
+
+function disambiguateFlatTitles(
+  ids: readonly string[],
+  pages: Record<string, Page>,
+) {
+  const groups = new Map<string, string[]>();
+  for (const id of ids) {
+    const page = pages[id];
+    if (!page) continue;
+    const title = sidebarPageTitle(page);
+    const list = groups.get(title) ?? [];
+    list.push(id);
+    groups.set(title, list);
+  }
+  const labels = new Map<string, string>();
+  for (const group of groups.values()) {
+    if (group.length <= 1) continue;
+    for (const id of group) {
+      const page = pages[id];
+      if (!page) continue;
+      labels.set(id, parentTitleHint(page, pages));
+    }
+  }
+  return labels;
+}
+
+function disambiguateVisibleFavorites(ids: readonly string[]) {
+  const pages = usePages.getState().pages;
+  const labels = new Map<string, string>();
+  for (const id of ids) {
+    if (!id) continue;
+    const page = pages[id];
+    if (!page) continue;
+    const title = sidebarPageTitle(page);
+    if (favoriteTitleCount(page.workspaceId, title) <= 1) continue;
+    labels.set(id, parentTitleHint(page, pages));
+  }
+  return labels;
+}
+
+function parentTitleHint(page: Page, pages: Record<string, Page>) {
+  const segments: string[] = [];
+  const seen = new Set<string>();
+  let parentId = page.parentId;
+  while (parentId && !seen.has(parentId)) {
+    seen.add(parentId);
+    const parent = pages[parentId];
+    if (!parent || parent.trashedAt) break;
+    segments.push(sidebarPageTitle(parent));
+    parentId = parent.parentId;
+  }
+  return segments.length > 0 ? segments.reverse().join("/") : "根级";
 }

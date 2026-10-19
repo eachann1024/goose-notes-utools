@@ -57,6 +57,8 @@ interface TreeViewportProps {
   titleDisambiguationMap: Map<string, string>;
   titleRevealResetSignal: number;
   virtualItems: VirtualItem[];
+  resolveItem?: (index: number) => VisibleTreeItem | undefined;
+  sortableIds?: string[];
   viewportHeight: number;
   width: number;
   onToggleOpen: (id: string) => void;
@@ -86,6 +88,8 @@ export function TreeViewport({
   titleDisambiguationMap,
   titleRevealResetSignal,
   virtualItems,
+  resolveItem,
+  sortableIds,
   viewportHeight,
   width,
   onToggleOpen,
@@ -100,7 +104,8 @@ export function TreeViewport({
           start: index * rowHeight,
         }))
       : virtualItems.flatMap((virtualRow) => {
-          const item = renderItems[virtualRow.index];
+          const item =
+            resolveItem?.(virtualRow.index) ?? renderItems[virtualRow.index];
           if (!item) return [];
           return [
             {
@@ -111,14 +116,16 @@ export function TreeViewport({
           ];
         });
 
-  const flatItemIds = renderItems.flatMap((item) =>
-    "isPlaceholder" in item ? [] : [item.id],
-  );
-  const activeItem = activeId
-    ? renderItems.find(
-        (item) => !("isPlaceholder" in item) && item.id === activeId,
+  const flatItemIds =
+    sortableIds ??
+    renderItems.flatMap((item) => ("isPlaceholder" in item ? [] : [item.id]));
+  const activeRow = activeId
+    ? rows.find(
+        (row) => !("isPlaceholder" in row.item) && row.item.id === activeId,
       )
     : undefined;
+  const activeItem =
+    activeRow && !("isPlaceholder" in activeRow.item) ? activeRow.item : undefined;
 
   return (
     <div
