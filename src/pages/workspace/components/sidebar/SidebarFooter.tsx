@@ -1,4 +1,6 @@
+import { useState } from "react";
 import * as LucideIcons from "lucide-react";
+import { FeedbackSheet } from "@/components/FeedbackSheet";
 import {
   Tooltip,
   TooltipContent,
@@ -26,6 +28,7 @@ export function SidebarFooter({
   onOpenSettings,
 }: SidebarFooterProps) {
   const theme = useSettings((s) => s.theme);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const toggleDarkMode = useSettings((s) => s.toggleDarkMode);
   const toggleSidebarShortcut = useSettings(
     (s) => s.appShortcuts.toggleSidebar,
@@ -127,6 +130,16 @@ export function SidebarFooter({
           )}
           <button
             type="button"
+            className={btnClass}
+            aria-label="反馈"
+            title="反馈"
+            data-feedback-entry
+            onClick={() => setFeedbackOpen(true)}
+          >
+            <LucideIcons.MessageSquare className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
             className={cn(btnClass, isSettingsOpen && activeClass)}
             aria-label="设置"
             aria-pressed={isSettingsOpen}
@@ -154,6 +167,7 @@ export function SidebarFooter({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+      {feedbackOpen ? <FeedbackSheet project="notes" onClose={() => setFeedbackOpen(false)} /> : null}
     </div>
   );
 }

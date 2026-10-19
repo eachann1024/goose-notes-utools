@@ -1,8 +1,13 @@
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { getPageTitle } from "@/components/editor/utils/page-title";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { closeNotebookAiIfFullscreen } from "@/pages/workspace/components/notebook-ai/useNotebookAiPanel";
+import {
+  trashedIdsFor,
+  useSidebarCatalogVersion,
+} from "@/stores/pages/sidebarCatalog";
 
 interface TrashListProps {
   onBack?: () => void;
@@ -42,10 +47,18 @@ function nodeHasVisibleContent(node: unknown): boolean {
   return typeof value.type === "string" && value.type.length > 0;
 }
 
+const trashBodyCache = new WeakMap<object, boolean>();
+
 function pageHasVisibleContent(
   page: { content?: unknown } | null | undefined,
 ): boolean {
-  return nodeHasVisibleContent(page?.content);
+  const content = page?.content;
+  if (!content || typeof content !== "object") return false;
+  const cached = trashBodyCache.get(content);
+  if (cached !== undefined) return cached;
+  const visible = nodeHasVisibleContent(content);
+  trashBodyCache.set(content, visible);
+  return visible;
 }
 
 export function TrashList({
@@ -55,14 +68,30 @@ export function TrashList({
   selectedPageId,
   onSelectPage,
 }: TrashListProps) {
-  const { getTrashedPages, setActivePage, activePageId } = usePages();
-  const { activeNotebookId } = useNotebooks();
-
-  const trashedPages = getTrashedPages(activeNotebookId || undefined);
-  const selectedPageExists =
-    !!selectedPageId && trashedPages.some((page) => page.id === selectedPageId);
-  const activePageExists =
-    !!activePageId && trashedPages.some((page) => page.id === activePageId);
+  const activePageId = usePages((state) => state.activePageId);
+  const setActivePage = usePages((state) => state.setActivePage);
+  const activeNotebookId = useNotebooks((state) => state.activeNotebookId);
+  const catalogVersion = useSidebarCatalogVersion();
+  const trashedIds = useMemo(() => {
+    void catalogVersion;
+    return trashedIdsFor(activeNotebookId, usePages.getState().pages);
+  }, [activeNotebookId, catalogVersion]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: trashedIds.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => itemHeight,
+    overscan: 6,
+  });
+  const pageInTrash = (pageId: string | null | undefined) => {
+    if (!pageId) return false;
+    const page = usePages.getState().pages[pageId];
+    if (!page?.trashedAt) return false;
+    if (activeNotebookId && page.workspaceId !== activeNotebookId) return false;
+    return true;
+  };
+  const selectedPageExists = pageInTrash(selectedPageId);
+  const activePageExists = pageInTrash(activePageId);
   const highlightedPageId = selectedPageExists
     ? selectedPageId
     : activePageExists
@@ -71,14 +100,14 @@ export function TrashList({
 
   // 回收站自己的选中态与 activePage 分开维护，保证本地文件夹/空编辑区场景也有高亮反馈。
   useEffect(() => {
-    if (trashedPages.length === 0) {
+    if (trashedIds.length === 0) {
       onSelectPage?.(null);
       return;
     }
 
     if (highlightedPageId) return;
 
-    const nextPageId = trashedPages[0].id;
+    const nextPageId = trashedIds[0];
     onSelectPage?.(nextPageId);
     if (activePageId !== nextPageId) {
       closeNotebookAiIfFullscreen();
@@ -89,7 +118,7 @@ export function TrashList({
     highlightedPageId,
     onSelectPage,
     setActivePage,
-    trashedPages,
+    trashedIds,
   ]);
 
   return (
@@ -114,15 +143,20 @@ export function TrashList({
       )}
 
       {/* 列表 */}
-      <ScrollArea className="flex-1">
-        {trashedPages.length === 0 ? (
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+        {trashedIds.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <LucideIcons.Trash2 className="h-10 w-10 mb-3 opacity-50" />
             <p className="text-sm">垃圾箱是空的</p>
           </div>
         ) : (
-          <div className="px-2 pb-10 pt-0.5 space-y-1">
-            {trashedPages.map((page) => {
+          <div
+            className="relative px-2 pb-10 pt-0.5"
+            style={{ height: virtualizer.getTotalSize() }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const page = usePages.getState().pages[trashedIds[virtualRow.index]];
+              if (!page) return null;
               const iconName = page.icon;
               const DefaultPageIcon = pageHasVisibleContent(page)
                 ? LucideIcons.FileText
@@ -138,12 +172,19 @@ export function TrashList({
                 <button
                   type="button"
                   key={page.id}
-                  style={{ height: itemHeight }}
+                  style={{
+                    height: virtualRow.size,
+                    position: "absolute",
+                    top: virtualRow.start,
+                    left: 8,
+                    right: 8,
+                    width: "calc(100% - 16px)",
+                  }}
                   aria-current={
                     highlightedPageId === page.id ? "page" : undefined
                   }
                   className={cn(
-                    "group relative flex w-full items-center gap-2 rounded-[8px] px-4 text-left transition-colors duration-200 overflow-hidden text-sm font-medium",
+                    "group flex items-center gap-2 rounded-[8px] px-4 text-left transition-colors duration-200 overflow-hidden text-sm font-medium",
                     highlightedPageId === page.id
                       ? "bg-[var(--goose-interactive-selected)] text-[var(--goose-interactive-selected-fg)]"
                       : "text-muted-foreground dark:text-muted-foreground/65 hover:bg-[var(--goose-interactive-hover)] hover:text-[var(--goose-interactive-selected-fg)]",
@@ -154,24 +195,21 @@ export function TrashList({
                     setActivePage(page.id);
                   }}
                 >
-                  {/* 图标 */}
                   {iconName ? (
-                    <div className="h-4 w-4 shrink-0 flex items-center justify-center">
+                    <div className="flex h-4 w-4 shrink-0 items-center justify-center">
                       {(LucideIcons as any)[iconName] ? (
                         (() => {
                           const Icon = (LucideIcons as any)[iconName];
                           return <Icon className="h-4 w-4" />;
                         })()
                       ) : (
-                        <span className="text-xs">{iconName}</span>
+                        <span className="text-xs leading-none">{iconName}</span>
                       )}
                     </div>
                   ) : (
                     <DefaultPageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                   )}
-
-                  {/* 标题和时间 */}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-medium leading-5">
                       {getPageTitle(page)}
                     </div>
@@ -184,10 +222,9 @@ export function TrashList({
             })}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
-      {/* 底部提示 */}
-      {trashedPages.length > 0 && (
+      {trashedIds.length > 0 && (
         <div className="p-3 text-sm text-muted-foreground text-center">
           30 天后自动永久删除
         </div>

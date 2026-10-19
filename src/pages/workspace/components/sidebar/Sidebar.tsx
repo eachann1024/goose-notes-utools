@@ -187,19 +187,20 @@ export function Sidebar({
   useEffect(() => {
     if (!scrollAreaRef.current) return;
     const updateHeight = () => {
-      const height = scrollAreaRef.current?.clientHeight ?? 0;
-      setScrollAreaHeight(height);
+      const element = scrollAreaRef.current;
+      if (!element || element.hidden) return;
+      const height = element.clientHeight ?? 0;
+      setScrollAreaHeight((prev) => (prev === height ? prev : height));
     };
     updateHeight();
     const observer = new ResizeObserver(updateHeight);
     observer.observe(scrollAreaRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [currentView]);
 
-  const handleCreatePage = () => {
+  const handleCreatePage = useCallback(() => {
     if (!activeNotebookId) return;
     closeNotebookAiIfFullscreen();
-    // 在当前所处页面的同级创建：取当前页的 parentId 作为新页的父级
     const basePageId = selectedPageId ?? activePageId;
     const basePage = basePageId ? getPage(basePageId) : undefined;
     const siblingParentId =
@@ -212,9 +213,18 @@ export function Sidebar({
     }
     const newPageId = createPage(siblingParentId, activeNotebookId);
     openInCurrentTab(newPageId);
-    // 新页若落在折叠的父级下，展开祖先并聚焦使其可见
     if (siblingParentId) setExpandPageId(newPageId);
-  };
+  }, [
+    activeNotebookId,
+    activePageId,
+    createLocalPage,
+    createPage,
+    getPage,
+    isLocalFolder,
+    openInCurrentTab,
+    selectedPageId,
+    setExpandPageId,
+  ]);
 
   const handleSearch = () => {
     window.dispatchEvent(new CustomEvent("goose-note:open-search"));
@@ -270,8 +280,14 @@ export function Sidebar({
                   onSelectPage={setSelectedTrashPageId}
                 />
               </div>
-            ) : (
-              <>
+            ) : null}
+            <div
+              className={cn(
+                "flex min-h-0 flex-1 flex-col",
+                currentView === "trash" && "hidden",
+              )}
+              hidden={currentView === "trash"}
+            >
                 <FavoritesSection
                   width={width}
                   rowHeight={rowHeight}
@@ -288,7 +304,7 @@ export function Sidebar({
                       onSearch={handleSearch}
                       onCreate={electronNoVault ? undefined : handleCreatePage}
                       createTitle={isLocalFolder ? "新建文件" : "新建页面"}
-                      view={currentView}
+                      view={currentView === "outline" ? "outline" : "pages"}
                       onSwitchToPages={() => {
                         if (currentView === "pages" && activeNotebookId) {
                           setExpanded(activeNotebookId, []);
@@ -302,34 +318,40 @@ export function Sidebar({
                       }}
                     />
                   </div>
-                  {currentView === "pages" ? (
-                    <div
-                      ref={scrollAreaRef}
-                      className="pl-0 flex-1 min-h-0 flex flex-col"
-                      data-sidebar-page-list=""
-                    >
-                      <SidebarMainTree
-                        activeNotebookId={activeNotebookId}
-                        selectedPageId={selectedPageId}
-                        width={width}
-                        rowHeight={rowHeight}
-                        itemHeight={itemHeight}
-                        viewportHeight={scrollAreaHeight}
-                        onCreatePage={handleCreatePage}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex-1 min-h-0 overflow-hidden pl-0 pr-2">
-                      <SidebarOutline
-                        editorRef={editorRef}
-                        scrollContainerRef={scrollContainerRef}
-                        pageId={activePageId}
-                      />
-                    </div>
-                  )}
+                  <div
+                    ref={scrollAreaRef}
+                    hidden={currentView !== "pages"}
+                    className={cn(
+                      "pl-0 flex-1 min-h-0 flex flex-col",
+                      currentView !== "pages" && "hidden",
+                    )}
+                    data-sidebar-page-list=""
+                  >
+                    <SidebarMainTree
+                      activeNotebookId={activeNotebookId}
+                      selectedPageId={selectedPageId}
+                      width={width}
+                      rowHeight={rowHeight}
+                      itemHeight={itemHeight}
+                      viewportHeight={scrollAreaHeight}
+                      onCreatePage={handleCreatePage}
+                    />
+                  </div>
+                  <div
+                    hidden={currentView !== "outline"}
+                    className={cn(
+                      "flex-1 min-h-0 overflow-hidden pl-0 pr-2",
+                      currentView !== "outline" && "hidden",
+                    )}
+                  >
+                    <SidebarOutline
+                      editorRef={editorRef}
+                      scrollContainerRef={scrollContainerRef}
+                      pageId={activePageId}
+                    />
+                  </div>
                 </div>
-              </>
-            )}
+            </div>
           </>
         )}
       </div>

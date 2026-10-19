@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   ControlledTreeEnvironment,
   InteractionMode,
@@ -20,7 +20,7 @@ import {
 } from "@/stores/useSidebarView";
 import { LocalFolderLoadingSkeleton } from "../LocalFolderLoadingSkeleton";
 import { TreeEmptyState } from "../tree/TreeEmptyState";
-import { pagesToTreeItems, getPageTitle } from "./treeAdapter";
+import { pagesToTreeItemsFromIndex, getPageTitle } from "./treeAdapter";
 import {
   renderItem,
   renderItemArrow,
@@ -35,9 +35,19 @@ import {
   shouldSuppressSidebarSelect,
 } from "@/lib/sidebarPageNavigation";
 import { isPageTitleAutoFocusProtected } from "@/lib/page-title-focus";
-import { useStoreWithEqualityFn } from "zustand/traditional";
-import { areSidebarPagesEqual } from "@/stores/pages/areSidebarPagesEqual";
+import {
+  livePageCount,
+  notebookHasLivePages,
+  treeChildIds,
+  treeIndexOf,
+  useSidebarCatalogVersion,
+} from "@/stores/pages/sidebarCatalog";
 import { MAIN_TREE_INDENT } from "./mainTreeDragGeometry";
+import {
+  SIDEBAR_VIRTUAL_ROW_THRESHOLD,
+  buildTreeSpans,
+} from "./treeRanges";
+import { VirtualMainTree } from "./VirtualMainTree";
 import {
   clearLocalFolderDropParent,
   takeLocalFolderDropParent,
@@ -64,18 +74,17 @@ function scheduleAfterMenuClose(action: () => void) {
   window.setTimeout(action, 0);
 }
 
-export function SidebarMainTree({
+export const SidebarMainTree = memo(function SidebarMainTree({
   activeNotebookId,
   selectedPageId,
   width,
   viewportHeight,
   itemHeight,
 }: SidebarMainTreeProps) {
-  const pages = useStoreWithEqualityFn(
-    usePages,
-    (s) => s.pages,
-    areSidebarPagesEqual,
-  );
+  const catalogVersion = useSidebarCatalogVersion();
+  const pagesRef = useRef(usePages.getState().pages);
+  pagesRef.current = usePages.getState().pages;
+  const pages = pagesRef.current;
   const activePageId = usePages((s) => s.activePageId);
   const reorderPages = usePages((s) => s.reorderPages);
   const moveLocalPage = usePages((s) => s.moveLocalPage);
@@ -107,13 +116,7 @@ export function SidebarMainTree({
   // 从完整内容闪成骨架屏，也让用户仍可在扫描期间看到上一次成功结果。
   // 首次载入没有缓存页面时仍完整展示 loading；真正失败则走下方错误态。
   const hasCachedLocalTree = Boolean(
-    activeNotebookId &&
-      Object.values(pages).some(
-        (page) =>
-          page.workspaceId === activeNotebookId &&
-          !page.trashedAt &&
-          !page.localUnsaved,
-      ),
+    activeNotebookId && notebookHasLivePages(activeNotebookId, pages),
   );
   const shouldShowLocalSkeleton =
     isLocalFolder && localLoadStatus === "loading" && !hasCachedLocalTree;
@@ -280,20 +283,36 @@ export function SidebarMainTree({
     clearLocalFolderDropParent();
   }, []);
 
-  const scopedPages = useMemo(() => {
-    const list = Object.values(pages);
-    if (
-      pendingCreate &&
-      activeNotebookId &&
-      pendingCreate.workspaceId === activeNotebookId
-    ) {
-      return [...list, pendingCreate];
-    }
-    return list;
-  }, [activeNotebookId, pages, pendingCreate]);
+  const spanModel = useMemo(() => {
+    if (!activeNotebookId) return { spans: [], count: 0 };
+    const livePages = usePages.getState().pages;
+    return buildTreeSpans({
+      expandedIds,
+      childIds: (parentId) => treeChildIds(activeNotebookId, parentId, livePages),
+      parentIdOf: (id) => livePages[id]?.parentId || undefined,
+      indexOf: (id) => {
+        if (pendingCreate?.id === id) return -1;
+        return treeIndexOf(id);
+      },
+      isIncluded: (id) => {
+        const page = livePages[id];
+        return (
+          !!page &&
+          page.workspaceId === activeNotebookId &&
+          !page.trashedAt &&
+          !page.localUnsaved
+        );
+      },
+    });
+  }, [activeNotebookId, catalogVersion, expandedIds, pendingCreate?.id]);
+
+  const virtualize =
+    spanModel.count > SIDEBAR_VIRTUAL_ROW_THRESHOLD ||
+    (!!activeNotebookId &&
+      livePageCount(activeNotebookId) > SIDEBAR_VIRTUAL_ROW_THRESHOLD);
 
   const items = useMemo<Record<TreeItemIndex, TreeItem<Page>>>(() => {
-    if (!activeNotebookId) {
+    if (!activeNotebookId || virtualize) {
       return {
         root: {
           index: "root",
@@ -305,11 +324,24 @@ export function SidebarMainTree({
         },
       };
     }
-    return pagesToTreeItems(scopedPages, activeNotebookId, isLocalFolder);
-  }, [scopedPages, activeNotebookId, isLocalFolder]);
+    const livePages = usePages.getState().pages;
+    return pagesToTreeItemsFromIndex(
+      livePages,
+      activeNotebookId,
+      isLocalFolder,
+      (parentId) => treeChildIds(activeNotebookId, parentId, livePages),
+      pendingCreate,
+    );
+  }, [
+    activeNotebookId,
+    catalogVersion,
+    isLocalFolder,
+    pendingCreate,
+    virtualize,
+  ]);
 
   const rootChildren = items.root?.children ?? [];
-  const hasPages = rootChildren.length > 0;
+  const hasPages = spanModel.count > 0 || !!pendingCreate;
 
   const isAncestor = (ancestorId: string, descendantId: string) => {
     let pid: string | undefined = pages[descendantId]?.parentId;
@@ -320,6 +352,8 @@ export function SidebarMainTree({
     return false;
   };
 
+  const treeScrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollToPageRef = useRef<(pageId: string) => void>(() => {});
   const treeRef = useRef<TreeRef>(null);
   const lastClickModRef = useRef({ meta: false, ctrl: false });
   // react-complex-tree 的方向键默认只移动焦点，不会激活页面。
@@ -398,6 +432,7 @@ export function SidebarMainTree({
       // 同步树的当前项/滚动即可；不要把编辑器、表格或输入框的 DOM 焦点
       // 强行夺到 react-complex-tree row overlay。
       treeRef.current?.focusItem(expandPageId, false);
+      scrollToPageRef.current(expandPageId);
     }, 80);
     setExpandPageId(null);
     return () => window.clearTimeout(timer);
@@ -436,6 +471,7 @@ export function SidebarMainTree({
       // 80ms 内用户可能已点进正文/table/input；此时仍展开和选中即可。
       // 第二参数 false 让 react-complex-tree 不抢回 DOM focus。
       treeRef.current?.focusItem(activePageId, false);
+      scrollToPageRef.current(activePageId);
     }, 80);
     return () => window.clearTimeout(timer);
   }, [activePageId, activeNotebookId, pages, expandedIds, setExpanded]);
@@ -673,11 +709,15 @@ export function SidebarMainTree({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
+            ref={treeScrollRef}
             className="flex-1 min-h-0 overflow-auto"
             style={
               {
                 width,
-                height: viewportHeight || undefined,
+                height: viewportHeight > 0 ? viewportHeight : 480,
+                maxHeight: "100%",
+                minHeight: 0,
+                overflow: "auto",
                 "--main-tree-row-height": `${itemHeight}px`,
               } as CSSProperties
             }
@@ -725,6 +765,50 @@ export function SidebarMainTree({
               openPageFromSidebar(pageId, "permanent");
             }}
           >
+            {virtualize ? (
+              <VirtualMainTree
+                spans={spanModel.spans}
+                count={spanModel.count}
+                pages={pages}
+                rowHeight={itemHeight}
+                scrollRef={treeScrollRef}
+                highlightedPageId={highlightedPageId ?? null}
+                isLocalFolder={isLocalFolder}
+                expandedIds={expandedIds}
+                scrollToPageRef={scrollToPageRef}
+                onOpenPage={openPageFromSidebar}
+                onMove={(dragId, parentId, childIndex) => {
+                  const page = pages[dragId];
+                  if (!page) return;
+                  handleDrop(
+                    [
+                      {
+                        index: dragId,
+                        data: page,
+                        children: [],
+                        isFolder: !!page.isFolder,
+                        canMove: true,
+                        canRename: false,
+                      },
+                    ],
+                    {
+                      targetType: "between-items",
+                      parentItem: parentId ?? "root",
+                      childIndex,
+                      linearIndex: childIndex,
+                      depth: 0,
+                    } as DraggingPosition,
+                  );
+                }}
+                onCreateLocalFile={startCreateLocalFile}
+                onCreateLocalFolder={startCreateLocalFolder}
+                onCommitPendingCreate={commitPendingCreate}
+                onCancelPendingCreate={cancelPendingCreate}
+                onItemDragStart={handleItemDragStart}
+                onItemDragEnd={handleItemDragEnd}
+                onActivateLocalDirectory={activateLocalDirectory}
+              />
+            ) : (
             <ControlledTreeEnvironment<Page>
               items={items}
               getItemTitle={(item) =>
@@ -842,6 +926,7 @@ export function SidebarMainTree({
                 ref={treeRef}
               />
             </ControlledTreeEnvironment>
+            )}
           </div>
         </ContextMenuTrigger>
         {isLocalFolder && activeNotebookId && (
@@ -877,4 +962,4 @@ export function SidebarMainTree({
       </ContextMenu>
     </>
   );
-}
+});

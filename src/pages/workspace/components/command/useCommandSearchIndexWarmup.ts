@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNotebooks } from "@/stores/useNotebooks";
 import { usePages } from "@/stores/usePages";
-import { syncSearchCatalog } from "./pageSearchCatalog";
+import { scheduleSearchCatalog } from "./pageSearchCatalog";
 
 /**
  * 主窗挂载后在空闲时预热搜索目录/倒排索引，使 ⌘K 打开时不必现抽全文。
@@ -24,7 +24,7 @@ export function useCommandSearchIndexWarmup(): void {
     };
 
     const run = () => {
-      syncSearchCatalog(
+      scheduleSearchCatalog(
         usePages.getState().pages,
         useNotebooks.getState().notebooks,
       );
@@ -33,7 +33,7 @@ export function useCommandSearchIndexWarmup(): void {
     const schedule = () => {
       cancel();
       if (typeof requestIdleCallback === "function") {
-        idleId = requestIdleCallback(run, { timeout: 400 });
+        idleId = requestIdleCallback(run);
       } else {
         timeoutId = window.setTimeout(run, 32);
       }

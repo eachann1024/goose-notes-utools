@@ -7,7 +7,7 @@
 import type { Page } from "@/types";
 import { getPageTitle } from "@/components/editor/utils/page-title";
 import { DEFAULT_NOTEBOOK } from "@/stores/useNotebooks";
-import { syncIndex } from "./pageSearchIndex";
+import { syncIndex, enqueueIndex } from "./pageSearchIndex";
 import {
   isCommandSearchablePage,
   shouldIncludePageInCommandScope,
@@ -78,6 +78,48 @@ export function syncSearchCatalog(
   };
   syncIndex(toPagesRecord(sortedByTitle));
   return catalog;
+}
+
+let catalogToken = 0;
+
+/** 分片建目录，单片不超过 8 毫秒，不堵住收藏、页面、置顶切换。 */
+export function scheduleSearchCatalog(
+  pages: Record<string, Page>,
+  notebooks: Record<string, SearchNotebook | undefined>,
+): void {
+  const token = ++catalogToken;
+  if (catalog.pagesRef === pages) return;
+  const ids = Object.keys(pages);
+  if (ids.length === 0) return;
+  const decorated: { page: Page; title: string }[] = [];
+  const pageIdsWithChildren = new Set<string>();
+  let cursor = 0;
+
+  const scan = () => {
+    if (token !== catalogToken) return;
+    const start = performance.now();
+    while (cursor < ids.length && performance.now() - start < 8) {
+      const page = pages[ids[cursor++]];
+      if (!page) continue;
+      if (!page.trashedAt && page.parentId) pageIdsWithChildren.add(page.parentId);
+      if (!isCommandSearchablePage(page, notebooks)) continue;
+      decorated.push({ page, title: getPageTitle(page) });
+    }
+    if (cursor < ids.length) {
+      setTimeout(scan, 0);
+      return;
+    }
+    setTimeout(() => {
+      if (token !== catalogToken) return;
+      decorated.sort((a, b) => a.title.localeCompare(b.title, "zh-CN"));
+      if (token !== catalogToken) return;
+      const sortedByTitle = decorated.map((item) => item.page);
+      catalog = { pagesRef: pages, sortedByTitle, pageIdsWithChildren };
+      enqueueIndex(sortedByTitle);
+    }, 0);
+  };
+
+  setTimeout(scan, 0);
 }
 
 export function filterCatalogByScope(

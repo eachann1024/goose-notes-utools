@@ -68,7 +68,7 @@ export function SidebarSectionHeader({
           type="button"
           onClick={onSwitchToOutline}
           className={cn(
-            "rounded-md px-2 py-1 transition-colors",
+            "inline-flex h-6 min-w-[42px] items-center justify-center rounded-md px-2 transition-colors",
             view === "outline"
               ? "bg-[var(--goose-interactive-selected)] text-[var(--goose-interactive-selected-fg)]"
               : "text-muted-foreground hover:bg-[var(--goose-interactive-selected)] hover:text-[var(--goose-interactive-selected-fg)]",

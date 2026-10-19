@@ -23,6 +23,8 @@ interface UseDragOverParams {
   setDropIntent: Dispatch<SetStateAction<DropIntent | null>>;
   emitDragGuide: (guide: SidebarDragGuide | null) => void;
   flatItems: FlatTreeItem[];
+  edgeIds?: { first: string; last: string };
+  resolveFlatItem?: (id: string) => FlatTreeItem | undefined;
   scrollRef: RefObject<HTMLDivElement | null>;
   visibleIndexMap: Map<string, number>;
   activeDescendantIds: Set<string>;
@@ -41,6 +43,8 @@ export function useDragOver({
   dropIntent,
   setDropIntent,
   emitDragGuide,
+  edgeIds,
+  resolveFlatItem,
   flatItems,
   scrollRef,
   visibleIndexMap,
@@ -52,6 +56,12 @@ export function useDragOver({
   setOpenPageIds,
   clearAutoExpandTimer,
 }: UseDragOverParams) {
+  const lookup = (id: string) =>
+    resolveFlatItem?.(id) ?? flatItems.find((item) => item.id === id);
+  const firstEdgeItem = edgeIds?.first ? lookup(edgeIds.first) : flatItems[0];
+  const lastEdgeItem = edgeIds?.last
+    ? lookup(edgeIds.last)
+    : flatItems[flatItems.length - 1];
   const scheduleAutoExpand = (targetId: string | null) => {
     if (autoExpandTargetRef.current === targetId) return;
     clearAutoExpandTimer();
@@ -79,17 +89,15 @@ export function useDragOver({
     if (!over) {
       scheduleAutoExpand(null);
       emitDragGuide({ direction: "left", mode: "sort" });
-      if (flatItems.length > 0 && pointerY !== null) {
+      if ((flatItems.length > 0 || edgeIds) && pointerY !== null) {
         const containerRect = scrollRef.current?.getBoundingClientRect();
-        const firstItem = flatItems[0];
-        const lastItem = flatItems[flatItems.length - 1];
         if (containerRect) {
-          if (pointerY <= containerRect.top + EDGE_DROP_PADDING) {
-            setDropIntent({ overId: firstItem.id, kind: "before" });
+          if (pointerY <= containerRect.top + EDGE_DROP_PADDING && firstEdgeItem) {
+            setDropIntent({ overId: firstEdgeItem.id, kind: "before" });
             return;
           }
-          if (pointerY >= containerRect.bottom - EDGE_DROP_PADDING) {
-            setDropIntent({ overId: lastItem.id, kind: "after" });
+          if (pointerY >= containerRect.bottom - EDGE_DROP_PADDING && lastEdgeItem) {
+            setDropIntent({ overId: lastEdgeItem.id, kind: "after" });
             return;
           }
         }
@@ -129,7 +137,7 @@ export function useDragOver({
     if (overItemId === TOP_EDGE_DROP_ID) {
       scheduleAutoExpand(null);
       emitDragGuide({ direction: "left", mode: "sort" });
-      const firstItem = flatItems[0];
+      const firstItem = firstEdgeItem;
       if (!firstItem) {
         setDropIntent(null);
         return;
@@ -141,7 +149,7 @@ export function useDragOver({
     if (overItemId === BOTTOM_EDGE_DROP_ID) {
       scheduleAutoExpand(null);
       emitDragGuide({ direction: "left", mode: "sort" });
-      const lastItem = flatItems[flatItems.length - 1];
+      const lastItem = lastEdgeItem;
       if (!lastItem) {
         setDropIntent(null);
         return;
@@ -157,7 +165,7 @@ export function useDragOver({
       return;
     }
 
-    const overItem = flatItems.find((item) => item.id === overItemId);
+    const overItem = lookup(overItemId);
     if (!overItem || overItemId === String(active.id)) {
       scheduleAutoExpand(null);
       emitDragGuide({ direction: "left", mode: "sort" });

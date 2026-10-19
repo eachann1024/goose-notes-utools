@@ -1,8 +1,11 @@
+import { memo } from "react";
 import type { Page } from "@/types";
 import * as LucideIcons from "lucide-react";
-import { useStoreWithEqualityFn } from "zustand/traditional";
-import { areSidebarPagesEqual } from "@/stores/pages/areSidebarPagesEqual";
 import { SidebarTree } from "./SidebarTree";
+import {
+  favoriteIdsFor,
+  useSidebarCatalogVersion,
+} from "@/stores/pages/sidebarCatalog";
 
 interface FavoritesSectionProps {
   width: number;
@@ -11,52 +14,38 @@ interface FavoritesSectionProps {
   onCreatePage: () => void;
 }
 
-export function FavoritesSection({
+const FLAT_VIRTUAL_THRESHOLD = 48;
+
+export const FavoritesSection = memo(function FavoritesSection({
   width,
   rowHeight,
   itemHeight,
   onCreatePage,
 }: FavoritesSectionProps) {
-  const pages = useStoreWithEqualityFn(
-    usePages,
-    (state) => state.pages,
-    areSidebarPagesEqual,
-  );
+  const catalogVersion = useSidebarCatalogVersion();
   const reorderFavorites = usePages((state) => state.reorderFavorites);
   const activeNotebookId = useNotebooks((state) => state.activeNotebookId);
   const favoritesCollapsed = useSidebarView((s) => s.favoritesCollapsed);
   const setFavoritesCollapsed = useSidebarView((s) => s.setFavoritesCollapsed);
 
-  const favorites = useMemo(
-    () =>
-      Object.values(pages)
-        .filter((page) => {
-          if (page.trashedAt || !page.isFavorite) return false;
-          if (!activeNotebookId) return true;
-          return page.workspaceId === activeNotebookId;
-        })
-        .sort((a, b) => {
-          const orderA = a.favoriteOrder ?? a.order ?? a.createdAt;
-          const orderB = b.favoriteOrder ?? b.order ?? b.createdAt;
-          if (orderA !== orderB) return orderA - orderB;
-          return a.id.localeCompare(b.id);
-        }),
-    [pages, activeNotebookId],
-  );
-
-  const favoriteRootIds = useMemo(
-    () => favorites.map((page) => page.id),
-    [favorites],
-  );
+  const favoriteRootIds = useMemo(() => {
+    void catalogVersion;
+    return favoriteIdsFor(activeNotebookId, usePages.getState().pages);
+  }, [activeNotebookId, catalogVersion]);
 
   const resolveFavoriteSiblings = useCallback(
     (parentId: string | undefined) => {
       if (parentId) return [];
-      return favoriteRootIds
-        .map((id) => pages[id])
-        .filter((page): page is Page => !!page);
+      const pages = usePages.getState().pages;
+      const ids = favoriteIdsFor(activeNotebookId, pages);
+      const siblings: Page[] = [];
+      for (const id of ids) {
+        const page = pages[id];
+        if (page) siblings.push(page);
+      }
+      return siblings;
     },
-    [favoriteRootIds, pages],
+    [activeNotebookId],
   );
 
   const handleReorderFavorites = useCallback(
@@ -67,9 +56,9 @@ export function FavoritesSection({
     [reorderFavorites],
   );
 
-  if (favorites.length === 0 || favoriteRootIds.length === 0) {
-    return null;
-  }
+  if (favoriteRootIds.length === 0) return null;
+
+  const virtual = favoriteRootIds.length > FLAT_VIRTUAL_THRESHOLD;
 
   return (
     <div className="py-1">
@@ -77,37 +66,48 @@ export function FavoritesSection({
         className="sidebar-section-label sidebar-favorites-label group flex h-8 cursor-pointer items-center justify-between rounded-lg pr-2 text-xs font-medium text-[hsl(var(--goose-nav-title))] transition-colors hover:bg-[var(--goose-interactive-hover)] hover:text-[var(--goose-interactive-selected-fg)]"
         onClick={() => setFavoritesCollapsed(!favoritesCollapsed)}
       >
-        <span>收藏</span>
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="inline-flex h-8 items-center leading-none">收藏</span>
+        <span className="inline-flex h-4 w-4 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
           {favoritesCollapsed ? (
             <LucideIcons.ChevronRight className="h-3 w-3" />
           ) : (
             <LucideIcons.ChevronDown className="h-3 w-3" />
           )}
-        </div>
+        </span>
       </div>
 
-      {!favoritesCollapsed && (
-        <div className="pl-0 pt-0.5 overflow-hidden">
+      <div
+        hidden={favoritesCollapsed}
+        className={favoritesCollapsed ? "hidden" : undefined}
+        style={
+          virtual
+            ? {
+                height: Math.min(320, favoriteRootIds.length * rowHeight),
+                overflow: "hidden",
+              }
+            : undefined
+        }
+      >
+        <div className={virtual ? "h-full overflow-hidden" : "overflow-hidden"}>
           <SidebarTree
             activeNotebookId={activeNotebookId}
             width={width}
             rowHeight={rowHeight}
             itemHeight={itemHeight}
-            viewportHeight={0}
+            viewportHeight={virtual ? Math.min(320, favoriteRootIds.length * rowHeight) : 0}
             onCreatePage={onCreatePage}
             rootPageIds={favoriteRootIds}
             flatRoots
-            fitContent
+            fitContent={!virtual}
             showEmptyState={false}
             allowNest={false}
             resolveSiblings={resolveFavoriteSiblings}
             onReorder={handleReorderFavorites}
             showAddChildButton={false}
-            draggablePageIds={favoriteRootIds}
+            draggablePageIds={virtual ? undefined : favoriteRootIds}
           />
         </div>
-      )}
+      </div>
     </div>
   );
-}
+});

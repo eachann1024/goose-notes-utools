@@ -14,6 +14,8 @@ interface UseDragEndParams {
   dropIntent: DropIntent | null;
   scrollRef: RefObject<HTMLDivElement | null>;
   flatItems: FlatTreeItem[];
+  edgeIds?: { first: string; last: string };
+  resolveFlatItem?: (id: string) => FlatTreeItem | undefined;
   setActiveId: Dispatch<SetStateAction<string | null>>;
   setDropIntent: Dispatch<SetStateAction<DropIntent | null>>;
   dragPointerYRef: MutableRefObject<number | null>;
@@ -35,6 +37,8 @@ export function useDragEnd({
   dropIntent,
   scrollRef,
   flatItems,
+  edgeIds,
+  resolveFlatItem,
   setActiveId,
   setDropIntent,
   dragPointerYRef,
@@ -54,21 +58,27 @@ export function useDragEnd({
     emitDragGuide(null);
 
     const activeNodeId = String(active.id);
+    const lookup = (id: string) =>
+      resolveFlatItem?.(id) ?? flatItems.find((item) => item.id === id);
     const fallbackIntent = (() => {
       if (dropIntent) return dropIntent;
-      if (flatItems.length === 0) return null;
+      if (flatItems.length === 0 && !edgeIds) return null;
       const pointerY = dragPointerYRef.current;
       const containerRect = scrollRef.current?.getBoundingClientRect();
       if (pointerY === null || pointerY === undefined || !containerRect) {
         return null;
       }
 
-      const firstItem = flatItems[0];
-      const lastItem = flatItems[flatItems.length - 1];
-      if (pointerY <= containerRect.top + EDGE_DROP_PADDING) {
+      const firstItem = edgeIds?.first
+        ? lookup(edgeIds.first)
+        : flatItems[0];
+      const lastItem = edgeIds?.last
+        ? lookup(edgeIds.last)
+        : flatItems[flatItems.length - 1];
+      if (firstItem && pointerY <= containerRect.top + EDGE_DROP_PADDING) {
         return { overId: firstItem.id, kind: "before" as const };
       }
-      if (pointerY >= containerRect.bottom - EDGE_DROP_PADDING) {
+      if (lastItem && pointerY >= containerRect.bottom - EDGE_DROP_PADDING) {
         return { overId: lastItem.id, kind: "after" as const };
       }
       return null;
@@ -84,8 +94,8 @@ export function useDragEnd({
     const overNodeId = finalIntent.overId;
     if (activeDescendantIds.has(overNodeId)) return;
 
-    const activeItem = flatItems.find((item) => item.id === activeNodeId);
-    const overItem = flatItems.find((item) => item.id === overNodeId);
+    const activeItem = lookup(activeNodeId);
+    const overItem = lookup(overNodeId);
     const activePage = pages[activeNodeId];
     if (!activeItem || !overItem || !activePage) return;
 

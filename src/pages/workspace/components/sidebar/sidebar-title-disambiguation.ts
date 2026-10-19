@@ -6,7 +6,7 @@ interface BuildSidebarTitleDisambiguationOptions {
   pages: Record<string, Page>;
   activeNotebookId: string | null;
   notebook?: Notebook;
-  rootPageIds?: string[];
+  rootPageIds?: readonly string[];
 }
 
 interface PathCandidate {
@@ -45,7 +45,7 @@ function buildChildrenMap(pages: Record<string, Page>) {
 function collectScopePageIds(
   pages: Record<string, Page>,
   activeNotebookId: string | null,
-  rootPageIds?: string[],
+  rootPageIds?: readonly string[],
 ) {
   const includeByWorkspace = (page: Page) => {
     if (page.trashedAt) return false;

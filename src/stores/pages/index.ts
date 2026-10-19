@@ -25,6 +25,18 @@ import {
   recordRecoveryEntry,
 } from "@/lib/storage/recoveryJournal";
 import { toast } from "@/components/ui/sonner";
+import {
+  clearSidebarPageHint,
+  hintSidebarPages,
+  maxFavoriteOrder,
+  notifySidebarCatalog,
+  orderChildPages,
+  pagesByIds,
+  pinnedIdsFor,
+  syncSidebarCatalog,
+  trashedIdsFor,
+  favoriteIdsFor,
+} from "./sidebarCatalog";
 
 // Re-export flushEditorContent for external consumers
 export { flushEditorContent } from "./actions/flushEditor";
@@ -91,6 +103,7 @@ export const usePages = create<PagesState>()((set, get) => ({
     if (!fresh) return false;
     // 仅当 db 版本更新时才覆盖，避免回退本进程尚未落盘的较新编辑。
     if (current && fresh.updatedAt <= current.updatedAt) return false;
+    hintSidebarPages([pageId]);
     set((state) => ({
       pages: { ...state.pages, [pageId]: fresh },
     }));
@@ -151,6 +164,8 @@ export const usePages = create<PagesState>()((set, get) => ({
     const shouldQueueLocalSettingsSave =
       shouldMergeFrontmatterSettings && page?.localReadState !== "error";
 
+    const pagesBeforeUpdate = get().pages;
+    hintSidebarPages([id]);
     set((state) => {
       const page = state.pages[id];
       if (!page) return state;
@@ -162,13 +177,8 @@ export const usePages = create<PagesState>()((set, get) => ({
         !page.isFavorite &&
         favoriteOrder === undefined
       ) {
-        const maxFavoriteOrder = Object.values(state.pages)
-          .filter((p) => p.workspaceId === page.workspaceId && p.isFavorite)
-          .reduce((max, p) => {
-            const candidate = p.favoriteOrder ?? p.order ?? p.createdAt;
-            return Math.max(max, candidate);
-          }, -1);
-        favoriteOrder = maxFavoriteOrder + 1;
+        const knownMax = maxFavoriteOrder(page.workspaceId);
+        favoriteOrder = knownMax + 1;
       }
 
       let pinnedAt = updates.pinnedAt ?? page.pinnedAt;
@@ -263,6 +273,8 @@ export const usePages = create<PagesState>()((set, get) => ({
       };
     });
 
+    if (get().pages === pagesBeforeUpdate) clearSidebarPageHint();
+
     const updatedPage = get().pages[id];
     if (!updatedPage) return;
 
@@ -293,6 +305,8 @@ export const usePages = create<PagesState>()((set, get) => ({
   permanentlyDeletePage: (id) => permanentlyDeletePageAction(set, get, id),
 
   reorderPages: (ids, parentId) => {
+    const pagesBeforeReorder = get().pages;
+    hintSidebarPages(ids.length > 2048 ? "rebuild" : ids);
     set((state) => {
       const newPages = { ...state.pages };
 
@@ -308,10 +322,13 @@ export const usePages = create<PagesState>()((set, get) => ({
 
       return { pages: newPages };
     });
+    if (get().pages === pagesBeforeReorder) clearSidebarPageHint();
     persistPageSnapshots(get().pages, ids);
   },
 
   reorderFavorites: (ids) => {
+    const pagesBeforeFavorites = get().pages;
+    hintSidebarPages(ids.length > 2048 ? "rebuild" : ids);
     set((state) => {
       const newPages = { ...state.pages };
 
@@ -325,6 +342,7 @@ export const usePages = create<PagesState>()((set, get) => ({
 
       return { pages: newPages };
     });
+    if (get().pages === pagesBeforeFavorites) clearSidebarPageHint();
     persistPageSnapshots(get().pages, ids);
   },
 
@@ -385,64 +403,22 @@ export const usePages = create<PagesState>()((set, get) => ({
   getPage: (id) => get().pages[id],
 
   getChildren: (parentId, workspaceId) => {
-    const pages = get().pages;
-    return Object.values(pages)
-      .filter((p) => {
-        const matchParent = p.parentId === parentId && !p.trashedAt;
-        const matchWorkspace = workspaceId
-          ? p.workspaceId === workspaceId
-          : true;
-        return matchParent && matchWorkspace;
-      })
-      .sort((a, b) => {
-        const valA = a.order ?? a.createdAt;
-        const valB = b.order ?? b.createdAt;
-        if (valA !== valB) return valA - valB;
-        return a.id.localeCompare(b.id);
-      });
+    return orderChildPages(get().pages, parentId, workspaceId);
   },
 
   getTrashedPages: (workspaceId) => {
     const pages = get().pages;
-    return Object.values(pages)
-      .filter((p) => {
-        const isTrashed = !!p.trashedAt;
-        const matchWorkspace = workspaceId
-          ? p.workspaceId === workspaceId
-          : true;
-        return isTrashed && matchWorkspace;
-      })
-      .sort((a, b) => (b.trashedAt ?? 0) - (a.trashedAt ?? 0));
+    return pagesByIds(pages, trashedIdsFor(workspaceId ?? null, pages));
   },
 
   getFavorites: (workspaceId) => {
     const pages = get().pages;
-    return Object.values(pages)
-      .filter((p) => {
-        const isFavorite = p.isFavorite;
-        const matchWorkspace = workspaceId
-          ? p.workspaceId === workspaceId
-          : true;
-        return isFavorite && matchWorkspace;
-      })
-      .sort((a, b) => {
-        const orderA = a.favoriteOrder ?? a.order ?? a.createdAt;
-        const orderB = b.favoriteOrder ?? b.order ?? b.createdAt;
-        if (orderA !== orderB) return orderA - orderB;
-        return a.id.localeCompare(b.id);
-      });
+    return pagesByIds(pages, favoriteIdsFor(workspaceId ?? null, pages));
   },
 
   getPinnedPages: () => {
     const pages = get().pages;
-    return Object.values(pages)
-      .filter((p) => !p.trashedAt && p.isPinned)
-      .sort((a, b) => {
-        const pinA = a.pinnedAt ?? 0;
-        const pinB = b.pinnedAt ?? 0;
-        if (pinA !== pinB) return pinB - pinA;
-        return b.updatedAt - a.updatedAt;
-      });
+    return pagesByIds(pages, pinnedIdsFor(pages));
   },
 
   removePagesByWorkspaceId: (workspaceId, options) => {
@@ -452,6 +428,7 @@ export const usePages = create<PagesState>()((set, get) => ({
       .map((page) => page.id);
 
     set((state) => {
+      hintSidebarPages("rebuild");
       const newPages = { ...state.pages };
       Object.values(state.pages).forEach((page) => {
         if (page.workspaceId === workspaceId) {
@@ -550,3 +527,9 @@ const setupImageStorageResolver = async () => {
 };
 
 void setupImageStorageResolver();
+
+usePages.subscribe((state, prev) => {
+  if (state.pages === prev.pages) return;
+  if (syncSidebarCatalog(prev.pages, state.pages)) notifySidebarCatalog();
+});
+syncSidebarCatalog(null, usePages.getState().pages);

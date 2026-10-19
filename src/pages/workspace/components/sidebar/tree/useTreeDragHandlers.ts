@@ -36,6 +36,8 @@ interface UseTreeDragHandlersParams {
   dropIntent: DropIntent | null;
   emitDragGuide: (guide: SidebarDragGuide | null) => void;
   flatItems: FlatTreeItem[];
+  edgeIds?: { first: string; last: string };
+  resolveFlatItem?: (id: string) => FlatTreeItem | undefined;
   getSiblingPages: (parentId: string | undefined) => Page[];
   isLocalNotebook: boolean;
   itemHeight: number;
@@ -57,6 +59,8 @@ export function useTreeDragHandlers({
   dropIntent,
   emitDragGuide,
   flatItems,
+  edgeIds,
+  resolveFlatItem,
   getSiblingPages,
   isLocalNotebook,
   itemHeight,
@@ -168,6 +172,8 @@ export function useTreeDragHandlers({
     setDropIntent,
     emitDragGuide,
     flatItems,
+    edgeIds,
+    resolveFlatItem,
     scrollRef,
     visibleIndexMap,
     activeDescendantIds,
@@ -187,6 +193,8 @@ export function useTreeDragHandlers({
     dropIntent,
     scrollRef,
     flatItems,
+    edgeIds,
+    resolveFlatItem,
     setActiveId,
     setDropIntent,
     dragPointerYRef,

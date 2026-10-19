@@ -24,7 +24,7 @@ interface BuildVisibleTreeOptions {
   openIds: Set<string>;
   workspaceId?: string;
   isLocalNotebook: boolean;
-  rootPageIds?: string[];
+  rootPageIds?: readonly string[];
   flatRoots?: boolean;
 }
 
@@ -67,6 +67,24 @@ export function buildVisibleTree({
   rootPageIds,
   flatRoots,
 }: BuildVisibleTreeOptions): VisibleTreeItem[] {
+  if (flatRoots && rootPageIds && rootPageIds.length > 0) {
+    const visible: VisibleTreeItem[] = [];
+    for (const rootId of rootPageIds) {
+      const rootPage = pages[rootId];
+      if (!rootPage || rootPage.trashedAt) continue;
+      if (workspaceId && rootPage.workspaceId !== workspaceId) continue;
+      visible.push({
+        id: rootPage.id,
+        page: rootPage,
+        depth: 0,
+        parentId: undefined,
+        hasChildren: false,
+        isOpen: false,
+      });
+    }
+    return visible;
+  }
+
   const childrenMap = new Map<string | undefined, Page[]>();
 
   Object.values(pages).forEach((page) => {
