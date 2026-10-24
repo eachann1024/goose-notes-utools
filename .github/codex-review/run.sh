@@ -71,45 +71,51 @@ PROMPT
 } >> "$prompt_file"
 
 out="${RUNNER_TEMP}/review.json"
-env -u GH_TOKEN -u GITHUB_TOKEN -u CODEX_AUTH_JSON CODEX_HOME="$review_codex_home" codex exec \
+codex_log="${RUNNER_TEMP}/codex-exec.log"
+# Codex 自己的输出可能含审核原文。只留退出状态，不把日志打进 Actions。
+if ! env -u GH_TOKEN -u GITHUB_TOKEN -u CODEX_AUTH_JSON CODEX_HOME="$review_codex_home" codex exec \
   --ephemeral \
   --disable shell_tool \
   --skip-git-repo-check \
   -s read-only \
   --output-schema .github/codex-review/schema.json \
   -o "$out" \
-  - < "$prompt_file" >&2
+  - < "$prompt_file" >"$codex_log" 2>&1; then
+  rm -f "$codex_log"
+  echo "codex exec 失败。未打印其输出。" >&2
+  exit 1
+fi
+rm -f "$codex_log"
 
 python3 - "$out" <<'PARSE'
-import json, re, sys
+import json, sys
 
-def safe_excerpt(text, n=180):
-    text = str(text or "").replace("\x00", "").lstrip("\ufeff")
-    text = re.sub(
-        r"-----BEGIN [A-Z0-9 ]*(?:PRIVATE KEY|CERTIFICATE)-----[\s\S]+?-----END [A-Z0-9 ]*(?:PRIVATE KEY|CERTIFICATE)-----",
-        "[redacted]", text)
-    # Authorization: Bearer <凭据> 整段去掉，不能只替换 Bearer 这个词而留下凭据。
-    text = re.sub(
-        r"(?i)\b(authorization|proxy-authorization)\b\s*[:=]\s*(?:bearer\s+)?\S+",
-        r"\1 [redacted]", text)
-    text = re.sub(r"(?i)\bbearer\s+\S+", "bearer [redacted]", text)
-    # "token":"值"、"access_token": "值" 这类带引号的 JSON 字段，值要整段抹掉。
-    key = r"access_token|refresh_token|id_token|api[_-]?key|client[_-]?secret|password|passwd|secret|token|authorization|credential"
-    text = re.sub(
-        rf'(?i)(?<![A-Za-z0-9_])["\']?(?:{key})["\']?\s*:\s*"(?:\\.|[^"\\])*"',
-        '"[redacted]"', text)
-    text = re.sub(
-        rf"(?i)(?<![A-Za-z0-9_])[\"']?(?:{key})[\"']?\s*:\s*'(?:\\.|[^'\\])*'",
-        "'[redacted]'", text)
-    text = re.sub(
-        rf"(?i)(?<![A-Za-z0-9_])(?:{key})\s*[:=]\s*\S+",
-        "[redacted]", text)
-    text = re.sub(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}", "[redacted]", text)
-    text = re.sub(r"\b(?:ghp_|github_pat_|sk-|xox[baprs]-|AKIA)[A-Za-z0-9_\-]{6,}", "[redacted]", text)
-    text = " ".join(text.split())
-    if not text:
-        return "（空）"
-    return text if len(text) <= n else text[:n - 1] + "…"
+def output_facts(raw, missing_field):
+    # 只报元数据。失败信息里不能出现审核原文，否则凭据格式会一直漏。
+    text = raw if isinstance(raw, str) else ""
+    payload = text.lstrip("\ufeff")
+    decoder = json.JSONDecoder()
+    objects = 0
+    i, n = 0, len(payload)
+    while i < n:
+        if payload[i] not in "{[":
+            i += 1
+            continue
+        try:
+            obj, end = decoder.raw_decode(payload, i)
+        except json.JSONDecodeError:
+            i += 1
+            continue
+        if isinstance(obj, dict):
+            objects += 1
+        elif isinstance(obj, list):
+            objects += sum(isinstance(item, dict) for item in obj)
+        i = end if end > i else i + 1
+    lines = 0 if payload == "" else len(payload.splitlines())
+    return (
+        f"字节 {len(text.encode('utf-8'))}，行数 {lines}，"
+        f"JSON 对象 {objects}，缺少字段 {missing_field}"
+    )
 
 def last_verdict_object(text):
     # Codex 有时会写出多个 JSON 或在对象后追加一行。json.load 会报 Extra data。
@@ -134,7 +140,7 @@ def last_verdict_object(text):
 raw = open(sys.argv[1], encoding="utf-8").read().lstrip("\ufeff")
 data = last_verdict_object(raw)
 if not isinstance(data, dict):
-    raise SystemExit("审核输出里没有带 merge_recommendation 的完整 JSON。摘录：" + safe_excerpt(raw))
+    raise SystemExit("审核输出无法解析。" + output_facts(raw, "merge_recommendation"))
 needed = {"merge_recommendation", "risk_level", "security_concerns", "key_issues_to_review"}
 if not isinstance(data, dict) or set(data) != needed:
     raise SystemExit("审核结果字段不合法")
