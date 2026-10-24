@@ -27,8 +27,16 @@ env:
   ALLOWED_AUTHORS: eachann1024            # 逗号分隔；只合并这些作者的 PR
   ALLOW_CAUTION: "true"                   # merge_with_caution 不是致命问题，默认放行（用户口径：没有致命问题就合并）
   CHECKS_TIMEOUT_MIN: "20"                # 等其他 CI 的上限，超时不合并
-  # 动到这些路径一律转人工（审核/CI 配置、密钥、部署配置）。规则：以 / 结尾=任意层级目录；以 * 开头=后缀；其他=文件名前缀
-  # 仓库有其他部署配置（如自定义 deploy 脚本目录）就追加到这里
+  # 路径规则：以 / 结尾=任意层级目录；以 * 开头=后缀；其他=文件名前缀。
+  # 密钥材料按每一段路径匹配，不只看文件名。任一段是 secrets 或 credentials，
+  # 或以 .env / id_rsa 开头，或以 .pem / .key / .p12 结尾，一律 needs-human，主人豁免无效。
+  # 例如 .github/secrets/production.json、credentials/token.json、.env/local。
+  SECRET_PATHS: ".env,secrets,credentials,*.pem,*.key,*.p12,id_rsa"
+  # 受保护路径：其他作者或 fork 改到这些路径一律 needs-human。
+  # 仓库主人 eachann1024 的同仓库 PR（head.repo.full_name == 本仓库，不是 fork）
+  # 且审核结论为 safe_to_merge 时，即使改到这些路径也 squash 自动合并，不要求 bot-automerge 标签。
+  # 密钥材料不在这条豁免里。风险、安全疑虑、其他 CI 和可合并状态仍按原规则拦截。
+  # 仓库有其他部署配置（如自定义 deploy 脚本目录）就追加到这里。
   PROTECTED_PATHS: ".github/,.pr_agent.toml,.gemini/,.coderabbit.yaml,.greptile/,.env,secrets,credentials,*.pem,*.key,*.p12,id_rsa,deploy/,vercel.json,netlify.toml,fly.toml,wrangler.toml,render.yaml,Dockerfile,docker-compose,compose.yaml,compose.yml,Procfile"
 
 jobs:
@@ -63,7 +71,8 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           bash .github/codex-review/run.sh > "$RUNNER_TEMP/gate-review.json"
-      # 审核结果走产物传递：job output 会被多行 Secret 的按行掩码误判为含密钥而整段丢弃。
+      # 审核 JSON 只走 artifact。放进 job/step output 时，多行 Secret 按行掩码会整段丢弃
+      # （Skip output 'review' since it may contain secret），闸门会误判成没有审核结果。
       - name: Upload review result
         uses: actions/upload-artifact@v4
         with:
@@ -153,6 +162,7 @@ jobs:
       actions: read
     steps:
       - name: Download review result
+        id: review_artifact
         if: needs.review.result == 'success'
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -165,10 +175,12 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           REVIEW_RESULT: ${{ needs.review.result }}
+          DOWNLOAD_OUTCOME: ${{ steps.review_artifact.outcome }}
+          REVIEW_FILE: ${{ runner.temp }}/gate-review/gate-review.json
         run: |
-          REVIEW_JSON="$(cat "$RUNNER_TEMP/gate-review/gate-review.json" 2>/dev/null || true)"
-          export REVIEW_JSON
           python3 - <<'PY'
           import json, os, re, subprocess, sys, time
 
@@ -190,6 +202,78 @@ jobs:
               s = " ".join(str(s).split())
               return s if len(s) <= n else s[:n - 1] + "…"
 
+          def safe_excerpt(text, n=180):
+              text = str(text or "").replace("\x00", "").lstrip("\ufeff")
+              text = re.sub(
+                  r"-----BEGIN [A-Z0-9 ]*(?:PRIVATE KEY|CERTIFICATE)-----[\s\S]+?-----END [A-Z0-9 ]*(?:PRIVATE KEY|CERTIFICATE)-----",
+                  "[redacted]", text)
+              # Authorization: Bearer <凭据> 整段去掉，不能只替换 Bearer 这个词而留下凭据。
+              text = re.sub(
+                  r"(?i)\b(authorization|proxy-authorization)\b\s*[:=]\s*(?:bearer\s+)?\S+",
+                  r"\1 [redacted]", text)
+              text = re.sub(r"(?i)\bbearer\s+\S+", "bearer [redacted]", text)
+              # "token":"值"、"access_token": "值" 这类带引号的 JSON 字段，值要整段抹掉。
+              key = r"access_token|refresh_token|id_token|api[_-]?key|client[_-]?secret|password|passwd|secret|token|authorization|credential"
+              text = re.sub(
+                  rf'(?i)(?<![A-Za-z0-9_])["\']?(?:{key})["\']?\s*:\s*"(?:\\.|[^"\\])*"',
+                  '"[redacted]"', text)
+              text = re.sub(
+                  rf"(?i)(?<![A-Za-z0-9_])[\"']?(?:{key})[\"']?\s*:\s*'(?:\\.|[^'\\])*'",
+                  "'[redacted]'", text)
+              text = re.sub(
+                  rf"(?i)(?<![A-Za-z0-9_])(?:{key})\s*[:=]\s*\S+",
+                  "[redacted]", text)
+              text = re.sub(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}", "[redacted]", text)
+              text = re.sub(r"\b(?:ghp_|github_pat_|sk-|xox[baprs]-|AKIA)[A-Za-z0-9_\-]{6,}", "[redacted]", text)
+              text = " ".join(text.split())
+              if not text:
+                  return "（空）"
+              return text if len(text) <= n else text[:n - 1] + "…"
+
+          def last_verdict_object(text):
+              decoder = json.JSONDecoder()
+              found = None
+              i, n = 0, len(text)
+              while i < n:
+                  if text[i] != "{":
+                      i += 1
+                      continue
+                  try:
+                      obj, end = decoder.raw_decode(text, i)
+                  except json.JSONDecodeError:
+                      i += 1
+                      continue
+                  if isinstance(obj, dict) and "merge_recommendation" in obj:
+                      found = obj
+                  i = end if end > i else i + 1
+              return found
+
+          def load_review():
+              # None：审核 job 没成功，没有可解析产物。成功却没有产物或没有结论对象则直接失败。
+              result = env.get("REVIEW_RESULT") or ""
+              if result != "success":
+                  return None
+              path = env.get("REVIEW_FILE") or ""
+              if not path or not os.path.isfile(path) or os.path.getsize(path) == 0:
+                  outcome = env.get("DOWNLOAD_OUTCOME") or "unknown"
+                  print(
+                      "审核产物缺失：ai-review 已成功，但闸门未下载到产物文件 gate-review.json"
+                      f"（download-artifact 结果：{outcome}）。"
+                      "审核 JSON 只通过 artifact 传递，不走 job output；"
+                      "产物缺失表示上传或下载失败，不是模型给出了空结论。",
+                      file=sys.stderr,
+                  )
+                  sys.exit(1)
+              raw = open(path, encoding="utf-8").read().lstrip("\ufeff")
+              parsed = last_verdict_object(raw)
+              if not isinstance(parsed, dict):
+                  print(
+                      "审核产物里没有带 merge_recommendation 的完整 JSON。摘录：" + safe_excerpt(raw),
+                      file=sys.stderr,
+                  )
+                  sys.exit(1)
+              return parsed
+
           def verdict(review):
               if not review:
                   return "无审核结果"
@@ -210,24 +294,32 @@ jobs:
               print("BLOCKED:", reasons)
               sys.exit(0)
 
-          review = {}
-          try:
-              review = json.loads(env.get("REVIEW_JSON") or "{}") or {}
-          except Exception:
-              review = None
+          review = load_review()
           # 详细结论只写进 Actions 运行摘要，不发评论
           try:
               with open(env["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
                   fh.write("## AI 审核结论\n\n```json\n" +
-                           json.dumps(review, ensure_ascii=False, indent=2)[:60000] + "\n```\n")
+                           json.dumps(review if isinstance(review, dict) else {}, ensure_ascii=False, indent=2)[:60000] + "\n```\n")
           except Exception:
               pass
 
           info = api(f"repos/{repo}/pulls/{pr}")
           labels = {l["name"] for l in info["labels"]}
-          # 没有自动合并标签：只审核不合并，什么都不做
-          if label not in labels:
+          rec_preview = str(review.get("merge_recommendation", "")).strip() if isinstance(review, dict) else ""
+          head_live = ((info.get("head") or {}).get("repo") or {}).get("full_name")
+          # 事件上的作者/head 与 pulls API 必须一致，避免只信其中一边。
+          owner_safe = (
+              env.get("AUTHOR") == "eachann1024"
+              and info["user"]["login"] == "eachann1024"
+              and env.get("HEAD_REPO") == repo
+              and head_live == repo
+              and rec_preview == "safe_to_merge"
+          )
+          # 没有自动合并标签：只审核不合并。主人 + 同仓库 + safe_to_merge 除外。
+          if label not in labels and not owner_safe:
               print("no automerge label; review only"); sys.exit(0)
+          if owner_safe and label not in labels:
+              print("owner safe_to_merge; automerge label not required")
           if info["state"] != "open" or info["head"]["sha"] != sha:
               print("PR closed or head moved; a newer run will handle it"); sys.exit(0)
 
@@ -237,14 +329,9 @@ jobs:
               # 不是仓库主人的 PR：只审不合，也不发评论
               print("author not allowed; review only"); sys.exit(0)
 
-          # 1) 审核本身必须成功且有结构化结果（超时/报错/无输出 = 不合并）
-          if env["REVIEW_RESULT"] != "success":
-              reasons.append(f"AI 审核未成功完成（{env['REVIEW_RESULT']}），按规则不自动合并")
+          # 1) 审核 job 失败时没有产物，按失败原因拦截，不再把空 JSON 说成「没有结构化结果」。
           if review is None:
-              review = {}
-              reasons.append("AI 审核输出无法解析")
-          elif not review:
-              reasons.append("没有拿到 AI 审核的结构化结果")
+              reasons.append(f"AI 审核未成功完成（{env.get('REVIEW_RESULT') or 'unknown'}），按规则不自动合并")
           else:
               rec = str(review.get("merge_recommendation", "")).strip()
               risk = str(review.get("risk_level", "")).strip().lower()
@@ -289,10 +376,13 @@ jobs:
           if any("security" in l.lower() for l in labels):
               reasons.append("PR 带有安全疑虑标签")
 
-          # 2) 敏感路径转人工
+          # 2) 密钥材料一律转人工。其余受保护路径：主人同仓库且 safe_to_merge 可以合并。
           files = json.loads(gh("api", "--paginate", "--slurp", f"repos/{repo}/pulls/{pr}/files?per_page=100"))
           names = [f["filename"] for page in files for f in page]
+          secret_pats = [p.strip() for p in env.get("SECRET_PATHS", "").split(",") if p.strip()]
           prot = [p.strip() for p in env["PROTECTED_PATHS"].split(",") if p.strip()]
+          if not secret_pats:
+              reasons.append("密钥路径规则缺失，按规则不自动合并")
           def protected(n, p):
               base = n.rsplit("/", 1)[-1]
               if p.endswith("/"):
@@ -300,8 +390,22 @@ jobs:
               if p.startswith("*"):
                   return n.endswith(p[1:])
               return base.startswith(p)
-          hit = [n for n in names if any(protected(n, p) for p in prot)]
-          if hit:
+          def is_secret(n):
+              # 文件名和前面的每一段都算。只看最后一段会漏掉 .github/secrets/production.json。
+              for seg in n.split("/"):
+                  if seg and any(protected(seg, p) for p in secret_pats):
+                      return True
+              return False
+          def matched(pats):
+              return [n for n in names if any(protected(n, p) for p in pats)]
+          secret_hit = [n for n in names if is_secret(n)]
+          secret_set = set(secret_hit)
+          hit = [n for n in matched(prot) if n not in secret_set]
+          if secret_hit:
+              reasons.append("改动了密钥材料路径，不能自动合并：" + ", ".join(secret_hit[:10]))
+          if hit and owner_safe:
+              print("owner safe_to_merge; non-secret protected paths allowed:", ", ".join(hit[:10]))
+          elif hit:
               reasons.append("改动了受保护路径：" + ", ".join(hit[:10]))
 
           if reasons:

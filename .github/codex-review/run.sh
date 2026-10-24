@@ -81,8 +81,60 @@ env -u GH_TOKEN -u GITHUB_TOKEN -u CODEX_AUTH_JSON CODEX_HOME="$review_codex_hom
   - < "$prompt_file" >&2
 
 python3 - "$out" <<'PARSE'
-import json, sys
-data = json.load(open(sys.argv[1], encoding="utf-8"))
+import json, re, sys
+
+def safe_excerpt(text, n=180):
+    text = str(text or "").replace("\x00", "").lstrip("\ufeff")
+    text = re.sub(
+        r"-----BEGIN [A-Z0-9 ]*(?:PRIVATE KEY|CERTIFICATE)-----[\s\S]+?-----END [A-Z0-9 ]*(?:PRIVATE KEY|CERTIFICATE)-----",
+        "[redacted]", text)
+    # Authorization: Bearer <凭据> 整段去掉，不能只替换 Bearer 这个词而留下凭据。
+    text = re.sub(
+        r"(?i)\b(authorization|proxy-authorization)\b\s*[:=]\s*(?:bearer\s+)?\S+",
+        r"\1 [redacted]", text)
+    text = re.sub(r"(?i)\bbearer\s+\S+", "bearer [redacted]", text)
+    # "token":"值"、"access_token": "值" 这类带引号的 JSON 字段，值要整段抹掉。
+    key = r"access_token|refresh_token|id_token|api[_-]?key|client[_-]?secret|password|passwd|secret|token|authorization|credential"
+    text = re.sub(
+        rf'(?i)(?<![A-Za-z0-9_])["\']?(?:{key})["\']?\s*:\s*"(?:\\.|[^"\\])*"',
+        '"[redacted]"', text)
+    text = re.sub(
+        rf"(?i)(?<![A-Za-z0-9_])[\"']?(?:{key})[\"']?\s*:\s*'(?:\\.|[^'\\])*'",
+        "'[redacted]'", text)
+    text = re.sub(
+        rf"(?i)(?<![A-Za-z0-9_])(?:{key})\s*[:=]\s*\S+",
+        "[redacted]", text)
+    text = re.sub(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}", "[redacted]", text)
+    text = re.sub(r"\b(?:ghp_|github_pat_|sk-|xox[baprs]-|AKIA)[A-Za-z0-9_\-]{6,}", "[redacted]", text)
+    text = " ".join(text.split())
+    if not text:
+        return "（空）"
+    return text if len(text) <= n else text[:n - 1] + "…"
+
+def last_verdict_object(text):
+    # Codex 有时会写出多个 JSON 或在对象后追加一行。json.load 会报 Extra data。
+    # 取最后一个带 merge_recommendation 的完整对象。
+    decoder = json.JSONDecoder()
+    found = None
+    i, n = 0, len(text)
+    while i < n:
+        if text[i] != "{":
+            i += 1
+            continue
+        try:
+            obj, end = decoder.raw_decode(text, i)
+        except json.JSONDecodeError:
+            i += 1
+            continue
+        if isinstance(obj, dict) and "merge_recommendation" in obj:
+            found = obj
+        i = end if end > i else i + 1
+    return found
+
+raw = open(sys.argv[1], encoding="utf-8").read().lstrip("\ufeff")
+data = last_verdict_object(raw)
+if not isinstance(data, dict):
+    raise SystemExit("审核输出里没有带 merge_recommendation 的完整 JSON。摘录：" + safe_excerpt(raw))
 needed = {"merge_recommendation", "risk_level", "security_concerns", "key_issues_to_review"}
 if not isinstance(data, dict) or set(data) != needed:
     raise SystemExit("审核结果字段不合法")
