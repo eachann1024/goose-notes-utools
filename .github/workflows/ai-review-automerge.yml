@@ -30,6 +30,7 @@ env:
   # 路径规则：以 / 结尾=任意层级目录；以 * 开头=后缀；其他=文件名前缀。
   # 密钥材料按每一段路径匹配，不只看文件名。任一段是 secrets 或 credentials，
   # 或以 .env / id_rsa 开头，或以 .pem / .key / .p12 结尾，一律 needs-human，主人豁免无效。
+  # 重命名同时看 filename 和 previous_filename：改入或改出都算。删除的文件同样算。
   # 例如 .github/secrets/production.json、credentials/token.json、.env/local。
   SECRET_PATHS: ".env,secrets,credentials,*.pem,*.key,*.p12,id_rsa"
   # 受保护路径：其他作者或 fork 改到这些路径一律 needs-human。
@@ -416,7 +417,17 @@ jobs:
 
           # 2) 密钥材料一律转人工。其余受保护路径：主人同仓库且 safe_to_merge 可以合并。
           files = json.loads(gh("api", "--paginate", "--slurp", f"repos/{repo}/pulls/{pr}/files?per_page=100"))
-          names = [f["filename"] for page in files for f in page]
+          changed = [f for page in files for f in page]
+          names = [f.get("filename") or "" for f in changed if f.get("filename")]
+          # 删除文件的 filename 就是被删路径。重命名还要看 previous_filename，改入或改出都拦截。
+          secret_names = []
+          seen_secret = set()
+          for f in changed:
+              for key in ("filename", "previous_filename"):
+                  path = f.get(key)
+                  if path and path not in seen_secret:
+                      seen_secret.add(path)
+                      secret_names.append(path)
           secret_pats = [p.strip() for p in env.get("SECRET_PATHS", "").split(",") if p.strip()]
           prot = [p.strip() for p in env["PROTECTED_PATHS"].split(",") if p.strip()]
           if not secret_pats:
@@ -436,7 +447,7 @@ jobs:
               return False
           def matched(pats):
               return [n for n in names if any(protected(n, p) for p in pats)]
-          secret_hit = [n for n in names if is_secret(n)]
+          secret_hit = [n for n in secret_names if is_secret(n)]
           secret_set = set(secret_hit)
           hit = [n for n in matched(prot) if n not in secret_set]
           if secret_hit:
