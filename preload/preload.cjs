@@ -10,7 +10,7 @@ const os = require("os");
 const path = require("path");
 const http = require("http");
 const https = require("https");
-const { spawn, spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 const { URL: NodeURL, pathToFileURL } = require("url");
 const {
   buildLocalPageId,
@@ -412,7 +412,7 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     path.join(os.homedir(), "Applications"),
   ];
 
-  const commandExistsCache = new Map(); // command -> boolean
+  const commandExistsCache = new Map(); // command -> Promise<boolean>
   const macAppExistsCache = new Map(); // bundle path -> boolean
   const listAvailableOpenAppsCache = new Map(); // signature -> resolved candidates
 
@@ -455,27 +455,47 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     return null;
   };
 
+  // 缓存 Promise，避免设置页三组候选并行探测时对同一命令重复拉起登录 shell。
   const commandExists = (command) => {
-    if (typeof command !== "string" || !command.trim()) return false;
+    if (typeof command !== "string" || !command.trim()) return Promise.resolve(false);
     const normalized = command.trim();
-    if (commandExistsCache.has(normalized)) {
-      return commandExistsCache.get(normalized);
-    }
-    try {
-      const result = spawnSync("/bin/zsh", ["-lc", `command -v ${quoteShellArg(normalized)}`], {
-        timeout: 1000,
-        stdio: "ignore",
-      });
-      const exists = result.status === 0;
-      commandExistsCache.set(normalized, exists);
-      return exists;
-    } catch {
-      commandExistsCache.set(normalized, false);
-      return false;
-    }
+    const cached = commandExistsCache.get(normalized);
+    if (cached) return cached;
+
+    const pending = new Promise((resolve) => {
+      let settled = false;
+      let timer = null;
+      const finish = (exists) => {
+        if (settled) return;
+        settled = true;
+        if (timer !== null) clearTimeout(timer);
+        resolve(exists);
+      };
+      let child;
+      try {
+        child = spawn("/bin/zsh", ["-lc", `command -v ${quoteShellArg(normalized)}`], {
+          stdio: "ignore",
+        });
+      } catch {
+        finish(false);
+        return;
+      }
+      timer = setTimeout(() => {
+        try {
+          child.kill();
+        } catch {
+          // already exited
+        }
+        finish(false);
+      }, 1000);
+      child.on("error", () => finish(false));
+      child.on("close", (code) => finish(code === 0));
+    });
+    commandExistsCache.set(normalized, pending);
+    return pending;
   };
 
-  const resolveOpenAppCandidate = (candidate) => {
+  const resolveOpenAppCandidate = async (candidate) => {
     if (!candidate || typeof candidate !== "object") return null;
     if (process.platform === "darwin") {
       const appName = resolveMacAppName(candidate);
@@ -483,12 +503,15 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     }
 
     const commands = Array.isArray(candidate.commands) ? candidate.commands : [];
-    const command = commands.find(commandExists);
-    if (command) return { ...candidate, appName: command };
+    for (const command of commands) {
+      if (await commandExists(command)) return { ...candidate, appName: command };
+    }
 
     if (process.platform !== "darwin") {
       const firstName = getCandidateNames(candidate)[0];
-      if (firstName && commandExists(firstName)) return { ...candidate, appName: firstName };
+      if (firstName && (await commandExists(firstName))) {
+        return { ...candidate, appName: firstName };
+      }
     }
 
     return null;
@@ -511,9 +534,9 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     }
     const resolved = [];
     for (let i = 0; i < candidates.length; i += 1) {
-      const item = resolveOpenAppCandidate(candidates[i]);
+      const item = await resolveOpenAppCandidate(candidates[i]);
       if (item) resolved.push(item);
-      // 分片让出事件循环，避免首次探测整段同步卡死 UI。
+      // macOS 只做 existsSync 时仍分片让出，避免一次扫完整候选列表卡住 UI。
       if (i < candidates.length - 1 && (i + 1) % 3 === 0) {
         await yieldToEventLoop();
       }
