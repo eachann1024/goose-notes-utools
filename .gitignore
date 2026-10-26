@@ -69,6 +69,9 @@ scripts/*
 !scripts/electron-build-win.mjs
 !scripts/electron-dev.mjs
 !scripts/prepare-electron-pack.mjs
+!scripts/verify.ts
+!scripts/verify/
+!scripts/verify/**
 # stray verification screenshots in repo root
 /*.png
 !cover.png

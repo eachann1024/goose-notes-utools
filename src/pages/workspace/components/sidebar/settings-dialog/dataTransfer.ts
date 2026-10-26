@@ -29,8 +29,6 @@ const recordPreOverwriteHistory = async (id: string | undefined) => {
 interface SettingsDataTransferOptions {
   selectedIds: string[];
   format: ExportOptions["format"];
-  notebooks: ReturnType<typeof useNotebooks.getState>["notebooks"];
-  pages: ReturnType<typeof usePages.getState>["pages"];
   createNotebook: ReturnType<typeof useNotebooks.getState>["createNotebook"];
   setExporting: (value: boolean) => void;
   setImporting: (value: boolean) => void;
@@ -39,8 +37,6 @@ interface SettingsDataTransferOptions {
 export function createSettingsDataTransferActions({
   selectedIds,
   format,
-  notebooks,
-  pages,
   createNotebook,
   setExporting,
   setImporting,
@@ -50,6 +46,9 @@ export function createSettingsDataTransferActions({
     setExporting(true);
     try {
       const { exportNotebooks } = await import("@/lib/export");
+      // 导出当下再读库，设置对话框不订阅 pages。
+      const notebooks = useNotebooks.getState().notebooks;
+      const pages = usePages.getState().pages;
       await exportNotebooks(
         {
           format,
