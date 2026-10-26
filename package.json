@@ -29,7 +29,7 @@
     "linux:dev": "GOOSE_BUILD_TARGET=electron node scripts/electron-dev.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
-    "verify": "bun scripts/verify.ts",
+    "verify": "bun --define __GOOSE_EDITOR_COMPACT__=false --define __GOOSE_EDITOR_AI__=false --define __GOOSE_LITE__=false scripts/verify.ts",
     "build:electron": "GOOSE_BUILD_TARGET=electron vite build && node scripts/compile-electron.mjs && node scripts/prepare-electron-pack.mjs"
   },
   "dependencies": {
@@ -161,6 +161,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.2",
     "globals": "17.6.0",
+    "happy-dom": "20.14.6",
     "postcss": "8.5.15",
     "tailwindcss": "^4",
     "typescript": "6.0.3",

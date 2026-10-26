@@ -5,10 +5,11 @@ if (!name) {
   process.exit(1);
 }
 
-if (name !== "settings-open") {
+const known = new Set(["settings-open", "heading-blocks"]);
+if (!known.has(name)) {
   console.error(`✗ 未知验证: ${name}`);
   process.exit(1);
 }
 
-const { run } = await import("./verify/settings-open.ts");
+const { run } = await import(`./verify/${name}.ts`);
 process.exit(await run());

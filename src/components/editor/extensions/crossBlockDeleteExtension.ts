@@ -21,6 +21,9 @@ import { CellSelection } from "prosemirror-tables";
  *    Shift+Enter / hardBreak 多行块的划选、三击，DOM 选区落到块容器闭边界或下一块
  *    开头、却未覆盖下一块任何正文）：默认 deleteSelection 会连 blockContainer
  *    结构一起删掉，整块消失。此时只删该块内被选中的 inline 内容，保留空壳。
+ *
+ * 3) 单独一块非标题 heading 的正文被完整选中时：默认只清文字，留下空标题。
+ *    这时删掉该块。文档物理首块（标题）不删。普通段落整段选中仍只清文字。
  */
 
 export type BlockHit = {
@@ -275,6 +278,48 @@ export function dispatchInlineDeletes(
   return changed;
 }
 
+/** 非标题 heading 的正文被完整选中时删掉该块。标题和普通段落不走这里。 */
+export function removeFullySelectedNonTitleHeading(editor: any): boolean {
+  const state = editor.prosemirrorState as EditorState;
+  if (state.selection.empty) return false;
+  if (
+    state.selection instanceof CellSelection ||
+    (state.selection as any).isCellSelection ||
+    state.selection.constructor.name === "CellSelection"
+  ) {
+    return false;
+  }
+  if (isOvershootingSingleTextblockSelection(state)) return false;
+
+  const hits = collectSelectedBlocks(state);
+  if (hits.length !== 1) return false;
+  const hit = hits[0];
+  if (!hit.isTextblock || !isBlockContentFullySelected(hit)) return false;
+
+  const block = editor.getBlock?.(hit.id) as BlockLike & {
+    type?: string;
+    children?: BlockLike[];
+  } | undefined;
+  if (!block || block.type !== "heading") return false;
+  const firstBlockId = editor.document[0]?.id as string | undefined;
+  if (!firstBlockId || block.id === firstBlockId) return false;
+  if (Array.isArray(block.children) && block.children.length > 0) return false;
+
+  const flat = flattenBlocks(editor.document as BlockLike[]);
+  const index = flat.findIndex((item) => item.block.id === block.id);
+  if (index < 0) return false;
+  const prev = flat[index - 1]?.block;
+  const next = flat[index + 1]?.block;
+  if (!prev && !next) return false;
+
+  editor.transact(() => {
+    editor.removeBlocks([block]);
+    if (prev) editor.setTextCursorPosition(prev, "end");
+    else editor.setTextCursorPosition(next, "start");
+  });
+  return true;
+}
+
 export function deleteSelectedBlocks(editor: any): boolean {
   const state = editor.prosemirrorState as EditorState;
   if (state.selection.empty) return false;
@@ -291,6 +336,7 @@ export function deleteSelectedBlocks(editor: any): boolean {
   // hardBreak 多行块等：选区越出单块 inline 边界但未真正选中第二块正文时，
   // 先钳制为块内删除，避免默认 deleteSelection 拆掉整个 blockContainer。
   if (deleteOvershootingSingleBlockSelection(editor)) return true;
+  if (removeFullySelectedNonTitleHeading(editor)) return true;
 
   const hits = collectSelectedBlocks(state);
   if (hits.length < 2) return false;

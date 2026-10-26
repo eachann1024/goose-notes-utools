@@ -13,3 +13,4 @@
 
 - `createReactBlockSpec` 不挂 API、Shiki 多实例或重 React 树；非聚焦的 code / file / image 使用轻量视图。
 - `codeBlockSpec.tsx`、`Editor.tsx` 不顺手大拆，单开任务再拆；`AiComposerInput.tsx` 只负责组装，逻辑在同目录 `composer*.ts` / `useComposer*.ts`，`editor-base.css` 只保留 `@import`，样式修改定位 `styles/editor-base/` 子文件。
+- 标题删除和块首斜杠菜单的验收跑 `bun run verify heading-blocks`（`scripts/verify/heading-blocks.ts`，只打印 ✓/✗）。文档物理首块标题不删。
