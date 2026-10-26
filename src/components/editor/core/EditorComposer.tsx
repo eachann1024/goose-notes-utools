@@ -606,7 +606,7 @@ export function EditorComposer({
         filePanel={false}
         onChange={() => {
           const safePageId = pageIdForUpdateRef.current;
-          if (!safePageId) return;
+          if (!safePageId || safePageId !== page?.id) return;
           // raw 文档跳过 normalizePageContent（含 ensureFirstTitleHeading），
           // 与 Editor.tsx 切页/commit 路径保持一致，避免程序化规范化误触保存。
           // 用户真实输入仍会让文档签名偏离基线，照常走 debouncedUpdate 保存。

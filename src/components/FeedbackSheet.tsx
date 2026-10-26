@@ -14,7 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { GripTextarea, gripPaint } from "@/components/ui/grip-textarea";
+import { textareaClass } from "@/components/ui/textarea";
 import { hostRuntime } from "@/lib/host";
 import {
   feedbackFetch,
@@ -402,7 +403,11 @@ export function FeedbackSheet({
           )}
         </div>
         <form className="grid gap-3 p-4" onSubmit={submit}>
-          <Textarea
+          <GripTextarea
+            className={textareaClass}
+            paint={gripPaint.goose}
+            gripLabel="反馈内容"
+            minHeight={112}
             aria-label="反馈内容"
             placeholder="输入消息…"
             value={message}

@@ -96,6 +96,7 @@ declare global {
   const GOOSE_FONT_KEY: typeof import('./lib/local-frontmatter').GOOSE_FONT_KEY
   const GOOSE_LOCKED_KEY: typeof import('./lib/local-frontmatter').GOOSE_LOCKED_KEY
   const GOOSE_PINNED_KEY: typeof import('./lib/local-frontmatter').GOOSE_PINNED_KEY
+  const GripTextarea: typeof import('./components/ui/grip-textarea').GripTextarea
   const IMAGE_EXPORT_LIVE_PREVIEW_MIN_WIDTH: typeof import('./lib/imageExport/index').IMAGE_EXPORT_LIVE_PREVIEW_MIN_WIDTH
   const IMAGE_EXPORT_OPTIONS_CORNER_MIN_WIDTH: typeof import('./lib/imageExport/index').IMAGE_EXPORT_OPTIONS_CORNER_MIN_WIDTH
   const INTERNAL_ASSET_REF_PREFIXES: typeof import('./lib/internalAssetRef').INTERNAL_ASSET_REF_PREFIXES
@@ -167,6 +168,7 @@ declare global {
   const TabsContent: typeof import('./components/ui/tabs').TabsContent
   const TabsList: typeof import('./components/ui/tabs').TabsList
   const TabsTrigger: typeof import('./components/ui/tabs').TabsTrigger
+  const Textarea: typeof import('./components/ui/textarea').Textarea
   const Toaster: typeof import('./components/ui/sonner').Toaster
   const Toggle: typeof import('./components/ui/toggle').Toggle
   const Tooltip: typeof import('./components/ui/tooltip').Tooltip
@@ -210,6 +212,8 @@ declare global {
   const cachePasteTarget: typeof import('./components/editor/hooks/useEditorPaste').cachePasteTarget
   const cacheSignal: typeof import('react').cacheSignal
   const canonicalizeRecordedShortcut: typeof import('./lib/shortcut-platform').canonicalizeRecordedShortcut
+  const celebrate: typeof import('./lib/celebrate').celebrate
+  const checkFeedbackUnread: typeof import('./lib/feedback').checkFeedbackUnread
   const clampQuickNoteZoom: typeof import('./stores/useQuickNote').clampQuickNoteZoom
   const cleanAssetDestination: typeof import('./lib/local-folder-asset-maintenance').cleanAssetDestination
   const clearAllLocalMdSnapshots: typeof import('./lib/local-md-snapshot').clearAllLocalMdSnapshots
@@ -281,6 +285,9 @@ declare global {
   const extractStructureSummary: typeof import('./components/editor/utils/content-text-extractor').extractStructureSummary
   const extractTextFromContent: typeof import('./components/editor/utils/content-text-extractor').extractTextFromContent
   const extractTitleFromContent: typeof import('./components/editor/utils/content-text-extractor').extractTitleFromContent
+  const feedbackBase: typeof import('./lib/feedback').feedbackBase
+  const feedbackFetch: typeof import('./lib/feedback').feedbackFetch
+  const feedbackToken: typeof import('./lib/feedback').feedbackToken
   const fetchCustomAIModels: typeof import('./lib/ai-provider/index').fetchCustomAIModels
   const fileNavKeyForTab: typeof import('./stores/useFileNavHistory').fileNavKeyForTab
   const fileStorage: typeof import('./lib/fileStorage').fileStorage
@@ -349,6 +356,7 @@ declare global {
   const getSettingsProviderId: typeof import('./lib/ai-provider/index').getSettingsProviderId
   const getShortcutFromMouseEvent: typeof import('./lib/shortcut-match').getShortcutFromMouseEvent
   const getStoredAIModelOptions: typeof import('./lib/ai-provider/index').getStoredAIModelOptions
+  const gripPaint: typeof import('./components/ui/grip-textarea').gripPaint
   const hasSidebarListEscapeOverlay: typeof import('./lib/sidebarListCollapse').hasSidebarListEscapeOverlay
   const hasStructuredBlocks: typeof import('./components/editor/utils/blocknote-content/index').hasStructuredBlocks
   const hasStyledSoftWrapItems: typeof import('./components/editor/utils/softWrapPaste').hasStyledSoftWrapItems
@@ -419,6 +427,7 @@ declare global {
   const jsonContentToMarkdown: typeof import('./lib/export/index').jsonContentToMarkdown
   const lazy: typeof import('react').lazy
   const listWebdavBackups: typeof import('./lib/webdavSync').listWebdavBackups
+  const loadFeedback: typeof import('./lib/feedback').loadFeedback
   const loadQuickNoteSlotNames: typeof import('./stores/useQuickNote').loadQuickNoteSlotNames
   const localAssetPaths: typeof import('./lib/local-folder-asset-maintenance').localAssetPaths
   const localFileTitleFromPath: typeof import('./lib/local-folder-scanner').localFileTitleFromPath
@@ -553,6 +562,7 @@ declare global {
   const serializeSlicePlainText: typeof import('./components/editor/utils/clipboard').serializeSlicePlainText
   const serializeWikiLinkMarkdown: typeof import('./lib/wikiLink').serializeWikiLinkMarkdown
   const setDbStorageItem: typeof import('./lib/storage').setDbStorageItem
+  const setFeedbackUnread: typeof import('./lib/feedback').setFeedbackUnread
   const setLocalFolderFileDropTarget: typeof import('./lib/local-folder-file-drop-target').setLocalFolderFileDropTarget
   const setLocalMdSnapshot: typeof import('./lib/local-md-snapshot').setLocalMdSnapshot
   const shortcutHasModifier: typeof import('./lib/shortcut-match').shortcutHasModifier
@@ -585,6 +595,7 @@ declare global {
   const subscribePageTitleFocus: typeof import('./lib/page-title-focus').subscribePageTitleFocus
   const syncAccentColorCssVars: typeof import('./lib/accentColor').syncAccentColorCssVars
   const testWebdavConnection: typeof import('./lib/webdavSync').testWebdavConnection
+  const textareaClass: typeof import('./components/ui/textarea').textareaClass
   const titleHeadingBlock: typeof import('./components/editor/utils/blocknote-content/index').titleHeadingBlock
   const toCssFontFamily: typeof import('./lib/fontLoader').toCssFontFamily
   const toDiskWriteError: typeof import('./lib/diskWriteError').toDiskWriteError
@@ -624,6 +635,7 @@ declare global {
   const useEffectEvent: typeof import('react').useEffectEvent
   const useEffectiveSidebarCollapsed: typeof import('./hooks/useWorkspaceViewportCollapse').useEffectiveSidebarCollapsed
   const useEffectiveSingleTabMode: typeof import('./lib/tabMode').useEffectiveSingleTabMode
+  const useFeedbackUnread: typeof import('./lib/feedback').useFeedbackUnread
   const useFileNavHistory: typeof import('./stores/useFileNavHistory').useFileNavHistory
   const useFormatCode: typeof import('./components/editor/hooks/useFormatCode').useFormatCode
   const useFormattingToolbarAi: typeof import('./components/editor/state/formattingToolbarAi').useFormattingToolbarAi
@@ -709,6 +721,9 @@ declare global {
   export type { DiskWriteError } from './lib/diskWriteError'
   import('./lib/diskWriteError')
   // @ts-ignore
+  export type { FeedbackMessage, FeedbackConversation } from './lib/feedback'
+  import('./lib/feedback')
+  // @ts-ignore
   export type { FixedAppShortcutId } from './lib/fixed-app-shortcuts'
   import('./lib/fixed-app-shortcuts')
   // @ts-ignore
@@ -771,6 +786,9 @@ declare global {
   // @ts-ignore
   export type { DialogProps } from './components/ui/dialog'
   import('./components/ui/dialog')
+  // @ts-ignore
+  export type { GripPaint } from './components/ui/grip-textarea'
+  import('./components/ui/grip-textarea')
   // @ts-ignore
   export type { IconButtonProps } from './components/ui/icon-button'
   import('./components/ui/icon-button')

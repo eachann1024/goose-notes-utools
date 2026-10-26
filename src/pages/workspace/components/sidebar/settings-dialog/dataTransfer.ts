@@ -22,6 +22,7 @@ const recordPreOverwriteHistory = async (id: string | undefined) => {
       });
     } catch (err) {
       console.error("[history] Failed to save pre-overwrite history", err);
+      throw new Error("无法备份原笔记，已停止导入以避免覆盖", { cause: err });
     }
   }
 };
@@ -121,7 +122,7 @@ export function createSettingsDataTransferActions({
       } catch (err) {
         console.error("Import failed", err);
         toast.error("导入失败", {
-          description: "请确保文件是有效的导出 ZIP 包",
+          description: err instanceof Error ? err.message : "请确保文件是有效的导出 ZIP 包",
         });
       } finally {
         setImporting(false);
