@@ -16,19 +16,12 @@ import { SettingsAppearance } from "./SettingsAppearance";
 import { SettingsGeneral } from "./SettingsGeneral";
 import { SettingsShortcuts } from "./settings/SettingsShortcuts";
 import { SettingsLocalFolder } from "./SettingsLocalFolder";
-import {
-  LOCAL_FOLDER_EDITOR_CANDIDATES,
-  LOCAL_FOLDER_FILE_MANAGER_CANDIDATES,
-  LOCAL_FOLDER_TERMINAL_CANDIDATES,
-} from "@/lib/local-folder-open-apps";
-import { shell } from "@/lib/utools/shell";
 import { SettingsDataPanel } from "./settings/SettingsDataPanel";
 import { SettingsAI } from "./SettingsAI";
 import { SettingsScaffold } from "./settings/SettingsScaffold";
 import type { SettingsTab } from "./settings/types";
 import { useShallow } from "zustand/react/shallow";
 import { useNotebooks, sortNotebooksByOrder } from "@/stores/useNotebooks";
-import { usePages } from "@/stores/usePages";
 import { useSettings } from "@/stores/useSettings";
 import { effectiveSingleTabMode } from "@/lib/tabMode";
 import { useTabs } from "@/stores/useTabs";
@@ -48,47 +41,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
     return () => {
       document.body.removeAttribute("data-goose-settings-open");
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    let cancelled = false;
-    let idleId: number | null = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const prewarmLocalFolderOpenApps = () => {
-      if (cancelled) return;
-      void Promise.all([
-        shell.listAvailableOpenApps(LOCAL_FOLDER_FILE_MANAGER_CANDIDATES),
-        shell.listAvailableOpenApps(LOCAL_FOLDER_EDITOR_CANDIDATES),
-        shell.listAvailableOpenApps(LOCAL_FOLDER_TERMINAL_CANDIDATES),
-      ]);
-    };
-
-    const schedule =
-      typeof window !== "undefined" &&
-      typeof window.requestIdleCallback === "function"
-        ? () => {
-            idleId = window.requestIdleCallback(() => {
-              prewarmLocalFolderOpenApps();
-            });
-          }
-        : () => {
-            timeoutId = setTimeout(prewarmLocalFolderOpenApps, 0);
-          };
-
-    schedule();
-
-    return () => {
-      cancelled = true;
-      if (idleId !== null && typeof window.cancelIdleCallback === "function") {
-        window.cancelIdleCallback(idleId);
-      }
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-      }
     };
   }, [open]);
 
@@ -222,7 +174,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { notebooks } = useNotebooks(
     useShallow((s) => ({ notebooks: s.notebooks })),
   );
-  const { pages } = usePages(useShallow((s) => ({ pages: s.pages })));
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
   useEffect(() => {
@@ -281,8 +232,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { handleExport, handleImport } = createSettingsDataTransferActions({
     selectedIds,
     format,
-    notebooks,
-    pages,
     createNotebook,
     setExporting,
     setImporting,

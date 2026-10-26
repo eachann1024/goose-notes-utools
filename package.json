@@ -29,6 +29,7 @@
     "linux:dev": "GOOSE_BUILD_TARGET=electron node scripts/electron-dev.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
+    "verify": "bun scripts/verify.ts",
     "build:electron": "GOOSE_BUILD_TARGET=electron vite build && node scripts/compile-electron.mjs && node scripts/prepare-electron-pack.mjs"
   },
   "dependencies": {

@@ -78,9 +78,6 @@ export function SettingsDataPanel({
   const selectedCount = selectedIds.length;
   const totalCount = notebookList.length;
 
-  const { notebooks } = useNotebooks();
-  const { pages } = usePages();
-
   const {
     webdavUrl,
     webdavUsername,
@@ -223,7 +220,11 @@ export function SettingsDataPanel({
         setUploading(false);
         return;
       }
-      const zipBlob = await generateExportZip({ format: "md", notebookIds }, notebooks, Object.values(pages));
+      const zipBlob = await generateExportZip(
+        { format: "md", notebookIds },
+        useNotebooks.getState().notebooks,
+        Object.values(usePages.getState().pages),
+      );
       const now = new Date();
       const pad = (n: number) => n.toString().padStart(2, "0");
       const fileName = `goose-note-export-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}.zip`;
