@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { TextSelection } from "@tiptap/pm/state";
+import { Selection, TextSelection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { needsBodyParagraphAfterTitle } from "@/components/editor/utils/blocknote-content";
 import { isBottomEditorBlankClick } from "./EditorComposer";
@@ -33,7 +33,7 @@ function selectUpFromBottomBlank(
   const max = doc.content.size;
   const safeAnchor = Math.max(0, Math.min(anchor, max));
   const safeHead = Math.max(0, Math.min(hit?.pos ?? safeAnchor, max));
-  let selection: TextSelection;
+  let selection: Selection;
   try {
     selection = TextSelection.between(
       doc.resolve(safeAnchor),
