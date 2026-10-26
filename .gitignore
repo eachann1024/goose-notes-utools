@@ -85,3 +85,13 @@ public/fonts/*.ttf
 public/fonts/*.otf
 
 !scripts/generate-license-notices.mjs
+
+# Added by maotou cleanup
+tmp/
+.cache/
+*.tmp
+*.dump
+*.har
+debug*
+*.debug
+*.trace
