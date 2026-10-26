@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { EditorState } from "@tiptap/pm/state";
 import {
   clonePageContent,
@@ -14,6 +14,9 @@ import { toEditorBlocks, getCachedContentSignature } from "./editorContentPolicy
 
 export function useEditorPageLifecycle({
   activePageId,
+  onContentChange,
+  contentMode,
+  commitEditorContent,
   prevPageIdRef,
   userInteractedRef,
   pendingEditorChangeRef,
@@ -26,6 +29,9 @@ export function useEditorPageLifecycle({
   onContentChangeRef,
 }: {
   activePageId: string | null;
+  onContentChange: EditorPageContext["onContentChange"];
+  contentMode: EditorPageContext["contentMode"];
+  commitEditorContent: (targetPageId?: string) => void;
   prevPageIdRef: RefObject<string | null>;
   userInteractedRef: RefObject<boolean>;
   pendingEditorChangeRef: RefObject<boolean>;
@@ -37,8 +43,14 @@ export function useEditorPageLifecycle({
   syncedContentSignatureRef: RefObject<string | null>;
   onContentChangeRef: RefObject<EditorPageContext["onContentChange"]>;
 }) {
-  useEffect(() => {
-    if (activePageId === prevPageIdRef.current) return;
+  useLayoutEffect(() => {
+    if (activePageId === prevPageIdRef.current) {
+      onContentChangeRef.current = onContentChange;
+      contentModeRef.current = contentMode;
+      return;
+    }
+    commitEditorContent();
+    pageIdForUpdateRef.current = null;
     prevPageIdRef.current = activePageId;
 
     // 切页起点即重置：侧栏点击等切页前的 pointerdown 不应算进新页面的用户编辑。
@@ -48,12 +60,11 @@ export function useEditorPageLifecycle({
     debouncedUpdate.cancel();
 
     const p = pageRef.current;
-    pageIdForUpdateRef.current = p?.id ?? null;
 
     // raw 文档跳过 normalizePageContent（不触发 ensureFirstTitleHeading）。
     // 须与 EditorComposer.onChange 的 contentMode 判断一致：
     // raw 文档同样豁免，否则切页/重开时会把首块强转 H1 并刷新签名基线。
-    const isLocalPage = contentModeRef.current === "raw";
+    const isLocalPage = contentMode === "raw";
     const nextContent = isLocalPage ? toEditorBlocks(p?.content) : normalizePageContent(p?.content);
     const nextEditorContent = createEditorSafeContent(nextContent, editor.schema);
     const nextSig = getCachedContentSignature(nextEditorContent);
@@ -90,6 +101,10 @@ export function useEditorPageLifecycle({
       view.updateState(newState);
     }
 
+    onContentChangeRef.current = onContentChange;
+    contentModeRef.current = contentMode;
+    pageIdForUpdateRef.current = p?.id ?? null;
+
     // normalize 改写了结构才回写（silent 路径：只同步内存，不触发写盘/标脏）。
     // local 页面不回写：内容未经 normalize，store 保持磁盘解析原样
     // （空文件的编辑器兜底空段落只是呈现层，不应进 store）。
@@ -101,5 +116,5 @@ export function useEditorPageLifecycle({
     // 切页完成 = 新一轮程序化同步起点，重置用户交互标记：
     // 切页后 BlockNote 的异步 props 补全（折叠块/视频等）不应被算作用户编辑。
     userInteractedRef.current = false;
-  }, [activePageId, debouncedUpdate, editor]);
+  }, [activePageId, onContentChange, contentMode, commitEditorContent, debouncedUpdate, editor]);
 }

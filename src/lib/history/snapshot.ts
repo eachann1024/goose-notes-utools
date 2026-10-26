@@ -19,9 +19,11 @@ function withIndexLock<T>(pageId: string, fn: () => Promise<T>): Promise<T> {
   const prev = indexWriteChains.get(pageId) ?? Promise.resolve();
   const next = prev.catch(() => undefined).then(fn);
   indexWriteChains.set(pageId, next);
-  next.finally(() => {
-    if (indexWriteChains.get(pageId) === next) indexWriteChains.delete(pageId);
-  });
+  void next
+    .finally(() => {
+      if (indexWriteChains.get(pageId) === next) indexWriteChains.delete(pageId);
+    })
+    .catch(() => undefined);
   return next;
 }
 

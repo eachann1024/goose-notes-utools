@@ -50,14 +50,13 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
   const platform = useEditorPlatform();
   const activePageId = page?.id ?? null;
 
-  const pageIdForUpdateRef = useRef<string | null>(null);
+  const pageIdForUpdateRef = useRef<string | null>(activePageId);
   const syncedContentSignatureRef = useRef<string | null>(null);
   // 只有 BlockNote 真正触发了待提交的 onChange 才需要在切页时克隆整篇文档。
   // 只读浏览后切到文件夹主页时直接跳过，避免大文件产生同步长任务。
   const pendingEditorChangeRef = useRef(false);
   const editorContainerRef = useRef<HTMLDivElement | null>(null);
   const shiftPressedRef = useRef(false);
-  pageIdForUpdateRef.current = page?.id ?? null;
 
   // 点击编辑器空白区域消闪：mousedown 时短暂抑制格式化工具栏（prosemirror 会先短暂
   // 出现非空选区再被 focusEditorEnd 塌缩），mouseup 时恢复。
@@ -69,7 +68,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
   const aiSettingsRef = useRef(aiSettings);
   aiSettingsRef.current = aiSettings;
   const onContentChangeRef = useRef(onContentChange);
-  onContentChangeRef.current = onContentChange;
   const onOpenPageRef = useRef(onOpenPage);
   onOpenPageRef.current = onOpenPage;
   const getActivePageLocalFilePathRef = useRef(getActivePageLocalFilePath);
@@ -81,7 +79,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
   const pageRef = useRef(page);
   pageRef.current = page;
   const contentModeRef = useRef(contentMode);
-  contentModeRef.current = contentMode;
   const inlineAiScopeRef = useRef(() => ({ pageId: "", editable: false, protectFirstTitle: true }));
   inlineAiScopeRef.current = () => {
     const latest = getLatestPage ? getLatestPage(page.id) : page;
@@ -167,12 +164,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
     [],
   );
   editorInstanceRef.current = editor;
-  useEditorEditability({
-    editor,
-    activePageId,
-    editable,
-    page,
-  });
   const { readCurrentEditorContent, debouncedUpdate } = useEditorContentSnapshot({
     editor,
     contentModeRef,
@@ -182,9 +173,20 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
     onContentChangeRef,
   });
 
+  const { commitEditorContent } = useEditorContentCommit({
+    pageIdForUpdateRef,
+    debouncedUpdate,
+    readCurrentEditorContent,
+    pendingEditorChangeRef,
+    syncedContentSignatureRef,
+    onContentChangeRef,
+  });
   const prevPageIdRef = useRef<string | null>(activePageId);
   useEditorPageLifecycle({
     activePageId,
+    onContentChange,
+    contentMode,
+    commitEditorContent,
     prevPageIdRef,
     userInteractedRef,
     pendingEditorChangeRef,
@@ -195,6 +197,12 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
     editor,
     syncedContentSignatureRef,
     onContentChangeRef,
+  });
+  useEditorEditability({
+    editor,
+    activePageId,
+    editable,
+    page,
   });
   const { getSlashItems } = useEditorSlashMenu({
     editor,
@@ -230,14 +238,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
     editorContainerRef,
     editor,
     usesRawEditorContentRef,
-  });
-  const { commitEditorContent } = useEditorContentCommit({
-    pageIdForUpdateRef,
-    debouncedUpdate,
-    readCurrentEditorContent,
-    pendingEditorChangeRef,
-    syncedContentSignatureRef,
-    onContentChangeRef,
   });
   useEditorHostEvents({
     commitEditorContent,

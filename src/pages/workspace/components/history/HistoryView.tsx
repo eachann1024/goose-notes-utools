@@ -250,16 +250,18 @@ function useHistoryViewLogic() {
     }
 
     const latest = getPage(pageId);
-    if (!latest) return;
+    if (!latest) {
+      setIsRestoring(false);
+      return;
+    }
 
     recordHistorySnapshot({
       pageId,
       workspaceId: latest.workspaceId,
       content: latest.content,
       trigger: "pre-op",
-    }).catch((err) => console.error("[history] pre-op snapshot failed:", err));
-
-    materializeVersion(pageId, selectedVersionId)
+    })
+      .then(() => materializeVersion(pageId, selectedVersionId))
       .then((result) => {
         if (!result || result.content == null) {
           toast.error("无法读取该版本", {
@@ -291,7 +293,7 @@ function useHistoryViewLogic() {
         exit();
       })
       .catch((error) => {
-        toast.error("无法读取该版本", {
+        toast.error("还原失败，当前内容未覆盖", {
           description: describeDiskWriteError(error),
         });
         setIsRestoring(false);

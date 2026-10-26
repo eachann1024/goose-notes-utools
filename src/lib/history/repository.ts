@@ -9,6 +9,19 @@ const versionKey = (pageId: string, versionId: string) =>
   `${VERSION_PREFIX}${pageId}:${versionId}`;
 const indexKey = (pageId: string) => `${INDEX_PREFIX}${pageId}`;
 
+const saveHistoryDoc = <T>(key: string, data: T): void => {
+  const write = () => {
+    const existing = UToolsAdapter.db.get<T>(key);
+    return UToolsAdapter.db.put(key, data, existing?._rev);
+  };
+  let result = write();
+  if (result.ok !== false) return;
+  result = write();
+  if (result.ok === false) {
+    throw new Error("历史版本未能保存，请稍后重试", { cause: result.error });
+  }
+};
+
 export const historyRepository = {
   loadIndex(pageId: string): HistoryIndex {
     const doc = UToolsAdapter.db.get<HistoryIndex>(indexKey(pageId));
@@ -17,8 +30,7 @@ export const historyRepository = {
 
   saveIndex(index: HistoryIndex): void {
     const key = indexKey(index.pageId);
-    const existing = UToolsAdapter.db.get<HistoryIndex>(key);
-    UToolsAdapter.db.put(key, index, existing?._rev);
+    saveHistoryDoc(key, index);
   },
 
   loadVersion(pageId: string, versionId: string): HistoryVersion | null {
@@ -28,8 +40,7 @@ export const historyRepository = {
 
   saveVersion(version: HistoryVersion): void {
     const key = versionKey(version.pageId, version.versionId);
-    const existing = UToolsAdapter.db.get<HistoryVersion>(key);
-    UToolsAdapter.db.put(key, version, existing?._rev);
+    saveHistoryDoc(key, version);
   },
 
   removeVersion(pageId: string, versionId: string): void {

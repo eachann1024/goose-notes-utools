@@ -1,3 +1,5 @@
+import { dialogs } from "./dialogs";
+
 const getGooseFs = (): GooseFs | null =>
   typeof window !== "undefined" ? (window as any).gooseFs ?? null : null;
 
@@ -106,8 +108,6 @@ export const fs = {
   },
 
   selectDirectory: async (): Promise<string | null> => {
-    const gfs = getGooseFs();
-    if (!gfs?.selectDirectory) return null;
-    return gfs.selectDirectory();
+    return dialogs.selectDirectory();
   },
 };

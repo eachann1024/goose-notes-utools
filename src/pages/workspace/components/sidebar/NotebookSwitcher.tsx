@@ -283,6 +283,7 @@ export function NotebookSwitcher() {
       }
     } catch (e) {
       console.error(e);
+      toast.error("打开文件夹失败: " + String(e));
     } finally {
       setIsOpen(false);
     }
