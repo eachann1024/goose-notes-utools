@@ -237,6 +237,19 @@ check(
     selected.document[1].type === "heading",
 );
 
+const chord = heading("Hello");
+selectBlock(chord, chord.document[1].id);
+const chordPlugin = chord.getExtension("goose-slash-menu-reconcile") as {
+  prosemirrorPlugins?: { props: { handleKeyDown?: (view: unknown, event: KeyboardEvent) => boolean } }[];
+} | undefined;
+const chordView = chord.prosemirrorView;
+const chordEvent = new KeyboardEvent("keydown", { key: "/", ctrlKey: true, bubbles: true, cancelable: true });
+const chordHandled = chordPlugin?.prosemirrorPlugins?.[0]?.props.handleKeyDown?.(chordView, chordEvent);
+check(
+  "整块选中时 Ctrl+/ 不插入斜杠",
+  chordHandled !== true && textOf(chord.document[1]) === "Hello",
+);
+
 const extension = selected.getExtension("goose-slash-menu-reconcile") as {
   prosemirrorPlugins?: { props: { handleDOMEvents?: { compositionend?: (...args: any[]) => boolean } } }[];
 } | undefined;

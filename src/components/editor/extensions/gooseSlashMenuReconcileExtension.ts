@@ -69,7 +69,16 @@ export function createGooseSlashMenuReconcileExtension(
         props: {
           handleKeyDown(_view, event) {
             const ed = editorRef.current;
-            if (!ed || !SLASH_TRIGGERS.has(event.key)) return false;
+            if (
+              !ed ||
+              event.ctrlKey ||
+              event.metaKey ||
+              event.altKey ||
+              event.isComposing ||
+              !SLASH_TRIGGERS.has(event.key)
+            ) {
+              return false;
+            }
             return typeSlashAtSelectedBlockStart(
               ed,
               event.key,
