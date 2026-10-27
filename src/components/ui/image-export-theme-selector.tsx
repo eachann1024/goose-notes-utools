@@ -205,7 +205,7 @@ export function ImageExportThemeSelector({
 
         <div
           className={cn(
-            "flex-1 min-h-0 px-6 pb-3",
+            "flex flex-col flex-1 min-h-0 overflow-hidden px-6 pb-3",
             showLivePreview ? "grid grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-5" : "",
           )}
         >
@@ -220,7 +220,7 @@ export function ImageExportThemeSelector({
             />
           )}
 
-          <div className="min-h-0 overflow-y-auto p-1 [scrollbar-width:thin]">
+          <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain p-1 [scrollbar-width:thin]">
             {notebookTheme && (
               <section className="mb-5">
                 <header className="flex items-center gap-2 mb-2.5 px-0.5">
@@ -285,7 +285,7 @@ export function ImageExportThemeSelector({
         </div>
 
         {!showOptionsCorner && (
-          <div className="px-6 py-3 border-t bg-muted/20 shrink-0 max-h-[40vh] overflow-y-auto [scrollbar-width:thin]">
+          <div className="px-6 py-3 border-t bg-background shrink-0 max-h-[40vh] overflow-y-auto [scrollbar-width:thin]">
             <button
               type="button"
               onClick={() => setConfigOpen((v) => !v)}
@@ -305,7 +305,7 @@ export function ImageExportThemeSelector({
           </div>
         )}
 
-        <DialogFooter className="p-4 pt-3 shrink-0 border-t">
+        <DialogFooter className="p-4 pt-3 shrink-0 border-t bg-background">
           <Button
             variant="ghost"
             size="sm"
