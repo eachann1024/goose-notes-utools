@@ -1,5 +1,4 @@
 import type { JSONContent } from "@/types";
-import { importFromMarkdown } from "@/lib/export";
 import { usePages } from "@/stores/usePages";
 import { resolveLocalFolderImportParentId } from "@/lib/local-folder-target";
 import { getLocalFolderFileDropTarget } from "@/lib/local-folder-file-drop-target";
@@ -17,6 +16,8 @@ export async function importTextFilesToLocalFolder(options: {
   const { workspaceId, files, parentId } = options;
   const importedIds: string[] = [];
   let failedCount = 0;
+  // 导出/序列化管线（unified、katex 等）较重，拖拽导入时再加载，不进首屏。
+  const { importFromMarkdown } = await import("@/lib/export");
 
   for (const file of files) {
     try {

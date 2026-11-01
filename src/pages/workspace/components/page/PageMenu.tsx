@@ -73,6 +73,7 @@ export function PageMenu() {
 
   const handleImport = async () => {
     try {
+      const { importFile } = await import("@/lib/export");
       const result = await importFile({
         preserveStructure: isLocalFolderNotebook,
       });
@@ -408,7 +409,9 @@ export function PageMenu() {
                 <DropdownMenuItem
                   className="group grid grid-cols-[16px_minmax(0,1fr)] gap-x-2 text-xs"
                   onSelect={() =>
-                    runExport("Markdown", () => exportToMarkdown(page))
+                    runExport("Markdown", async () =>
+                      (await import("@/lib/export")).exportToMarkdown(page),
+                    )
                   }
                 >
                   <LucideIcons.FileCode className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
@@ -416,21 +419,27 @@ export function PageMenu() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="group grid grid-cols-[16px_minmax(0,1fr)] gap-x-2 text-xs"
-                  onSelect={() => runExport("HTML", () => exportToHTML(page))}
+                  onSelect={() => runExport("HTML", async () =>
+                      (await import("@/lib/export")).exportToHTML(page),
+                    )}
                 >
                   <LucideIcons.FileType className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
                   <span className="min-w-0 truncate">HTML</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="group grid grid-cols-[16px_minmax(0,1fr)] gap-x-2 text-xs"
-                  onSelect={() => runExport("Word", () => exportToWord(page))}
+                  onSelect={() => runExport("Word", async () =>
+                      (await import("@/lib/docxExport")).exportToWord(page),
+                    )}
                 >
                   <LucideIcons.File className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
                   <span className="min-w-0 truncate">Word</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="group grid grid-cols-[16px_minmax(0,1fr)] gap-x-2 text-xs"
-                  onSelect={() => runExport("PDF", () => exportToPDF(page))}
+                  onSelect={() => runExport("PDF", async () =>
+                      (await import("@/lib/export")).exportToPDF(page),
+                    )}
                 >
                   <LucideIcons.FileText className="h-3.5 w-3.5 text-muted-foreground group-focus:text-[var(--goose-interactive-selected-fg)]" />
                   <span className="min-w-0 truncate">PDF</span>
