@@ -2,8 +2,8 @@ import { FavoritesSection } from "./FavoritesSection";
 import { SidebarFooter } from "./SidebarFooter";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarMainTree } from "./main-tree/SidebarMainTree";
-import { SettingsDialog } from "./SettingsDialog";
 import { TrashList } from "./TrashList";
+import type { SettingsTab } from "./settings/types";
 import { useTabs } from "@/stores/useTabs";
 import { useSidebarView } from "@/stores/useSidebarView";
 import { useEffectiveSidebarCollapsed } from "@/hooks/useWorkspaceViewportCollapse";
@@ -19,6 +19,12 @@ import { HistoryVersionList } from "../history/HistoryView";
 import { useHistoryView } from "@/stores/useHistoryView";
 import { closeNotebookAiIfFullscreen } from "../notebook-ai/useNotebookAiPanel";
 import { isElectronHost } from "@/lib/local-vault";
+
+// 设置页牵连导出/序列化管线（unified、katex、webdav 等），首次打开时再加载，不拖慢冷启动。
+const loadSettingsDialog = () => import("./SettingsDialog");
+const SettingsDialog = lazy(() =>
+  loadSettingsDialog().then((m) => ({ default: m.SettingsDialog })),
+);
 
 type SidebarView = "pages" | "trash" | "outline";
 type SidebarDragGuideMode = "sort" | "nest-ready";
@@ -66,6 +72,23 @@ export function Sidebar({
     useSidebarResize({ disableResize });
 
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsRequestedTab, setSettingsRequestedTab] = useState<
+    SettingsTab | undefined
+  >(undefined);
+  // 首次打开后保持挂载：保留关闭动画与设置页内的临时状态（与懒加载前一致）。
+  const [settingsMounted, setSettingsMounted] = useState(false);
+  if (showSettings && !settingsMounted) setSettingsMounted(true);
+
+  // 空闲时预取设置页 chunk，首次打开不用等加载。
+  useEffect(() => {
+    const prefetch = () => void loadSettingsDialog().catch(() => {});
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(prefetch, { timeout: 8000 });
+      return () => cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(prefetch, 3000);
+    return () => window.clearTimeout(timer);
+  }, []);
   const [currentView, setCurrentView] = useState<SidebarView>("pages");
   const [selectedTrashPageId, setSelectedTrashPageId] = useState<string | null>(
     null,
@@ -99,7 +122,10 @@ export function Sidebar({
     activePageId,
     activeNotebookId,
     currentView,
-    onOpenSettings: () => setShowSettings(true),
+    onOpenSettings: (tab) => {
+      if (tab) setSettingsRequestedTab(tab);
+      setShowSettings(true);
+    },
   });
 
   const exitTrashView = useCallback(() => {
@@ -395,7 +421,15 @@ export function Sidebar({
         }}
       />
 
-      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      {settingsMounted ? (
+        <Suspense fallback={null}>
+          <SettingsDialog
+            open={showSettings}
+            onOpenChange={setShowSettings}
+            initialTab={settingsRequestedTab}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
