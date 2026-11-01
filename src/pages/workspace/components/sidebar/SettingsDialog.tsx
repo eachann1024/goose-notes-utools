@@ -288,7 +288,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         onOpenChange={onOpenChange}
         layout="fullscreen"
         hideClose
-        overlayClassName="bg-transparent backdrop-blur-0"
+        overlayClassName="bg-transparent backdrop-blur-none"
         contentClassName="border-0 bg-[hsl(var(--goose-shell-bg))]"
         bodyClassName="min-w-0 h-full animate-in fade-in duration-200"
       >
