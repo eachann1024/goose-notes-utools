@@ -6,21 +6,16 @@
  * - 仅笔记本切换、关闭 AI 能力或卸载 Workspace 时才 stop 并清理
  */
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
-  type RefObject,
 } from "react";
 import { useChat } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import { toast } from "@/components/ui/sonner";
-import type { EditorRef } from "@/components/editor/core/Editor";
 import {
   useNotebookAiChats,
   composerDraftHasContent,
@@ -53,7 +48,6 @@ import type { NotebookAiPanelSelectionCapture } from "./useNotebookAiPanel";
 import type { AiComposerPayload } from "@/components/editor/ai/composer/referenceLookup";
 import type { NotebookAiMessage } from "@/lib/notebook-ai/types";
 import { formatNotebookAiError } from "@/lib/notebook-ai/errors";
-import { NotebookAiAssistantRuntimeProvider } from "./AssistantUiRuntimeProvider";
 import {
   buildCompactedConversation,
   conversationHasCompactableContent,
@@ -137,24 +131,13 @@ export interface NotebookAiSessionValue {
   onBatchUndo: (toolCallId: string, runId: string) => Promise<BatchUndoResult>;
 }
 
-const NotebookAiSessionContext = createContext<NotebookAiSessionValue | null>(
-  null,
-);
+// 轻量 context 在 notebookAiSessionContext.ts，面板等消费者沿用原入口。
+export { useNotebookAiSession } from "./notebookAiSessionContext";
 
-export function useNotebookAiSession(): NotebookAiSessionValue {
-  const value = useContext(NotebookAiSessionContext);
-  if (!value) {
-    throw new Error(
-      "useNotebookAiSession 必须在 NotebookAiSessionProvider 内使用",
-    );
-  }
-  return value;
-}
-
-interface NotebookAiSessionProviderProps {
+interface NotebookAiSessionRuntimeProps {
   notebookId: string;
-  editorRef?: RefObject<EditorRef | null>;
-  children: ReactNode;
+  /** 把会话值推给常驻的 NotebookAiSessionSlot；卸载时推 null。 */
+  onValueChange: (value: NotebookAiSessionValue | null) => void;
   /** 单测注入：复现 SDK Chat 的跨 render 回调语义，不参与产品调用。 */
   useChatHook?: typeof useChat;
 }
@@ -173,11 +156,11 @@ function sessionScopeKey(scope: NotebookAiSessionScope) {
   ]);
 }
 
-export function NotebookAiSessionProvider({
+export function NotebookAiSessionRuntime({
   notebookId,
-  children,
+  onValueChange,
   useChatHook,
-}: NotebookAiSessionProviderProps) {
+}: NotebookAiSessionRuntimeProps) {
   const requestCurrentPageIdRef = useRef<string | null>(null);
   const compactAbortRef = useRef<AbortController | null>(null);
   const [session, setSession] = useState<NotebookAiSessionScope>(() => ({
@@ -957,16 +940,11 @@ export function NotebookAiSessionProvider({
     ],
   );
 
-  return (
-    <NotebookAiAssistantRuntimeProvider
-      messages={messages}
-      isRunning={isBusy}
-      isDisabled={Boolean(unavailableReason)}
-      onCancel={stopAll}
-    >
-      <NotebookAiSessionContext.Provider value={value}>
-        {children}
-      </NotebookAiSessionContext.Provider>
-    </NotebookAiAssistantRuntimeProvider>
-  );
+  // layout 阶段推送：消费者在同一帧拿到最新会话，流式消息不滞后一帧绘制。
+  useLayoutEffect(() => {
+    onValueChange(value);
+  }, [onValueChange, value]);
+  useLayoutEffect(() => () => onValueChange(null), [onValueChange]);
+
+  return null;
 }

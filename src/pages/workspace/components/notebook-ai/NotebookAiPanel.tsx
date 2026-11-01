@@ -68,6 +68,7 @@ import {
   useNotebookAiSession,
 } from "./NotebookAiSession";
 import type { NotebookAiImageAttachment } from "./Composer";
+import { NotebookAiAssistantRuntimeProvider } from "./AssistantUiRuntimeProvider";
 import { getCurrentNotebookAiPageId } from "@/lib/notebook-ai/context";
 import { EDITOR_UI_SCALE_CHANGE_EVENT } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
@@ -96,7 +97,25 @@ interface NotebookAiPanelProps {
   variant?: "side-panel" | "fullscreen";
 }
 
-export function NotebookAiPanel({
+/**
+ * assistant-ui 运行时随面板挂载：消息真源仍是会话里的 useChat，
+ * 面板关闭后会话继续运行，重开时按同一份消息重建投影。
+ */
+export function NotebookAiPanel(props: NotebookAiPanelProps) {
+  const { messages, isBusy, unavailableReason, stop } = useNotebookAiSession();
+  return (
+    <NotebookAiAssistantRuntimeProvider
+      messages={messages}
+      isRunning={isBusy}
+      isDisabled={Boolean(unavailableReason)}
+      onCancel={stop}
+    >
+      <NotebookAiPanelContent {...props} />
+    </NotebookAiAssistantRuntimeProvider>
+  );
+}
+
+function NotebookAiPanelContent({
   notebookId,
   onClose,
   editorRef: _editorRef,
