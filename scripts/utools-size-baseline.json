@@ -1,5 +1,5 @@
 {
-  "total": 16221027,
+  "total": 16221069,
   "files": {
     "apps/goose-2fa.png": 76237,
     "apps/goose-marks.png": 71926,
@@ -25,7 +25,7 @@
     "assets/fonts/KaTeX_Size3-Regular.woff2": 3624,
     "assets/fonts/KaTeX_Size4-Regular.woff2": 4928,
     "assets/fonts/KaTeX_Typewriter-Regular.woff2": 13568,
-    "assets/index.css": 805508,
+    "assets/index.css": 805388,
     "assets/index.js": 766715,
     "assets/vendor-blocknote.css": 215937,
     "assets/vendor~index.css": 5320,
@@ -56,7 +56,7 @@
     "chunks/useNotebookAiChats.js": 7024,
     "chunks/usePages.js": 135392,
     "chunks/useSettings.js": 85347,
-    "chunks/utils.js": 5037,
+    "chunks/utils.js": 5199,
     "chunks/utils2.js": 741,
     "chunks/utools.js": 4812,
     "chunks/utoolsDbStorage.js": 2203,

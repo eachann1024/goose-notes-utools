@@ -1,6 +1,4 @@
-/* HarmonyOS Sans SC：分包 unicode-range 由远程 CSS 提供，相对路径相对该 CSS URL 解析到 CDN。 */
-@import url("https://cdn.jsdelivr.net/npm/harmonyos-sans-webfont-splitted@1.2.1/dist/HarmonyOS_Sans_SC/Regular/Regular.css");
-
+/* 远程鸿蒙分包 CSS 由 fontLoader 在页面 load 后挂载，避免 CDN 阻塞首屏。 */
 /* 已安装系统鸿蒙时优先本地，避免再拉远程分包。 */
 @font-face {
   font-family: "HarmonyOS Sans SC";

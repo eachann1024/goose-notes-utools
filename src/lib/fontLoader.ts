@@ -160,29 +160,38 @@ const injectStylesheet = (href: string, onError?: () => void) => {
   document.head.appendChild(link);
 };
 
-/** 主 CDN 的 CSS 已由 fonts.css @import；这里探测失败时改挂 unpkg，不预拉 4MB 整包。 */
+/** 外网字体不参与初始文档加载；再让出一个任务，避开宿主的 load 回调。 */
+const waitForPageLoad = async () => {
+  if (document.readyState !== "complete") {
+    await new Promise<void>((resolve) => {
+      window.addEventListener("load", () => resolve(), { once: true });
+    });
+  }
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+};
+
+/** 唯一的鸿蒙分包 CSS 入口，页面加载完成后才挂载，失败时改用备用 CDN。 */
 const ensureHarmonyOSSplitCss = () => {
   if (harmonyOSCssEnsured || typeof document === "undefined") return;
   harmonyOSCssEnsured = true;
 
-  const { primary, fallback } = REMOTE_FONT_SOURCES["HarmonyOS Sans SC"];
-  injectStylesheet(primary, () => {
-    console.warn("[fontLoader] HarmonyOS Sans SC 主 CDN 失败，改用 unpkg");
-    injectStylesheet(fallback, () => {
-      console.warn(
-        "[fontLoader] HarmonyOS Sans SC 远程字体均失败，回退系统中文字体",
-      );
+  void waitForPageLoad().then(() => {
+    const { primary, fallback } = REMOTE_FONT_SOURCES["HarmonyOS Sans SC"];
+    injectStylesheet(primary, () => {
+      console.warn("[fontLoader] HarmonyOS Sans SC 主 CDN 失败，改用 unpkg");
+      injectStylesheet(fallback, () => {
+        console.warn(
+          "[fontLoader] HarmonyOS Sans SC 远程字体均失败，回退系统中文字体",
+        );
+      });
     });
   });
 };
 
-/**
- * 应用启动时调用。鸿蒙交给 CSS unicode-range 按需分包；仓耳今楷走远端 @font-face。
- */
+/** 启动时仅安排鸿蒙分包；仓耳今楷由使用衬线字体的笔记按需加载。 */
 export function preloadFonts() {
   if (typeof document === "undefined") return;
   ensureHarmonyOSSplitCss();
-  void ensurePersistentRemoteFont(DEFAULT_FONT_NAMES.serif);
 }
 
 const isFontReady = (family: string) =>
@@ -231,7 +240,7 @@ const installRemoteFontFromUrls = async (family: PersistentWoff2Family) => {
 };
 
 /**
- * 打开 app 时触发仓耳今楷加载：本机 family 命中则不再拉网；
+ * 使用仓耳今楷时按需加载：本机 family 命中则不再拉网；
  * 否则走 fonts.css 的 @font-face，再按 URL 列表用 FontFace 补一次。
  */
 export function ensurePersistentRemoteFont(family: PersistentWoff2Family) {
