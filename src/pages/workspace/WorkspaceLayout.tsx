@@ -1,4 +1,12 @@
-import { type ComponentProps, type RefObject, useEffect, useLayoutEffect, useRef } from "react";
+import {
+  type ComponentProps,
+  type RefObject,
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import * as LucideIcons from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/lib/utils";
@@ -25,7 +33,10 @@ import {
   focusedPageIdOf,
   isSplitState,
 } from "@/lib/editor-split/tree";
-import { useEditorSplit, useEditorSplitSelector } from "@/stores/useEditorSplit";
+import {
+  useEditorSplit,
+  useEditorSplitSelector,
+} from "@/stores/useEditorSplit";
 import {
   HistoryToolbar,
   HistoryReader,
@@ -35,9 +46,9 @@ import {
   permanentlyDeletePageWithCleanup,
   restorePageWithToast,
 } from "@/lib/page-delete-actions";
-import { NotebookAiPanel } from "./components/notebook-ai/NotebookAiPanel";
 import { NotebookAiHostScope } from "./components/notebook-ai/NotebookAiHostScope";
-import { NotebookAiSessionProvider } from "./components/notebook-ai/NotebookAiSession";
+import { NotebookAiSessionSlot } from "./components/notebook-ai/NotebookAiSessionSlot";
+import { useOptionalNotebookAiSession } from "./components/notebook-ai/notebookAiSessionContext";
 import {
   isFullscreenAiLayout,
   useNotebookAiPanel,
@@ -51,7 +62,17 @@ import { effectiveSingleTabMode } from "@/lib/tabMode";
 // 主区内不再重复渲染 PageHeader/HistoryToolbar。uTools 构建保持现状，一行不挪。
 const isElectronChrome = isElectronRuntime();
 
+// AI 面板与会话运行时（AI SDK、Streamdown、ECharts、导出序列化）不进首屏 bundle。
+const NotebookAiPanel = lazy(() =>
+  import("./components/notebook-ai/NotebookAiPanel").then((m) => ({
+    default: m.NotebookAiPanel,
+  })),
+);
+
 function GuardedNotebookAiPanel(props: ComponentProps<typeof NotebookAiPanel>) {
+  // 会话运行时懒加载完成前不渲染面板（面板依赖会话值）。
+  const session = useOptionalNotebookAiSession();
+  if (!session) return null;
   return (
     <ErrorBoundary
       resetKey={props.notebookId}
@@ -68,7 +89,9 @@ function GuardedNotebookAiPanel(props: ComponentProps<typeof NotebookAiPanel>) {
         </div>
       )}
     >
-      <NotebookAiPanel {...props} />
+      <Suspense fallback={null}>
+        <NotebookAiPanel {...props} />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -132,10 +155,8 @@ export function WorkspaceLayout({
     consumeCapturedSelection: consumeAiPanelCapturedSelection,
   } = useNotebookAiPanel();
   const aiFullscreen = isFullscreenAiLayout(aiLayoutMode);
-  const showSideAiPanel =
-    aiEnabled && aiPanelOpen && !aiFullscreen;
-  const showFullscreenAi =
-    aiEnabled && aiPanelOpen && aiFullscreen;
+  const showSideAiPanel = aiEnabled && aiPanelOpen && !aiFullscreen;
+  const showFullscreenAi = aiEnabled && aiPanelOpen && aiFullscreen;
   const searchHighlightNonce = usePages((s) => s.searchHighlightNonce);
   const searchHighlightQuery = usePages((s) => s.searchHighlightQuery);
   const searchHighlightPageId = usePages((s) => s.searchHighlightPageId);
@@ -177,6 +198,8 @@ export function WorkspaceLayout({
   const aiAvailableForNotebook = aiEnabled;
   // 全屏 AI 优先用当前笔记本；本地文件夹切页竞态下 activeNotebookId 可能短暂为空，回退到页面所属本。
   const aiNotebookId = activeNotebookId ?? page?.workspaceId ?? null;
+  const aiSessionNotebookId =
+    aiAvailableForNotebook && aiNotebookId ? aiNotebookId : null;
 
   // 全局搜索「跳转即定位」：监听搜索高亮信号，落到匹配块并展开折叠 + 高亮。
   // 信号由命令面板写入（只带 query，不带 blockId），见 searchHighlightLocate.ts。
@@ -248,14 +271,11 @@ export function WorkspaceLayout({
   }, [aiAvailableForNotebook, closeAiPanel]);
 
   const paneRegistry = useOptionalEditorPaneRegistry();
-  const splitLeafCount = useEditorSplitSelector(
-    (state) => {
-      if (!activeTabId) return 0;
-      const split = state.byTabId[activeTabId];
-      return split ? countLeaves(split.root) : 0;
-    },
-    Object.is,
-  );
+  const splitLeafCount = useEditorSplitSelector((state) => {
+    if (!activeTabId) return 0;
+    const split = state.byTabId[activeTabId];
+    return split ? countLeaves(split.root) : 0;
+  }, Object.is);
 
   // 全屏打开后再给编辑区打 inert，避开点击帧对 BlockNote 大树做无障碍更新
   useEffect(() => {
@@ -348,11 +368,11 @@ export function WorkspaceLayout({
               if (showFullscreenAi) closeAiPanel();
               openNewTab();
             }}
-            onBeforeActivateTab={
-              showFullscreenAi ? closeAiPanel : undefined
-            }
+            onBeforeActivateTab={showFullscreenAi ? closeAiPanel : undefined}
             onRestore={
-              activePageId ? () => restorePageWithToast(activePageId) : undefined
+              activePageId
+                ? () => restorePageWithToast(activePageId)
+                : undefined
             }
             onDelete={
               activePageId
@@ -361,9 +381,7 @@ export function WorkspaceLayout({
             }
             aiPanelOpen={aiAvailableForNotebook && aiPanelOpen}
             aiLayoutMode={aiLayoutMode}
-            onToggleAiPanel={
-              aiAvailableForNotebook ? toggleAiPanel : undefined
-            }
+            onToggleAiPanel={aiAvailableForNotebook ? toggleAiPanel : undefined}
           />
         )}
         {isDragging && (
@@ -412,15 +430,16 @@ export function WorkspaceLayout({
             data-local-file-page={isLocalFolderPage ? "true" : undefined}
           >
             {/*
-              会话运行时与面板 UI 解耦：Provider 在 AI 可用时常驻，
+              会话运行时与面板 UI 解耦：运行时在 AI 可用时常驻（首屏后懒加载），
               关面板 / 切页不卸载 useChat，顶栏动画可跟到请求真正结束。
+              插槽常驻包住编辑区，运行时加载完成不会让编辑区重挂。
             */}
-            {aiAvailableForNotebook && aiNotebookId ? (
-              <NotebookAiSessionProvider
-                key={aiNotebookId}
-                notebookId={aiNotebookId}
-                editorRef={editorRef}
-              >
+            <NotebookAiSessionSlot
+              key={aiSessionNotebookId ?? "ai-off"}
+              notebookId={aiSessionNotebookId}
+              eager={aiPanelOpen || showFullscreenAi}
+            >
+              {aiSessionNotebookId ? (
                 <NotebookAiWorkspaceBody
                   showFullscreenAi={showFullscreenAi}
                   aiNotebookId={aiNotebookId}
@@ -446,34 +465,34 @@ export function WorkspaceLayout({
                   isTrashed={isTrashed}
                   scrollContainerRef={scrollContainerRef}
                 />
-              </NotebookAiSessionProvider>
-            ) : (
-              <NotebookAiWorkspaceBody
-                showFullscreenAi={false}
-                aiNotebookId={null}
-                aiAvailableForNotebook={false}
-                isWelcomeTab={isWelcomeTab}
-                openNewTabHandler={openNewTabHandler}
-                aiPanelOpen={false}
-                aiLayoutMode={aiLayoutMode}
-                toggleAiPanel={toggleAiPanel}
-                showSideAiPanel={false}
-                closeAiPanel={closeAiPanel}
-                editorRef={editorRef}
-                aiPanelCapturedSelection={null}
-                consumeAiPanelCapturedSelection={
-                  consumeAiPanelCapturedSelection
-                }
-                setAiLayoutMode={setAiLayoutMode}
-                activePageId={activePageId}
-                page={page}
-                inHistoryMode={inHistoryMode}
-                isLocalFolderPage={isLocalFolderPage}
-                isLocked={isLocked}
-                isTrashed={isTrashed}
-                scrollContainerRef={scrollContainerRef}
-              />
-            )}
+              ) : (
+                <NotebookAiWorkspaceBody
+                  showFullscreenAi={false}
+                  aiNotebookId={null}
+                  aiAvailableForNotebook={false}
+                  isWelcomeTab={isWelcomeTab}
+                  openNewTabHandler={openNewTabHandler}
+                  aiPanelOpen={false}
+                  aiLayoutMode={aiLayoutMode}
+                  toggleAiPanel={toggleAiPanel}
+                  showSideAiPanel={false}
+                  closeAiPanel={closeAiPanel}
+                  editorRef={editorRef}
+                  aiPanelCapturedSelection={null}
+                  consumeAiPanelCapturedSelection={
+                    consumeAiPanelCapturedSelection
+                  }
+                  setAiLayoutMode={setAiLayoutMode}
+                  activePageId={activePageId}
+                  page={page}
+                  inHistoryMode={inHistoryMode}
+                  isLocalFolderPage={isLocalFolderPage}
+                  isLocked={isLocked}
+                  isTrashed={isTrashed}
+                  scrollContainerRef={scrollContainerRef}
+                />
+              )}
+            </NotebookAiSessionSlot>
           </main>
         </div>
       </div>
@@ -562,9 +581,7 @@ function NotebookEditorSplitColumn({
             onDelete={() => void permanentlyDeletePageWithCleanup(activePageId)}
             aiPanelOpen={aiAvailableForNotebook && aiPanelOpen}
             aiLayoutMode={aiLayoutMode}
-            onToggleAiPanel={
-              aiAvailableForNotebook ? toggleAiPanel : undefined
-            }
+            onToggleAiPanel={aiAvailableForNotebook ? toggleAiPanel : undefined}
             hideDocumentTitle={isSplit}
           />
         )}
@@ -660,17 +677,79 @@ function NotebookAiWorkspaceBody({
 
   return (
     <>
-            {/*
+      {/*
               全屏 AI 叠在页头下方，不重挂页头。正文 invisible/inert 推迟到下一帧，
               避免点击帧对 BlockNote 大树做 visibility 强制布局。
             */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              {isWelcomeTab ? (
-                <>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {isWelcomeTab ? (
+          <>
+            {!isElectronChrome && (
+              <PageHeader
+                onOpenSearch={handleOpenSearch}
+                onBeforeActivateTab={handleBeforeActivateTab}
+                aiPanelOpen={aiAvailableForNotebook && aiPanelOpen}
+                aiLayoutMode={aiLayoutMode}
+                onToggleAiPanel={
+                  aiAvailableForNotebook ? toggleAiPanel : undefined
+                }
+              />
+            )}
+            <div className="relative ml-0 mt-0 flex min-h-0 flex-1 flex-row gap-2 overflow-hidden !bg-[hsl(var(--goose-shell-bg))]">
+              <div
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col overflow-hidden rounded-[12px] bg-[hsl(var(--goose-editor-bg))]",
+                )}
+              >
+                <PageEmptyState />
+              </div>
+              {showSideAiPanel && aiNotebookId ? (
+                <NotebookAiHostScope notebookId={aiNotebookId}>
+                  <GuardedNotebookAiPanel
+                    key={`welcome-${aiNotebookId}`}
+                    notebookId={aiNotebookId}
+                    onClose={closeAiPanel}
+                    editorRef={editorRef}
+                    capturedSelection={aiPanelCapturedSelection}
+                    onConsumeCapturedSelection={consumeAiPanelCapturedSelection}
+                    layoutMode={aiLayoutMode}
+                    onLayoutModeChange={setAiLayoutMode}
+                    variant="side-panel"
+                  />
+                </NotebookAiHostScope>
+              ) : null}
+            </div>
+          </>
+        ) : activePageId && page && inHistoryMode ? (
+          <>
+            {!isElectronChrome && <HistoryToolbar />}
+            <div className="workspace-editor-surface relative ml-0 mt-0 flex-1 min-h-0 overflow-hidden">
+              <div
+                className={cn(
+                  "h-full overflow-y-auto page-scroll-container bg-[hsl(var(--goose-editor-bg))]",
+                )}
+              >
+                <div className="flex min-h-full flex-col px-14 pt-0">
+                  <HistoryReader />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : activePageId && page && !hideFolderHome ? (
+          page.isFolder && isLocalFolderPage ? (
+            /* uTools 本地文件夹目录页：主区渲染 FolderHomePage，不挂编辑器 */
+            <>
+              <div className="workspace-editor-surface relative ml-0 mt-0 flex min-h-0 flex-1 flex-row gap-2 overflow-hidden !bg-[hsl(var(--goose-shell-bg))]">
+                <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[12px] bg-[hsl(var(--goose-editor-bg))]">
                   {!isElectronChrome && (
                     <PageHeader
+                      page={page}
                       onOpenSearch={handleOpenSearch}
                       onBeforeActivateTab={handleBeforeActivateTab}
+                      onRestore={() => restorePageWithToast(activePageId)}
+                      onDelete={() =>
+                        void permanentlyDeletePageWithCleanup(activePageId)
+                      }
                       aiPanelOpen={aiAvailableForNotebook && aiPanelOpen}
                       aiLayoutMode={aiLayoutMode}
                       onToggleAiPanel={
@@ -678,137 +757,69 @@ function NotebookAiWorkspaceBody({
                       }
                     />
                   )}
-                  <div className="relative ml-0 mt-0 flex min-h-0 flex-1 flex-row gap-2 overflow-hidden !bg-[hsl(var(--goose-shell-bg))]">
-                    <div
-                      className={cn(
-                        "flex min-w-0 flex-1 flex-col overflow-hidden rounded-[12px] bg-[hsl(var(--goose-editor-bg))]",
-                      )}
-                    >
-                      <PageEmptyState />
-                    </div>
-                    {showSideAiPanel && aiNotebookId ? (
-                      <NotebookAiHostScope notebookId={aiNotebookId}>
-                        <GuardedNotebookAiPanel
-                          key={`welcome-${aiNotebookId}`}
-                          notebookId={aiNotebookId}
-                          onClose={closeAiPanel}
-                          editorRef={editorRef}
-                          capturedSelection={aiPanelCapturedSelection}
-                          onConsumeCapturedSelection={
-                            consumeAiPanelCapturedSelection
-                          }
-                          layoutMode={aiLayoutMode}
-                          onLayoutModeChange={setAiLayoutMode}
-                          variant="side-panel"
-                        />
-                      </NotebookAiHostScope>
-                    ) : null}
-                  </div>
-                </>
-              ) : activePageId && page && inHistoryMode ? (
-                <>
-                  {!isElectronChrome && <HistoryToolbar />}
-                  <div className="workspace-editor-surface relative ml-0 mt-0 flex-1 min-h-0 overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full overflow-y-auto page-scroll-container bg-[hsl(var(--goose-editor-bg))]",
-                      )}
-                    >
-                      <div className="flex min-h-full flex-col px-14 pt-0">
-                        <HistoryReader />
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : activePageId && page && !hideFolderHome ? (
-                page.isFolder && isLocalFolderPage ? (
-                  /* uTools 本地文件夹目录页：主区渲染 FolderHomePage，不挂编辑器 */
-                  <>
-                    <div className="workspace-editor-surface relative ml-0 mt-0 flex min-h-0 flex-1 flex-row gap-2 overflow-hidden !bg-[hsl(var(--goose-shell-bg))]">
-                      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[12px] bg-[hsl(var(--goose-editor-bg))]">
-                        {!isElectronChrome && (
-                          <PageHeader
-                            page={page}
-                            onOpenSearch={handleOpenSearch}
-                            onBeforeActivateTab={handleBeforeActivateTab}
-                            onRestore={() => restorePageWithToast(activePageId)}
-                            onDelete={() =>
-                              void permanentlyDeletePageWithCleanup(activePageId)
-                            }
-                            aiPanelOpen={aiAvailableForNotebook && aiPanelOpen}
-                            aiLayoutMode={aiLayoutMode}
-                            onToggleAiPanel={
-                              aiAvailableForNotebook ? toggleAiPanel : undefined
-                            }
-                          />
-                        )}
-                        <FolderHomePage page={page} />
-                      </div>
-                      {showSideAiPanel && aiNotebookId ? (
-                        <NotebookAiHostScope notebookId={aiNotebookId}>
-                          <GuardedNotebookAiPanel
-                            key={`folder-${aiNotebookId}`}
-                            notebookId={aiNotebookId}
-                            onClose={closeAiPanel}
-                            editorRef={editorRef}
-                            capturedSelection={aiPanelCapturedSelection}
-                            onConsumeCapturedSelection={
-                              consumeAiPanelCapturedSelection
-                            }
-                            layoutMode={aiLayoutMode}
-                            onLayoutModeChange={setAiLayoutMode}
-                            variant="side-panel"
-                          />
-                        </NotebookAiHostScope>
-                      ) : null}
-                    </div>
-                  </>
-                ) : (
-                  <NotebookEditorSplitColumn
-                    page={page}
-                    activePageId={activePageId}
-                    isLocalFolderPage={isLocalFolderPage}
-                    handleOpenSearch={handleOpenSearch}
-                    handleBeforeActivateTab={handleBeforeActivateTab}
-                    aiAvailableForNotebook={aiAvailableForNotebook}
-                    aiPanelOpen={aiPanelOpen}
-                    aiLayoutMode={aiLayoutMode}
-                    toggleAiPanel={toggleAiPanel}
-                    showSideAiPanel={showSideAiPanel}
-                    aiNotebookId={aiNotebookId}
-                    editorRef={editorRef}
-                    aiPanelCapturedSelection={aiPanelCapturedSelection}
-                    consumeAiPanelCapturedSelection={
-                      consumeAiPanelCapturedSelection
-                    }
-                    setAiLayoutMode={setAiLayoutMode}
-                    closeAiPanel={closeAiPanel}
-                  />
-                )
-              ) : (
-                <PageEmptyState />
-              )}
-            </div>
-
-            {showFullscreenAi && aiNotebookId && aiAvailableForNotebook ? (
-              <div className="notebook-ai-fullscreen-host absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden bg-[hsl(var(--goose-shell-bg))]">
-                <NotebookAiHostScope notebookId={aiNotebookId}>
-                  <GuardedNotebookAiPanel
-                    key={`fullscreen-${aiNotebookId}`}
-                    notebookId={aiNotebookId}
-                    onClose={closeAiPanel}
-                    editorRef={editorRef}
-                    capturedSelection={aiPanelCapturedSelection}
-                    onConsumeCapturedSelection={
-                      consumeAiPanelCapturedSelection
-                    }
-                    layoutMode={aiLayoutMode}
-                    onLayoutModeChange={setAiLayoutMode}
-                    variant="fullscreen"
-                  />
-                </NotebookAiHostScope>
+                  <FolderHomePage page={page} />
+                </div>
+                {showSideAiPanel && aiNotebookId ? (
+                  <NotebookAiHostScope notebookId={aiNotebookId}>
+                    <GuardedNotebookAiPanel
+                      key={`folder-${aiNotebookId}`}
+                      notebookId={aiNotebookId}
+                      onClose={closeAiPanel}
+                      editorRef={editorRef}
+                      capturedSelection={aiPanelCapturedSelection}
+                      onConsumeCapturedSelection={
+                        consumeAiPanelCapturedSelection
+                      }
+                      layoutMode={aiLayoutMode}
+                      onLayoutModeChange={setAiLayoutMode}
+                      variant="side-panel"
+                    />
+                  </NotebookAiHostScope>
+                ) : null}
               </div>
-            ) : null}
+            </>
+          ) : (
+            <NotebookEditorSplitColumn
+              page={page}
+              activePageId={activePageId}
+              isLocalFolderPage={isLocalFolderPage}
+              handleOpenSearch={handleOpenSearch}
+              handleBeforeActivateTab={handleBeforeActivateTab}
+              aiAvailableForNotebook={aiAvailableForNotebook}
+              aiPanelOpen={aiPanelOpen}
+              aiLayoutMode={aiLayoutMode}
+              toggleAiPanel={toggleAiPanel}
+              showSideAiPanel={showSideAiPanel}
+              aiNotebookId={aiNotebookId}
+              editorRef={editorRef}
+              aiPanelCapturedSelection={aiPanelCapturedSelection}
+              consumeAiPanelCapturedSelection={consumeAiPanelCapturedSelection}
+              setAiLayoutMode={setAiLayoutMode}
+              closeAiPanel={closeAiPanel}
+            />
+          )
+        ) : (
+          <PageEmptyState />
+        )}
+      </div>
+
+      {showFullscreenAi && aiNotebookId && aiAvailableForNotebook ? (
+        <div className="notebook-ai-fullscreen-host absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden bg-[hsl(var(--goose-shell-bg))]">
+          <NotebookAiHostScope notebookId={aiNotebookId}>
+            <GuardedNotebookAiPanel
+              key={`fullscreen-${aiNotebookId}`}
+              notebookId={aiNotebookId}
+              onClose={closeAiPanel}
+              editorRef={editorRef}
+              capturedSelection={aiPanelCapturedSelection}
+              onConsumeCapturedSelection={consumeAiPanelCapturedSelection}
+              layoutMode={aiLayoutMode}
+              onLayoutModeChange={setAiLayoutMode}
+              variant="fullscreen"
+            />
+          </NotebookAiHostScope>
+        </div>
+      ) : null}
     </>
   );
 }
