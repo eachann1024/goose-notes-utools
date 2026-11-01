@@ -113,11 +113,13 @@ const codeSplittingGroups: ChunkGroup[] = [
     priority: 38,
     entriesAware: true,
   },
-  // AI SDK — 较大，单独隔离方便缓存
+  // AI SDK — 较大，单独隔离方便缓存。AI 会话/面板在工作区懒加载，
+  // entriesAware:true 保住懒加载边界，不进首屏。
   {
     name: "vendor-ai",
     test: /[\\/]node_modules[\\/](ai|@ai-sdk[\\/][^\\/]+)[\\/]/,
     priority: 30,
+    entriesAware: true,
   },
   // Mermaid（源码里 MermaidView 用 `await import("mermaid")` 懒加载）。
   // 必须 entriesAware:true，否则会被下面的兜底 vendor 组卷进 eager vendor.js（曾达 7MB），
@@ -139,12 +141,13 @@ const codeSplittingGroups: ChunkGroup[] = [
   },
   // Markdown / HTML 序列化管线（unified / remark / rehype / micromark / mdast / hast /
   // markdown-it / lowlight / highlight.js / lowlight 解析）。
-  // 该管线经 @/lib/export 被 stores 静态引用 → 仍是 eager，但单独命名成块便于缓存，
-  // 把它从 7MB 兜底 vendor.js 里剥出来。
+  // 编辑器剪贴板静态依赖其中一部分；entriesAware:true 让只被导出链使用的
+  // 部分（rehype-katex → katex 等）按入口拆出，不随剪贴板进首屏。
   {
     name: "vendor-markdown",
     test: /[\\/]node_modules[\\/](unified|remark-[^\\/]+|rehype-[^\\/]+|hast-[^\\/]+|hastscript|mdast-[^\\/]+|micromark|micromark-[^\\/]+|markdown-it|markdown-table|lowlight|highlight\.js|prosemirror-highlight|property-information|space-separated-tokens|comma-separated-tokens|decode-named-character-reference|character-entities[^\\/]*|trim-lines|trough|vfile|vfile-[^\\/]+|bail|is-plain-obj|zwitch|html-void-elements|web-namespaces|ccount|escape-string-regexp|mdurl|entities|linkify-it|uc\.micro|punycode\.js|devlop)[\\/]/,
     priority: 35,
+    entriesAware: true,
   },
   // Prettier standalone + 插件（useFormatCode 用 `await import("prettier/standalone")` 懒加载）。
   // entriesAware:true 保住懒加载边界，否则 ~1MB prettier 被卷进 eager vendor.js。
@@ -192,11 +195,14 @@ const codeSplittingGroups: ChunkGroup[] = [
     test: /[\\/]node_modules[\\/](@radix-ui[\\/][^\\/]+|@floating-ui[\\/][^\\/]+|lucide-react|cmdk|sonner|class-variance-authority|clsx|tailwind-merge|date-fns)[\\/]/,
     priority: 20,
   },
-  // 兜底：其余 node_modules
+  // 兜底：其余 node_modules。entriesAware:true：只被懒加载链使用的依赖
+  // （assistant-ui、模型 SDK、streamdown、webdav、yaml…）按使用入口拆开，
+  // 不被并进首屏 eager vendor.js。
   {
     name: "vendor",
     test: /[\\/]node_modules[\\/]/,
     priority: 1,
+    entriesAware: true,
   },
 ];
 
