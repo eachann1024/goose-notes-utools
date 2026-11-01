@@ -38,7 +38,7 @@ export function DialogShell({
   const isFullscreen = layout === "fullscreen";
   const resolvedOverlayClassName =
     overlayClassName ??
-    (isFullscreen ? "bg-transparent backdrop-blur-0" : undefined);
+    (isFullscreen ? "bg-transparent backdrop-blur-none" : undefined);
   const hasTitle = Boolean(title);
   const hasDescription = Boolean(description);
   const accessibleTitle = hasTitle ? title : "对话框";
