@@ -33,9 +33,15 @@ import { toast } from "@/components/ui/sonner";
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** 懒加载首挂时要显示的页签（挂载前派发的 settings-tab-change 事件收不到）。 */
+  initialTab?: SettingsTab;
 }
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  initialTab,
+}: SettingsDialogProps) {
   useEffect(() => {
     document.body.toggleAttribute("data-goose-settings-open", open);
 
@@ -174,7 +180,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { notebooks } = useNotebooks(
     useShallow((s) => ({ notebooks: s.notebooks })),
   );
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    initialTab ?? "general",
+  );
 
   useEffect(() => {
     const handleTabChange = (event: Event) => {
