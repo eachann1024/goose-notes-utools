@@ -46,7 +46,7 @@ const liteStubAliases: { find: RegExp; replacement: string }[] = isQuicknoteBuil
       { find: /^@ai-sdk\/openai$/, replacement: liteEmptyModule },
       { find: /^@ai-sdk\/openai-compatible$/, replacement: liteEmptyModule },
       { find: /^@ai-sdk\/anthropic$/, replacement: liteEmptyModule },
-      { find: /exportHtmlCss\.vite/, replacement: liteEmptyModule },
+      { find: /^.*exportHtmlCss\.vite(\.ts)?$/, replacement: liteEmptyModule },
     ]
   : [
       // 必须整段匹配 specifier（含 ./），否则 Vite 8 只替换子串，变成
