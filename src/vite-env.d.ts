@@ -168,6 +168,11 @@ declare global {
       readGlobalPrompt: () => string | null;
       listLocalSkills: () => Array<{ path: string; content: string }>;
     };
+    gooseFirstRunNotice?: {
+      hasSeen: () => boolean;
+      /** 返回 home 标记是否写入成功。 */
+      markSeen: () => boolean;
+    };
     gooseFs?: GooseFs;
     gooseDesktop?: GooseDesktop;
     gooseWeb?: {
