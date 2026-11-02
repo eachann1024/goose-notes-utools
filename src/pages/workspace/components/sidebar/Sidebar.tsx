@@ -26,6 +26,8 @@ const SettingsDialog = lazy(() =>
   loadSettingsDialog().then((m) => ({ default: m.SettingsDialog })),
 );
 
+const ThinklyFirstRunNotice = lazy(() => import("./ThinklyFirstRunNotice"));
+
 type SidebarView = "pages" | "trash" | "outline";
 type SidebarDragGuideMode = "sort" | "nest-ready";
 
@@ -70,6 +72,18 @@ export function Sidebar({
 
   const { width, isResizing, handleResizeMouseDown, handleResizePointerDown } =
     useSidebarResize({ disableResize });
+
+  const [noticeReady, setNoticeReady] = useState(false);
+  useEffect(() => {
+    if (__GOOSE_LITE__ || isElectronHost || sidebarCollapsed || !window.gooseFirstRunNotice) return;
+    const showNotice = () => setNoticeReady(true);
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(showNotice, { timeout: 3000 });
+      return () => cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(showNotice, 1500);
+    return () => window.clearTimeout(timer);
+  }, [sidebarCollapsed]);
 
   const [showSettings, setShowSettings] = useState(false);
   const [settingsRequestedTab, setSettingsRequestedTab] = useState<
@@ -406,6 +420,12 @@ export function Sidebar({
           setShowSettings(true);
         }}
       />
+
+      {noticeReady && !__GOOSE_LITE__ && !isElectronHost ? (
+        <Suspense fallback={null}>
+          <ThinklyFirstRunNotice hidden={sidebarCollapsed} />
+        </Suspense>
+      ) : null}
 
       <SidebarRenameDialog
         open={renameDialogOpen}

@@ -1,0 +1,267 @@
+.thinkly-notice-slot,
+.thinkly-notice-card {
+  --thinkly-ambient:
+    0 8px 22px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --thinkly-lifted:
+    0 16px 36px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.08);
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.thinkly-notice-slot {
+  flex-shrink: 0;
+  margin: 0 10px 12px;
+  padding-top: 30px;
+}
+
+.thinkly-notice-slip {
+  position: relative;
+  border-radius: 14px;
+  background: hsl(var(--card));
+  box-shadow: var(--thinkly-ambient);
+  transition:
+    transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.32s ease;
+}
+
+.thinkly-notice-slip:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--thinkly-lifted);
+}
+
+.thinkly-notice-expand {
+  position: relative;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 34px 14px 14px;
+  border-radius: inherit;
+  text-align: left;
+}
+
+.thinkly-notice-peek {
+  position: absolute;
+  left: 8px;
+  top: -34px;
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.thinkly-notice-slip:hover .thinkly-notice-peek {
+  transform: translateY(-6px) rotate(-4deg);
+}
+
+.thinkly-notice-slip-title {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.thinkly-notice-slip-copy,
+.thinkly-notice-body p {
+  color: hsl(var(--muted-foreground));
+}
+
+.thinkly-notice-close {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--muted-foreground));
+}
+
+.thinkly-notice-slip-close {
+  right: 8px;
+  top: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.thinkly-notice-card {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 50;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  border-radius: 18px;
+  background: hsl(var(--card));
+  box-shadow: var(--thinkly-lifted);
+  transform-origin: bottom left;
+  animation: thinkly-unfold 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.thinkly-notice-art {
+  position: relative;
+  display: flex;
+  height: 168px;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  background: hsl(var(--muted));
+}
+
+.thinkly-notice-mini-window {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  display: flex;
+  width: 150px;
+  height: 104px;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 10px;
+  background: hsl(var(--card));
+  box-shadow: var(--thinkly-ambient);
+  transform: rotate(-4deg);
+}
+
+.thinkly-notice-window-dots {
+  display: flex;
+  gap: 4px;
+}
+.thinkly-notice-window-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: hsl(var(--border));
+}
+.thinkly-notice-window-title {
+  width: 80%;
+  height: 6px;
+  border-radius: 3px;
+  background: hsl(var(--foreground) / 0.8);
+}
+.thinkly-notice-window-line {
+  width: 92%;
+  height: 5px;
+  border-radius: 3px;
+  background: hsl(var(--border));
+}
+.thinkly-notice-window-line:nth-last-child(2) {
+  width: 70%;
+}
+.thinkly-notice-window-line:last-child {
+  width: 84%;
+}
+
+.thinkly-notice-goose {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  margin-left: 120px;
+  margin-bottom: -18px;
+  object-fit: contain;
+}
+
+.thinkly-notice-card-close {
+  right: 10px;
+  top: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: hsl(var(--card) / 0.7);
+}
+
+.thinkly-notice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px 22px;
+}
+.thinkly-notice-body h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.thinkly-notice-body p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.thinkly-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.thinkly-notice-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: 500;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.thinkly-notice-stay {
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: hsl(var(--muted-foreground));
+}
+.thinkly-notice-slot button,
+.thinkly-notice-card button {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+}
+.thinkly-notice-close:hover,
+.thinkly-notice-close:focus-visible,
+.thinkly-notice-stay:hover,
+.thinkly-notice-stay:focus-visible {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+.thinkly-notice-expand:focus-visible {
+  background: hsl(var(--accent));
+}
+.thinkly-notice-download:hover,
+.thinkly-notice-download:focus-visible {
+  background: hsl(var(--primary) / 0.9);
+}
+
+.dark .thinkly-notice-slot,
+.dark .thinkly-notice-card {
+  --thinkly-ambient:
+    0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 12px rgba(0, 0, 0, 0.32);
+}
+
+@keyframes thinkly-unfold {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinkly-notice-card,
+  .thinkly-notice-slip,
+  .thinkly-notice-peek {
+    animation: none;
+    transition: none;
+  }
+  .thinkly-notice-slip:hover,
+  .thinkly-notice-slip:hover .thinkly-notice-peek {
+    transform: none;
+  }
+}
