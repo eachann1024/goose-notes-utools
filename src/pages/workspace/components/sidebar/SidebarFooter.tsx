@@ -132,48 +132,76 @@ export function SidebarFooter({
           </Tooltip>
         </TooltipProvider>
         {!hideTrash && (
-          <button
-            type="button"
-            className={cn(
-              btnClass,
-              !isSettingsOpen && currentView === "trash" && activeClass,
-            )}
-            aria-label="垃圾箱"
-            aria-pressed={!isSettingsOpen && currentView === "trash"}
-            data-active={
-              !isSettingsOpen && currentView === "trash" ? "true" : "false"
-            }
-            onClick={onSwitchToTrash}
-          >
-            <LucideIcons.Trash2 className="h-4 w-4" />
-          </button>
+          <TooltipProvider delayDuration={600}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    btnClass,
+                    !isSettingsOpen && currentView === "trash" && activeClass,
+                  )}
+                  aria-label="垃圾箱"
+                  aria-pressed={!isSettingsOpen && currentView === "trash"}
+                  data-active={
+                    !isSettingsOpen && currentView === "trash"
+                      ? "true"
+                      : "false"
+                  }
+                  onClick={onSwitchToTrash}
+                >
+                  <LucideIcons.Trash2 className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <span>垃圾箱</span>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
-        <button
-          type="button"
-          className={cn(btnClass, "relative")}
-          aria-label={unreadFeedback ? "反馈，有新回复" : "反馈"}
-          title="反馈"
-          data-feedback-entry
-          onClick={() => setFeedbackOpen(true)}
-        >
-          <LucideIcons.MessageSquare className="h-4 w-4" />
-          {unreadFeedback ? (
-            <span
-              className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive"
-              aria-hidden
-            />
-          ) : null}
-        </button>
-        <button
-          type="button"
-          className={cn(btnClass, isSettingsOpen && activeClass)}
-          aria-label="设置"
-          aria-pressed={isSettingsOpen}
-          data-active={isSettingsOpen ? "true" : "false"}
-          onClick={onOpenSettings}
-        >
-          <LucideIcons.Settings className="h-4 w-4" />
-        </button>
+        <TooltipProvider delayDuration={600}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={cn(btnClass, "relative")}
+                aria-label={unreadFeedback ? "反馈，有新回复" : "反馈"}
+                data-feedback-entry
+                onClick={() => setFeedbackOpen(true)}
+              >
+                <LucideIcons.MessageSquare className="h-4 w-4" />
+                {unreadFeedback ? (
+                  <span
+                    className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive"
+                    aria-hidden
+                  />
+                ) : null}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <span>{unreadFeedback ? "反馈（有新回复）" : "反馈"}</span>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={600}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={cn(btnClass, isSettingsOpen && activeClass)}
+                aria-label="设置"
+                aria-pressed={isSettingsOpen}
+                data-active={isSettingsOpen ? "true" : "false"}
+                onClick={onOpenSettings}
+              >
+                <LucideIcons.Settings className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <span>设置</span>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       <TooltipProvider delayDuration={600}>
         <Tooltip>
