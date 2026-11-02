@@ -1,5 +1,5 @@
 {
-  "total": 16237737,
+  "total": 16237752,
   "files": {
     "apps/goose-2fa.png": 76237,
     "apps/goose-marks.png": 71926,
@@ -35,7 +35,7 @@
     "chunks/NotebookAiPanel.js": 143639,
     "chunks/NotebookAiSession.js": 94573,
     "chunks/SettingsDialog.js": 129872,
-    "chunks/ThinklyFirstRunNotice.js": 1833,
+    "chunks/ThinklyFirstRunNotice.js": 1848,
     "chunks/blockPropsMarker.js": 5990,
     "chunks/blocknoteSerializer.js": 8231,
     "chunks/docxExport.js": 17220,
