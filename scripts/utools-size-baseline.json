@@ -1,11 +1,11 @@
 {
-  "total": 16237687,
+  "total": 16237737,
   "files": {
     "apps/goose-2fa.png": 76237,
     "apps/goose-marks.png": 71926,
     "apps/goose-monitor.png": 80046,
     "apps/goose-quicknote.png": 73737,
-    "assets/ThinklyFirstRunNotice.css": 2019,
+    "assets/ThinklyFirstRunNotice.css": 2092,
     "assets/fonts/KaTeX_AMS-Regular.woff2": 28076,
     "assets/fonts/KaTeX_Caligraphic-Bold.woff2": 6912,
     "assets/fonts/KaTeX_Caligraphic-Regular.woff2": 6908,
@@ -35,7 +35,7 @@
     "chunks/NotebookAiPanel.js": 143639,
     "chunks/NotebookAiSession.js": 94573,
     "chunks/SettingsDialog.js": 129872,
-    "chunks/ThinklyFirstRunNotice.js": 1856,
+    "chunks/ThinklyFirstRunNotice.js": 1833,
     "chunks/blockPropsMarker.js": 5990,
     "chunks/blocknoteSerializer.js": 8231,
     "chunks/docxExport.js": 17220,
