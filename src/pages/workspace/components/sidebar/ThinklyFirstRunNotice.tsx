@@ -83,10 +83,10 @@ export default function ThinklyFirstRunNotice({ hidden }: { hidden: boolean }) {
             height={58}
           />
           <span className="thinkly-notice-slip-title">
-            鹅搬到桌面了 · Thinkly
+            鹅的笔记
           </span>
           <span className="thinkly-notice-slip-copy">
-            不开 uTools 也能随手记
+            不开 uTools 也能记
           </span>
         </button>
         <button
