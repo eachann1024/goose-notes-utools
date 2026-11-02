@@ -83,7 +83,7 @@ export default function ThinklyFirstRunNotice({ hidden }: { hidden: boolean }) {
             height={58}
           />
           <span className="thinkly-notice-slip-title">
-            鹅的笔记
+            鹅的笔记桌面版来了
           </span>
           <span className="thinkly-notice-slip-copy">
             不开 uTools 也能记
