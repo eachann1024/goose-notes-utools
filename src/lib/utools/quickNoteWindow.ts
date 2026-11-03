@@ -80,6 +80,9 @@ export const quickNoteWindow = {
   /**
    * B 插件子窗保存：preload 把 blocks JSON 写成临时 .goosequicknote，
    * 再 redirect 到主插件的文件匹配指令「速记入库」。
+   * 开发模式只按指令名跳转。按插件名会命中已安装的正式版「鹅的笔记」，
+   * 正式版没有这条指令时 uTools 报未找到功能；开发版 A 才能接住。
+   * 正式环境仍用 [插件名, 指令名]，避免同名指令串到别的插件。
    * 子窗里的 utools.redirect 已经能唤起主插件（旧的功能指令只是丢掉了 payload），
    * 所以写文件和 redirect 都留在子窗。父窗开窗后已 outPlugin，不经手这次保存。
    * blocks 直接传 PartialBlock[] 原值，A 侧落库时自行 normalize。
@@ -97,7 +100,11 @@ export const quickNoteWindow = {
     try {
       const filePath = writeFile(JSON.stringify(blocks));
       if (!filePath) return false;
-      ut.redirect(["鹅的笔记", "速记入库"], {
+      // isDev() 为 true 时只按指令名查找，命中带「速记入库」的开发版。
+      const target = ut.isDev?.()
+        ? "速记入库"
+        : ["鹅的笔记", "速记入库"];
+      ut.redirect(target, {
         type: "files",
         data: filePath,
       });
