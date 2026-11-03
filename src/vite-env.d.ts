@@ -198,5 +198,7 @@ declare global {
     ) => void;
     /** B 插件（独立速记）preload 注入的标志，子窗 web 侧据此区分 redirect vs 本地落库。 */
     __GOOSE_QUICKNOTE_STANDALONE__?: boolean;
+    /** B 插件 preload 注入：把速记 JSON 写到临时 .goosequicknote，返回绝对路径。 */
+    __gooseQuickNoteWriteSaveFile?: (json: string) => string | null;
   }
 }

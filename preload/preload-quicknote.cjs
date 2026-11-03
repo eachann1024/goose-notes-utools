@@ -306,6 +306,26 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
   // 子窗与宿主都注入：子窗双击图片依赖；宿主注入无害且便于单测/调试。
   window.gooseFs = createQuicknoteGooseFs();
 
+  /**
+   * 子窗把速记 blocks JSON 落到临时文件，供 utools.redirect 的文件匹配指令携带。
+   * 功能指令不能带 payload，只有匹配 .goosequicknote 才能把内容交给主插件。
+   * 返回绝对路径；失败返回 null。子窗与宿主都挂上，调用方是子窗 web。
+   */
+  window.__gooseQuickNoteWriteSaveFile = (json) => {
+    if (typeof json !== "string" || json.length === 0) return null;
+    try {
+      const dir = path.join(os.tmpdir(), "goose-quicknote");
+      fs.mkdirSync(dir, { recursive: true });
+      const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.goosequicknote`;
+      const filePath = path.join(dir, name);
+      fs.writeFileSync(filePath, json, "utf8");
+      return filePath;
+    } catch (err) {
+      console.error("[quicknote] write save file failed:", err);
+      return null;
+    }
+  };
+
   // ── 速记小窗（独立 browser 窗口）──────────────────────────────
   let quickNoteWin = null;
   // 速记小窗强制置顶：恒为最前层，无取消置顶入口（产品决定）。

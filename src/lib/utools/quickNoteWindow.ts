@@ -78,15 +78,29 @@ export const quickNoteWindow = {
   },
 
   /**
-   * B 插件保存：通过 utools.redirect 把草稿内容回传 A 插件落库。
-   * 匹配键是主插件 feature cmd「鹅的笔记」。
+   * B 插件子窗保存：preload 把 blocks JSON 写成临时 .goosequicknote，
+   * 再 redirect 到主插件的文件匹配指令「速记入库」。
+   * 子窗里的 utools.redirect 已经能唤起主插件（旧的功能指令只是丢掉了 payload），
+   * 所以写文件和 redirect 都留在子窗。父窗开窗后已 outPlugin，不经手这次保存。
    * blocks 直接传 PartialBlock[] 原值，A 侧落库时自行 normalize。
    */
   redirectSaveToMainApp(blocks: unknown): boolean {
     const ut = getUToolsApi();
-    if (!ut || typeof ut.redirect !== "function") return false;
+    const writeFile = window.__gooseQuickNoteWriteSaveFile;
+    if (
+      !ut ||
+      typeof ut.redirect !== "function" ||
+      typeof writeFile !== "function"
+    ) {
+      return false;
+    }
     try {
-      ut.redirect(["鹅的笔记", "速记入库"], JSON.stringify(blocks));
+      const filePath = writeFile(JSON.stringify(blocks));
+      if (!filePath) return false;
+      ut.redirect(["鹅的笔记", "速记入库"], {
+        type: "files",
+        data: filePath,
+      });
       return true;
     } catch {
       return false;
