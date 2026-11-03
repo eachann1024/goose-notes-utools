@@ -2011,6 +2011,23 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
   // 必须 outPlugin(false) 才能收起到后台。
   let pluginVisible = false;
 
+  // 只删除本插件写在临时目录里的速记文件，避免文件匹配误删用户自己的同后缀文件。
+  const isQuickNoteTempFile = (filePath) => {
+    try {
+      const root = fs.realpathSync(path.join(os.tmpdir(), "goose-quicknote"));
+      const resolved = fs.realpathSync(filePath);
+      const relative = path.relative(root, resolved);
+      return (
+        Boolean(relative) &&
+        !relative.startsWith("..") &&
+        !path.isAbsolute(relative) &&
+        resolved.toLowerCase().endsWith(".goosequicknote")
+      );
+    } catch {
+      return false;
+    }
+  };
+
   // 主插件指令处理。速记小窗已拆为独立插件「鹅的小窗」（quicknote-plugin.json），
   // 主插件不再开内置浮窗，故此处不再有 quicknote_new/quicknote_last 分支。
   utools.onPluginEnter(({ code, type, payload, optional, from }) => {
@@ -2074,19 +2091,37 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     }
 
     if (code === "quicknote_save") {
-      // B 插件 redirect 回传速记内容（blocks JSON 字符串），落库后退出后台。
-      // type==="text" 时 payload 即 redirect 第二参数原文。
-      const blocksJson = type === "text" && typeof payload === "string" ? payload : null;
-      if (blocksJson) {
-        // 暂存到全局收件箱，支持冷启动（React 未 mount）时不丢数据。
-        if (!Array.isArray(window.__gooseQuickNoteInbox)) {
-          window.__gooseQuickNoteInbox = [];
+      // B 插件把 blocks JSON 写成 .goosequicknote，再用文件匹配 redirect 过来。
+      // onPluginEnter 的 files payload 是 [{ path, ... }]，不是 redirect 时的 { type, data }。
+      const filePath =
+        (type === "files" || type === "file") && Array.isArray(payload)
+          ? payload[0] && payload[0].path
+          : null;
+      if (typeof filePath === "string" && filePath) {
+        let blocksJson = null;
+        try {
+          blocksJson = fs.readFileSync(filePath, "utf8");
+        } catch (err) {
+          console.error("[quicknote_save] 读取入库文件失败", err);
         }
-        window.__gooseQuickNoteInbox.push(blocksJson);
-        // 标记本次是被 redirect 唤起（用于 React 侧判断是否 outPlugin）。
-        window.__gooseQuickNoteRedirectWoke = true;
-        // 通知已 mount 的 React 立即消费。
-        window.dispatchEvent(new CustomEvent("goose-note:quicknote-inbox"));
+        if (typeof blocksJson === "string" && blocksJson) {
+          // 暂存到全局收件箱，支持冷启动（React 未 mount）时不丢数据。
+          if (!Array.isArray(window.__gooseQuickNoteInbox)) {
+            window.__gooseQuickNoteInbox = [];
+          }
+          window.__gooseQuickNoteInbox.push(blocksJson);
+          // 标记本次是被 redirect 唤起（用于 React 侧判断是否 outPlugin）。
+          window.__gooseQuickNoteRedirectWoke = true;
+          // 通知已 mount 的 React 立即消费。
+          window.dispatchEvent(new CustomEvent("goose-note:quicknote-inbox"));
+        }
+        if (isQuickNoteTempFile(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (err) {
+            console.error("[quicknote_save] 删除临时文件失败", err);
+          }
+        }
       }
       return;
     }

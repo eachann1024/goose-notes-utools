@@ -67,7 +67,14 @@
       "explain": "接收速记入库",
       "mainHide": true,
       "cmds": [
-        "速记入库"
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "速记入库",
+          "match": "/\\.goosequicknote$/i",
+          "minLength": 1,
+          "maxLength": 1
+        }
       ]
     }
   ],
