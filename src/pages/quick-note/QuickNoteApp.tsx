@@ -6,10 +6,12 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { CircleAlert, X, Pencil } from "lucide-react";
+import { CircleAlert, Save, X, Pencil } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 import {
   useQuickNote,
   buildQuickNoteDraftPage,
+  getActiveDraftContent,
   getQuickNoteSlotName,
   loadQuickNoteSlotNames,
   persistQuickNoteSlotNames,
@@ -71,6 +73,7 @@ const POSITION_SETTLE_MS = 720;
  * 注入草稿 page + 平台能力，再渲染 <Editor>。不渲染侧栏/标签栏/大纲——小窗只有编辑区。
  */
 export function QuickNoteApp() {
+  const canSaveToNotes = window.__GOOSE_QUICKNOTE_STANDALONE__ === true;
   const editorRef = useRef<EditorRef>(null);
   /** 撤销/重做重挂编辑器后，只静默一次同一槽位且与恢复内容签名一致的初始化同步。 */
   const restoredContentSignatureRef = useRef<{
@@ -141,6 +144,7 @@ export function QuickNoteApp() {
       undo: formatShortcut("Mod+Z", platform),
       redo: formatShortcut("Mod+Shift+Z", platform),
       alternateRedo: formatShortcut("Mod+Y", platform),
+      saveToNotes: formatShortcut("Mod+S", platform),
     };
   }, []);
 
@@ -196,6 +200,32 @@ export function QuickNoteApp() {
       }),
     );
   }, []);
+
+  // 存到主插件：空内容不发送；成功后清空当前槽并聚焦。只在独立速记子窗可用。
+  const handleSaveToNotes = useCallback(() => {
+    if (!canSaveToNotes) return;
+    flushEditor();
+    const content = getActiveDraftContent(useQuickNote.getState());
+    if (isQuickNoteDraftEmpty(content)) {
+      toast.info("便签是空的，没有需要保存的内容");
+      return;
+    }
+    const ok = quickNoteWindow.redirectSaveToMainApp(content);
+    if (!ok) {
+      toast.error("无法存入鹅的笔记，请确认主插件已安装");
+      return;
+    }
+    toast.success("已存入鹅的笔记");
+    useQuickNote.getState().clearDraft();
+    requestAnimationFrame(() => {
+      const editor = editorRef.current?.editor;
+      editor?.replaceBlocks?.(
+        editor.document,
+        buildQuickNoteDraftPage(null).content as never,
+      );
+      editor?.focus?.();
+    });
+  }, [canSaveToNotes, flushEditor]);
 
   const startRename = useCallback(
     (slot: QuickNoteSlot) => {
@@ -341,8 +371,8 @@ export function QuickNoteApp() {
   // 强制置顶（无失焦自动隐藏）：小窗常驻最前层，置顶由主窗 preload 在创建时设定，
   // 失焦不再触发隐藏——点窗外不会收起，只能 Esc / 关闭按钮收起。
 
-  // 键盘：Esc 收起；macOS Cmd / Windows Alt+1~5 切换便签；Cmd/Ctrl+Z 超长期撤销；
-  // Cmd/Ctrl+Shift+Z / Cmd/Ctrl+Y 重做；Cmd/Ctrl +/- 缩放编辑界面（0 复位）。
+  // 键盘：Esc 收起；macOS Cmd / Windows Alt+1~5 切换便签；Cmd/Ctrl+S 存到笔记；
+  // Cmd/Ctrl+Z 超长期撤销；Cmd/Ctrl+Shift+Z / Cmd/Ctrl+Y 重做；Cmd/Ctrl +/- 缩放（0 复位）。
   useEffect(() => {
     const onShortcutKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || isImeKeyboardEvent(e)) return;
@@ -361,10 +391,18 @@ export function QuickNoteApp() {
         return;
       }
 
-      // 仅在按下 Cmd（macOS）/ Ctrl 时处理缩放与撤销。
+      // 仅在按下 Cmd（macOS）/ Ctrl 时处理保存、缩放与撤销。
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
 
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+
+      // Mod+S 在小窗未被占用（删除线是 Mod+Shift+S）。只在独立子窗存到主插件。
+      if (canSaveToNotes && !e.shiftKey && !e.repeat && key === "s") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSaveToNotes();
+        return;
+      }
 
       // 超长期撤销/重做：未被浮层消费时拦截默认行为，走持久化栈。
       if (key === "z") {
@@ -420,6 +458,8 @@ export function QuickNoteApp() {
       window.removeEventListener("keydown", onEscapeKeyDown);
     };
   }, [
+    canSaveToNotes,
+    handleSaveToNotes,
     handleSwitchSlot,
     handleUndo,
     handleRedo,
@@ -592,6 +632,18 @@ export function QuickNoteApp() {
         </div>
 
         <div className="quicknote-titlebar-actions">
+          {canSaveToNotes ? (
+            <button
+              type="button"
+              aria-label="把当前便签存到鹅的笔记"
+              title={`存到笔记（${helpShortcuts.saveToNotes}）`}
+              className="quicknote-titlebar-btn quicknote-help-trigger"
+              style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
+              onClick={handleSaveToNotes}
+            >
+              <Save className="h-3 w-3" />
+            </button>
+          ) : null}
           <Popover open={helpOpen} onOpenChange={handleHelpOpenChange}>
             <PopoverTrigger asChild>
               <button
@@ -626,7 +678,14 @@ export function QuickNoteApp() {
                   {getQuickNoteSlotName(activeSlot, slotNames)}
                 </span>
               </button>
-              <ul className="quicknote-help-list text-muted-foreground">
+              <ul className="quicknote-help-list text-sm text-muted-foreground">
+                {canSaveToNotes ? (
+                  <li>
+                    <b className="text-foreground">存到笔记</b>
+                    ：点右上角或按 {helpShortcuts.saveToNotes}
+                    ，写入鹅的笔记后清空当前便签。
+                  </li>
+                ) : null}
                 <li>
                   <b className="text-foreground">切换</b>
                   ：顶部 1–5 是五个独立便签。点击或拖动切换；也可按
