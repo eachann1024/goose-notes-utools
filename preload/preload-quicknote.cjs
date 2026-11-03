@@ -331,7 +331,6 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
   // 速记小窗强制置顶：恒为最前层，无取消置顶入口（产品决定）。
   const QUICKNOTE_ALWAYS_ON_TOP = true;
   let quickNoteVisible = false;
-  let quickNoteActiveMode = null;
 
   const QUICKNOTE_DB_KEY = "goose-note:quicknote";
   const STORAGE_DOC_PREFIX = "gn:storage:";
@@ -542,7 +541,6 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     if (!quickNoteWin || quickNoteWin.isDestroyed?.()) {
       quickNoteWin = null;
       quickNoteVisible = false;
-      quickNoteActiveMode = null;
       return;
     }
     persistQuickNoteBounds();
@@ -552,7 +550,6 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
       /* noop */
     }
     quickNoteVisible = false;
-    quickNoteActiveMode = null;
   };
 
   // 复用已隐藏的窗口：show + focus + 置顶，并推 enter 让子窗重新聚焦光标（草稿延续，不重解析）。
@@ -578,7 +575,6 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
         /* noop */
       }
       quickNoteVisible = true;
-      quickNoteActiveMode = mode;
       try {
         quickNoteWin.webContents?.send?.("quicknote:enter", { mode });
       } catch {
@@ -751,7 +747,6 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
           win.show();
           win.focus?.();
           quickNoteVisible = true;
-          quickNoteActiveMode = mode;
           // 强制置顶：用最高层级 screen-saver，确保盖在其他置顶窗之上。
           try {
             win.setAlwaysOnTop(true, "screen-saver");
@@ -844,7 +839,6 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
           }
           quickNoteWin = null;
           quickNoteVisible = false;
-          quickNoteActiveMode = null;
         }
       });
     }

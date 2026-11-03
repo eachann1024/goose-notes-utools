@@ -73,7 +73,12 @@ const POSITION_SETTLE_MS = 720;
  * 注入草稿 page + 平台能力，再渲染 <Editor>。不渲染侧栏/标签栏/大纲——小窗只有编辑区。
  */
 export function QuickNoteApp() {
-  const canSaveToNotes = window.__GOOSE_QUICKNOTE_STANDALONE__ === true;
+  // 不看窗口类型标志：真实 uTools 里 getWindowType() 不一定是 "browser"。
+  // 有 redirect + 写临时文件的能力，且不是 Electron 桌面端，就可以存到主插件。
+  const canSaveToNotes =
+    __HOST_TARGET__ !== "electron" &&
+    typeof window.utools?.redirect === "function" &&
+    typeof window.__gooseQuickNoteWriteSaveFile === "function";
   const editorRef = useRef<EditorRef>(null);
   /** 撤销/重做重挂编辑器后，只静默一次同一槽位且与恢复内容签名一致的初始化同步。 */
   const restoredContentSignatureRef = useRef<{
@@ -201,7 +206,7 @@ export function QuickNoteApp() {
     );
   }, []);
 
-  // 存到主插件：空内容不发送；成功后清空当前槽并聚焦。只在独立速记子窗可用。
+  // 存到主插件：空内容不发送；成功后清空当前槽并聚焦。能力不足时按钮与快捷键都不出现。
   const handleSaveToNotes = useCallback(() => {
     if (!canSaveToNotes) return;
     flushEditor();
@@ -396,7 +401,7 @@ export function QuickNoteApp() {
 
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
 
-      // Mod+S 在小窗未被占用（删除线是 Mod+Shift+S）。只在独立子窗存到主插件。
+      // Mod+S 在小窗未被占用（删除线是 Mod+Shift+S）。跟随 canSaveToNotes。
       if (canSaveToNotes && !e.shiftKey && !e.repeat && key === "s") {
         e.preventDefault();
         e.stopPropagation();
