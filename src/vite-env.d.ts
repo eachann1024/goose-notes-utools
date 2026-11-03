@@ -200,5 +200,13 @@ declare global {
     __GOOSE_QUICKNOTE_STANDALONE__?: boolean;
     /** B 插件 preload 注入：把速记 JSON 写到临时 .goosequicknote，返回绝对路径。 */
     __gooseQuickNoteWriteSaveFile?: (json: string) => string | null;
+    /**
+     * B 插件 preload 注入：临时速记文件是否还在。
+     * 只允许检查 goose-quicknote 临时目录内的路径；不允许的路径返回 true，
+     * 避免调用方把「拒绝检查」当成「已被主插件删除」。
+     */
+    __gooseQuickNoteSaveFileExists?: (filePath: string) => boolean;
+    /** B 插件 preload 注入：删除 goose-quicknote 临时目录内的速记文件。路径不允许时返回 false。 */
+    __gooseQuickNoteDeleteSaveFile?: (filePath: string) => boolean;
   }
 }

@@ -86,8 +86,10 @@ export const quickNoteWindow = {
    * 子窗里的 utools.redirect 已经能唤起主插件（旧的功能指令只是丢掉了 payload），
    * 所以写文件和 redirect 都留在子窗。父窗开窗后已 outPlugin，不经手这次保存。
    * blocks 直接传 PartialBlock[] 原值，A 侧落库时自行 normalize。
+   * 返回临时文件路径。redirect 的返回值不能当成功：开发版未接住时 uTools 只弹错，调用仍可能不抛。
+   * 调用方轮询该文件是否被主插件删除。写文件失败返回 null。
    */
-  redirectSaveToMainApp(blocks: unknown): boolean {
+  redirectSaveToMainApp(blocks: unknown): string | null {
     const ut = getUToolsApi();
     const writeFile = window.__gooseQuickNoteWriteSaveFile;
     if (
@@ -95,11 +97,16 @@ export const quickNoteWindow = {
       typeof ut.redirect !== "function" ||
       typeof writeFile !== "function"
     ) {
-      return false;
+      return null;
     }
+    let filePath: string | null = null;
     try {
-      const filePath = writeFile(JSON.stringify(blocks));
-      if (!filePath) return false;
+      filePath = writeFile(JSON.stringify(blocks));
+    } catch {
+      return null;
+    }
+    if (!filePath) return null;
+    try {
       // isDev() 为 true 时只按指令名查找，命中带「速记入库」的开发版。
       const target = ut.isDev?.()
         ? "速记入库"
@@ -108,10 +115,10 @@ export const quickNoteWindow = {
         type: "files",
         data: filePath,
       });
-      return true;
     } catch {
-      return false;
+      // 跳转抛错也不在这里判失败：文件还在，调用方轮询后超时再删。
     }
+    return filePath;
   },
 
   /**

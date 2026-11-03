@@ -2093,6 +2093,9 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     if (code === "quicknote_save") {
       // B 插件把 blocks JSON 写成 .goosequicknote，再用文件匹配 redirect 过来。
       // onPluginEnter 的 files payload 是 [{ path, ... }]，不是 redirect 时的 { type, data }。
+      // 读到并解析成功、推进收件箱之后才删临时文件。读或解析失败留下文件，
+      // 让小窗轮询超时后自行删除并保留草稿。落库在 React 侧，可能晚于 8 秒轮询，
+      // 所以不把删除推迟到 main.tsx，避免慢启动被误判失败后又把收件箱内容落库。
       const filePath =
         (type === "files" || type === "file") && Array.isArray(payload)
           ? payload[0] && payload[0].path
@@ -2104,7 +2107,15 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
         } catch (err) {
           console.error("[quicknote_save] 读取入库文件失败", err);
         }
-        if (typeof blocksJson === "string" && blocksJson) {
+        let parsed = null;
+        if (typeof blocksJson === "string" && blocksJson.trim()) {
+          try {
+            parsed = JSON.parse(blocksJson);
+          } catch (err) {
+            console.error("[quicknote_save] 解析入库文件失败", err);
+          }
+        }
+        if (parsed !== null && typeof parsed === "object") {
           // 暂存到全局收件箱，支持冷启动（React 未 mount）时不丢数据。
           if (!Array.isArray(window.__gooseQuickNoteInbox)) {
             window.__gooseQuickNoteInbox = [];
@@ -2114,12 +2125,12 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
           window.__gooseQuickNoteRedirectWoke = true;
           // 通知已 mount 的 React 立即消费。
           window.dispatchEvent(new CustomEvent("goose-note:quicknote-inbox"));
-        }
-        if (isQuickNoteTempFile(filePath)) {
-          try {
-            fs.unlinkSync(filePath);
-          } catch (err) {
-            console.error("[quicknote_save] 删除临时文件失败", err);
+          if (isQuickNoteTempFile(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+            } catch (err) {
+              console.error("[quicknote_save] 删除临时文件失败", err);
+            }
           }
         }
       }

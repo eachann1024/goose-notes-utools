@@ -319,8 +319,8 @@ interface QuickNoteState {
    * 返回新笔记 id；草稿为空时返回 null（不产生空笔记）。
    */
   saveDraftToNotebook: () => string | null;
-  /** 清空当前槽位草稿，回到空白便签。 */
-  clearDraft: () => void;
+  /** 清空草稿，回到空白便签。缺省清当前槽；等待入库确认时传入发起保存的槽。 */
+  clearDraft: (slot?: QuickNoteSlot) => void;
   setWindowWidth: (width: number) => void;
   setWindowHeight: (height: number) => void;
   setWindowSize: (width: number, height: number) => void;
@@ -546,26 +546,26 @@ export const useQuickNote = create<QuickNoteState>()(
         return id;
       },
 
-      clearDraft: () =>
+      clearDraft: (slot) =>
         set((state) => {
-          const slot = state.activeSlot;
-          const previous = state.drafts[slot] ?? null;
-          recordQuickNoteRecovery(slot, previous, null);
+          const target = slot != null ? normalizeSlot(slot) : state.activeSlot;
+          const previous = state.drafts[target] ?? null;
+          recordQuickNoteRecovery(target, previous, null);
           // 清空也记一步，方便撤销恢复
           const hist = recordEditHistory({
-            undo: state.undoStacks[slot] ?? [],
-            redo: state.redoStacks[slot] ?? [],
+            undo: state.undoStacks[target] ?? [],
+            redo: state.redoStacks[target] ?? [],
             previous,
             next: null,
             lastRecordAt: 0, // 强制新步，不与编辑合并
           });
           if (hist.recorded) {
-            lastUndoRecordAtBySlot[slot] = hist.lastRecordAt;
+            lastUndoRecordAtBySlot[target] = hist.lastRecordAt;
           }
           return {
-            drafts: { ...state.drafts, [slot]: null },
-            undoStacks: { ...state.undoStacks, [slot]: hist.undo },
-            redoStacks: { ...state.redoStacks, [slot]: hist.redo },
+            drafts: { ...state.drafts, [target]: null },
+            undoStacks: { ...state.undoStacks, [target]: hist.undo },
+            redoStacks: { ...state.redoStacks, [target]: hist.redo },
           };
         }),
 
