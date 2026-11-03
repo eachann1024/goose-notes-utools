@@ -60,6 +60,8 @@ const GOOSE_NOTE_STORE_URL =
 const POSITION_POLL_IDLE_MS = 500;
 const POSITION_POLL_DRAG_MS = 120;
 const POSITION_SETTLE_MS = 720;
+const SAVE_TO_NOTES_POLL_MS = 300;
+const SAVE_TO_NOTES_TIMEOUT_MS = 8_000;
 
 /**
  * 速记小窗根组件（独立窗口进程）。
@@ -80,6 +82,9 @@ export function QuickNoteApp() {
     typeof window.utools?.redirect === "function" &&
     typeof window.__gooseQuickNoteWriteSaveFile === "function";
   const editorRef = useRef<EditorRef>(null);
+  const savingToNotesRef = useRef(false);
+  const saveWatchTimerRef = useRef<number | null>(null);
+  const [savingToNotes, setSavingToNotes] = useState(false);
   /** 撤销/重做重挂编辑器后，只静默一次同一槽位且与恢复内容签名一致的初始化同步。 */
   const restoredContentSignatureRef = useRef<{
     slot: QuickNoteSlot;
@@ -206,30 +211,69 @@ export function QuickNoteApp() {
     );
   }, []);
 
-  // 存到主插件：空内容不发送；成功后清空当前槽并聚焦。能力不足时按钮与快捷键都不出现。
+  // 存到主插件：空内容不发送。redirect 之后轮询临时文件，主插件收下并删除才算成功。
+  // 能力不足时按钮与快捷键都不出现。进行中忽略重复点击和 Mod+S。
   const handleSaveToNotes = useCallback(() => {
-    if (!canSaveToNotes) return;
+    if (!canSaveToNotes || savingToNotesRef.current) return;
     flushEditor();
-    const content = getActiveDraftContent(useQuickNote.getState());
+    const state = useQuickNote.getState();
+    const savedSlot = state.activeSlot;
+    const content = getActiveDraftContent(state);
     if (isQuickNoteDraftEmpty(content)) {
       toast.info("便签是空的，没有需要保存的内容");
       return;
     }
-    const ok = quickNoteWindow.redirectSaveToMainApp(content);
-    if (!ok) {
+    const filePath = quickNoteWindow.redirectSaveToMainApp(content);
+    if (!filePath) {
       toast.error("无法存入鹅的笔记，请确认主插件已安装");
       return;
     }
-    toast.success("已存入鹅的笔记");
-    useQuickNote.getState().clearDraft();
-    requestAnimationFrame(() => {
-      const editor = editorRef.current?.editor;
-      editor?.replaceBlocks?.(
-        editor.document,
-        buildQuickNoteDraftPage(null).content as never,
-      );
-      editor?.focus?.();
-    });
+
+    savingToNotesRef.current = true;
+    setSavingToNotes(true);
+    const startedAt = Date.now();
+
+    const stopWatch = () => {
+      if (saveWatchTimerRef.current !== null) {
+        window.clearInterval(saveWatchTimerRef.current);
+        saveWatchTimerRef.current = null;
+      }
+      savingToNotesRef.current = false;
+      setSavingToNotes(false);
+    };
+
+    saveWatchTimerRef.current = window.setInterval(() => {
+      let consumed = false;
+      try {
+        consumed = window.__gooseQuickNoteSaveFileExists?.(filePath) === false;
+      } catch {
+        consumed = false;
+      }
+      if (consumed) {
+        stopWatch();
+        toast.success("已存入鹅的笔记");
+        useQuickNote.getState().clearDraft(savedSlot);
+        if (useQuickNote.getState().activeSlot !== savedSlot) return;
+        requestAnimationFrame(() => {
+          const editor = editorRef.current?.editor;
+          editor?.replaceBlocks?.(
+            editor.document,
+            buildQuickNoteDraftPage(null).content as never,
+          );
+          editor?.focus?.();
+        });
+        return;
+      }
+      if (Date.now() - startedAt >= SAVE_TO_NOTES_TIMEOUT_MS) {
+        try {
+          window.__gooseQuickNoteDeleteSaveFile?.(filePath);
+        } catch {
+          /* 删除失败也要停掉轮询，草稿保持不动 */
+        }
+        stopWatch();
+        toast.error("没能存进鹅的笔记，请确认已安装并启用鹅的笔记");
+      }
+    }, SAVE_TO_NOTES_POLL_MS);
   }, [canSaveToNotes, flushEditor]);
 
   const startRename = useCallback(
@@ -357,6 +401,15 @@ export function QuickNoteApp() {
     }
     quickNoteWindow.close();
   }, [flushEditor, setWindowPosition]);
+
+  useEffect(() => {
+    return () => {
+      if (saveWatchTimerRef.current !== null) {
+        window.clearInterval(saveWatchTimerRef.current);
+        saveWatchTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // 首帧：聚焦光标到编辑器。
   useEffect(() => {
@@ -644,6 +697,8 @@ export function QuickNoteApp() {
               title={`存到笔记（${helpShortcuts.saveToNotes}）`}
               className="quicknote-titlebar-btn quicknote-help-trigger"
               style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
+              disabled={savingToNotes}
+              aria-busy={savingToNotes}
               onClick={handleSaveToNotes}
             >
               <Save className="h-3 w-3" />

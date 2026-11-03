@@ -306,6 +306,41 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
   // 子窗与宿主都注入：子窗双击图片依赖；宿主注入无害且便于单测/调试。
   window.gooseFs = createQuicknoteGooseFs();
 
+  const quickNoteSaveDir = () => path.join(os.tmpdir(), "goose-quicknote");
+
+  /**
+   * 只接受 goose-quicknote 临时目录根下的 .goosequicknote。
+   * 目录可以是 symlink（macOS /var → /private/var）；文件本身可以已经不存在，
+   * 这样轮询「被主插件删掉」时仍能认出是自己的路径。
+   */
+  const isQuickNoteSavePath = (filePath) => {
+    if (typeof filePath !== "string" || filePath.length === 0) return false;
+    const name = path.basename(filePath);
+    if (
+      !name ||
+      name === "." ||
+      name === ".." ||
+      !name.toLowerCase().endsWith(".goosequicknote")
+    ) {
+      return false;
+    }
+    let root;
+    try {
+      const dir = quickNoteSaveDir();
+      fs.mkdirSync(dir, { recursive: true });
+      root = fs.realpathSync(dir);
+    } catch {
+      return false;
+    }
+    const parent = path.dirname(path.resolve(filePath));
+    try {
+      return fs.realpathSync(parent) === root;
+    } catch {
+      const logical = path.resolve(quickNoteSaveDir());
+      return path.resolve(parent) === logical || path.resolve(parent) === root;
+    }
+  };
+
   /**
    * 子窗把速记 blocks JSON 落到临时文件，供 utools.redirect 的文件匹配指令携带。
    * 功能指令不能带 payload，只有匹配 .goosequicknote 才能把内容交给主插件。
@@ -323,6 +358,32 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     } catch (err) {
       console.error("[quicknote] write save file failed:", err);
       return null;
+    }
+  };
+
+  /**
+   * 临时文件是否还在。路径不在 goose-quicknote 目录内时返回 true，
+   * 避免网页把「不允许检查」当成「已被主插件删除」从而误清草稿。
+   */
+  window.__gooseQuickNoteSaveFileExists = (filePath) => {
+    if (!isQuickNoteSavePath(filePath)) return true;
+    try {
+      return fs.existsSync(filePath);
+    } catch {
+      return true;
+    }
+  };
+
+  /** 超时失败时删掉临时文件，避免之后被误入库。只删临时目录内的速记文件。 */
+  window.__gooseQuickNoteDeleteSaveFile = (filePath) => {
+    if (!isQuickNoteSavePath(filePath)) return false;
+    try {
+      if (!fs.existsSync(filePath)) return true;
+      fs.unlinkSync(filePath);
+      return true;
+    } catch (err) {
+      console.error("[quicknote] delete save file failed:", err);
+      return false;
     }
   };
 

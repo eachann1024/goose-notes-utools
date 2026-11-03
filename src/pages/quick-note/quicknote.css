@@ -151,6 +151,10 @@ body,
   color: hsl(var(--foreground));
 }
 
+.quicknote-help-trigger:disabled {
+  opacity: 0.45;
+}
+
 .quicknote-slot-switcher-positioner {
   position: absolute;
   top: 50%;
