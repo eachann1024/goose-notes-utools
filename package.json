@@ -1,7 +1,7 @@
 {
   "name": "goose-notes-utools",
   "private": true,
-  "version": "9.1.4",
+  "version": "9.1.5",
   "type": "module",
   "packageManager": "bun@1.3.14",
   "description": "鹅的笔记：uTools 插件。本地优先的 Notion 风格笔记，基于 BlockNote，内置 AI。",
