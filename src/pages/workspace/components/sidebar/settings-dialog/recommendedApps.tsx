@@ -38,43 +38,43 @@ export function renderRecommendedAppsBanner({
           className="h-10 w-10 shrink-0 rounded-[10px] object-cover"
         />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="whitespace-nowrap pr-5 text-[15px] font-bold leading-[20px] text-foreground">
+          <span className="whitespace-nowrap pr-5 text-[16px] font-bold leading-[21px] text-foreground">
             鹅的笔记 完全体
           </span>
-          <span className="whitespace-nowrap text-[14px] leading-[18px] text-muted-foreground">
+          <span className="whitespace-nowrap text-[15px] font-normal leading-[20px] text-foreground">
             小鹅也梳上背头啦
           </span>
         </div>
       </button>
 
       <div className="grid grid-cols-3 gap-1.5">
-        <div className="flex flex-col items-center justify-center gap-0.5 rounded-[10px] bg-[#f4f6fa] dark:bg-[hsl(var(--goose-selected-bg))] px-1.5 py-2 text-center">
-          <span className="whitespace-nowrap text-[14px] font-semibold leading-[18px] tracking-[-0.02em] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
+        <div className="flex flex-col items-center justify-center gap-0.5 rounded-[10px] bg-[#f4f6fa] dark:bg-[hsl(var(--goose-selected-bg))] px-1 py-2 text-center">
+          <span className="whitespace-nowrap text-[15px] font-semibold leading-[20px] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
             24.5 ms
           </span>
-          <span className="whitespace-nowrap text-[13px] leading-[18px] text-muted-foreground">
+          <span className="whitespace-nowrap text-[14px] leading-[18px] text-muted-foreground">
             瞬间打开
           </span>
         </div>
-        <div className="flex flex-col items-center justify-center gap-0.5 rounded-[10px] bg-[#f4f6fa] dark:bg-[hsl(var(--goose-selected-bg))] px-1.5 py-2 text-center">
-          <span className="whitespace-nowrap text-[14px] font-semibold leading-[18px] tracking-[-0.02em] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
+        <div className="flex flex-col items-center justify-center gap-0.5 rounded-[10px] bg-[#f4f6fa] dark:bg-[hsl(var(--goose-selected-bg))] px-1 py-2 text-center">
+          <span className="whitespace-nowrap text-[15px] font-semibold leading-[20px] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
             117 MB
           </span>
-          <span className="whitespace-nowrap text-[13px] leading-[18px] text-muted-foreground">
+          <span className="whitespace-nowrap text-[14px] leading-[18px] text-muted-foreground">
             内存
           </span>
         </div>
-        <div className="flex flex-col items-center justify-center gap-0.5 rounded-[10px] bg-[#f4f6fa] dark:bg-[hsl(var(--goose-selected-bg))] px-1.5 py-2 text-center">
-          <span className="whitespace-nowrap text-[14px] font-semibold leading-[18px] tracking-[-0.02em] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
+        <div className="flex flex-col items-center justify-center gap-0.5 rounded-[10px] bg-[#f4f6fa] dark:bg-[hsl(var(--goose-selected-bg))] px-1 py-2 text-center">
+          <span className="whitespace-nowrap text-[15px] font-semibold leading-[20px] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
             27 MB
           </span>
-          <span className="whitespace-nowrap text-[13px] leading-[18px] text-muted-foreground">
+          <span className="whitespace-nowrap text-[14px] leading-[18px] text-muted-foreground">
             体积
           </span>
         </div>
       </div>
 
-      <p className="m-0 whitespace-nowrap text-[13.5px] leading-[20px] tracking-[-0.01em] text-muted-foreground">
+      <p className="m-0 whitespace-nowrap text-[14px] leading-[20px] text-muted-foreground">
         10 万块文档即开即写，依然免费
         <br />
         我奶的电脑都能秒开!
