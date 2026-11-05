@@ -360,7 +360,7 @@ export function FeedbackSheet({
             <p className="py-10 text-center text-muted-foreground">
               {loading
                 ? "正在加载…"
-                : "遇到的问题或想要的功能，都可以在这里告诉我们。"}
+                : "遇到的问题或想要的功能都可以直接留言，我们的回复会显示在这里，随时继续对话。"}
             </p>
           ) : (
             messages.map((entry) => (
@@ -404,12 +404,12 @@ export function FeedbackSheet({
         </div>
         <form className="grid gap-3 p-4" onSubmit={submit}>
           <GripTextarea
-            className={textareaClass}
+            className={`${textareaClass} min-h-16`}
             paint={gripPaint.goose}
             gripLabel="反馈内容"
-            minHeight={112}
+            minHeight={64}
             aria-label="反馈内容"
-            placeholder="输入消息…"
+            placeholder="聊聊遇到的问题或新想法，我们的回复会直接显示在这里，可随时继续对话…"
             value={message}
             maxLength={4000}
             disabled={sending}
