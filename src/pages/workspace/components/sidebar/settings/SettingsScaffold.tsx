@@ -81,7 +81,7 @@ export function SettingsScaffold({
       </div>
 
       <div className="workspace-stage min-h-0 flex-1 flex-col overflow-hidden p-3 md:flex-row">
-        <div className="workspace-main-sheet flex w-full shrink-0 flex-col md:w-60 overflow-hidden rounded-[16px] bg-[hsl(var(--goose-shell-bg))]">
+        <div className="workspace-main-sheet flex w-full shrink-0 flex-col md:w-[268px] overflow-hidden rounded-[16px] bg-[hsl(var(--goose-shell-bg))]">
           <nav
             aria-label="设置分类"
             className="flex gap-1 overflow-x-auto p-3 md:block md:flex-1 md:space-y-1"
