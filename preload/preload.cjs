@@ -156,8 +156,12 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
   // 放在用户 home，而非插件目录 / uTools userData：卸载插件、清除插件数据后仍保留。
   // 固定版本号表示这一次宣传活动；不提供删除接口，也不借用笔记本的初始化状态。
   const THINKLY_NOTICE_KEY = "goose-note-thinkly-desktop-notice-v1-seen";
-  const thinklyNoticeMarkerPath = () =>
-    path.join(utools.getPath("home"), ".goose-note", "thinkly-desktop-notice-v1.seen");
+  const thinklyNoticeMarkerPath = () => {
+    const homeDir =
+      (typeof utools?.getPath === "function" && utools.getPath("home")) ||
+      os.homedir();
+    return path.join(homeDir, ".goose-note", "thinkly-desktop-notice-v1.seen");
+  };
 
   const markThinklyNoticeSeen = () => {
     if (!writeStoredDocString(THINKLY_NOTICE_KEY, "1")) {
@@ -166,6 +170,13 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
       } catch (error) {
         console.error("[goose-note] persist Thinkly notice in database failed:", error);
       }
+    }
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(THINKLY_NOTICE_KEY, "1");
+      }
+    } catch (error) {
+      console.error("[goose-note] persist Thinkly notice in localStorage failed:", error);
     }
     try {
       const marker = thinklyNoticeMarkerPath();
@@ -186,10 +197,29 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     hasSeen: () => {
       try {
         const databaseSeen = readStoredString(THINKLY_NOTICE_KEY) !== null;
-        const fileSeen = fs.existsSync(thinklyNoticeMarkerPath());
-        // 任一处存在便跳过；仅缺一份时修复冗余，避免每次打开都产生同步写入。
-        if (databaseSeen !== fileSeen) markThinklyNoticeSeen();
-        return databaseSeen || fileSeen;
+        let localStorageSeen = false;
+        try {
+          localStorageSeen =
+            typeof window !== "undefined" &&
+            Boolean(window.localStorage?.getItem(THINKLY_NOTICE_KEY));
+        } catch {
+          // ignore localStorage access error
+        }
+        let fileSeen = false;
+        try {
+          fileSeen = fs.existsSync(thinklyNoticeMarkerPath());
+        } catch {
+          // ignore fs access error
+        }
+        const seen = databaseSeen || localStorageSeen || fileSeen;
+        // 任一处存在即视为已展示（并自动补写缺失项）
+        if (seen) {
+          if (!databaseSeen || !localStorageSeen || !fileSeen) {
+            markThinklyNoticeSeen();
+          }
+          return true;
+        }
+        return false;
       } catch (error) {
         // 无法确定是否展示过时不打扰用户。
         console.error("[goose-note] read Thinkly notice marker failed:", error);

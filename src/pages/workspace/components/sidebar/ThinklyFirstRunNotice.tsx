@@ -9,6 +9,14 @@ import "./thinkly-first-run-notice.css";
 let sessionVisible: boolean | undefined;
 let sessionMarked = false;
 
+if (typeof window !== "undefined") {
+  const resetSession = () => {
+    sessionVisible = false;
+  };
+  window.addEventListener("goose-note:plugin-out", resetSession);
+  window.addEventListener("pagehide", resetSession);
+}
+
 export default function ThinklyFirstRunNotice({ hidden }: { hidden: boolean }) {
   const [visible, setVisible] = useState(() => {
     sessionVisible ??= Boolean(
@@ -23,6 +31,10 @@ export default function ThinklyFirstRunNotice({ hidden }: { hidden: boolean }) {
     document.addEventListener("visibilitychange", updateVisibility);
     return () =>
       document.removeEventListener("visibilitychange", updateVisibility);
+  }, []);
+
+  useEffect(() => () => {
+    if (sessionMarked) sessionVisible = false;
   }, []);
 
   useLayoutEffect(() => {
