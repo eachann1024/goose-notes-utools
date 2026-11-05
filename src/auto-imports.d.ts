@@ -230,6 +230,7 @@ declare global {
   const cn: typeof import('./lib/utils').cn
   const collapseAllSidebarExpandedPages: typeof import('./lib/sidebarListCollapse').collapseAllSidebarExpandedPages
   const collectSidebarRevealAncestorIds: typeof import('./lib/sidebarListCollapse').collectSidebarRevealAncestorIds
+  const compileHiddenFolderMatcher: typeof import('./lib/local-folder-hidden-rules').compileHiddenFolderMatcher
   const completePageTitleFocus: typeof import('./lib/page-title-focus').completePageTitleFocus
   const composerDraftHasContent: typeof import('./stores/useNotebookAiChats').composerDraftHasContent
   const compressIfNeeded: typeof import('./lib/imageProcessor').compressIfNeeded
@@ -390,6 +391,7 @@ declare global {
   const isElectronLocalFolderDirectory: typeof import('./lib/sidebarPageNavigation').isElectronLocalFolderDirectory
   const isEmptyInlineBlock: typeof import('./components/editor/utils/pasteAtCursor').isEmptyInlineBlock
   const isExternalFileDrag: typeof import('./lib/local-folder-target').isExternalFileDrag
+  const isHiddenFolderMatcher: typeof import('./lib/local-folder-hidden-rules').isHiddenFolderMatcher
   const isImageUploadFile: typeof import('./components/editor/utils/pasteClipboardImage').isImageUploadFile
   const isImeKeyboardEvent: typeof import('./hooks/useImeInput').isImeKeyboardEvent
   const isInsideToggle: typeof import('./components/editor/utils/toggleNesting').isInsideToggle
@@ -484,6 +486,7 @@ declare global {
   const pageHasLocalSidecarAttachments: typeof import('./lib/export/index').pageHasLocalSidecarAttachments
   const pageSettingsFromMarkdown: typeof import('./lib/local-frontmatter').pageSettingsFromMarkdown
   const parseFileNavKey: typeof import('./stores/useFileNavHistory').parseFileNavKey
+  const parseHiddenFolderRule: typeof import('./lib/local-folder-hidden-rules').parseHiddenFolderRule
   const parseLocalFrontmatterBlob: typeof import('./lib/local-frontmatter').parseLocalFrontmatterBlob
   const parseLocalMarkdownContent: typeof import('./lib/local-folder-scanner').parseLocalMarkdownContent
   const parseMarkdownLink: typeof import('./components/editor/utils/clipboard').parseMarkdownLink
@@ -732,6 +735,9 @@ declare global {
   // @ts-ignore
   export type { UnreferencedLocalAsset, RestoreMissingLocalAssetsResult } from './lib/local-folder-asset-maintenance'
   import('./lib/local-folder-asset-maintenance')
+  // @ts-ignore
+  export type { ParsedHiddenFolderRule, CompiledHiddenFolderMatcher } from './lib/local-folder-hidden-rules'
+  import('./lib/local-folder-hidden-rules')
   // @ts-ignore
   export type { LocalFolderOpenAppKind, LocalFolderOpenAppCandidate } from './lib/local-folder-open-apps'
   import('./lib/local-folder-open-apps')
