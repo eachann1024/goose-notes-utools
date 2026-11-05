@@ -38,7 +38,7 @@ export function renderRecommendedAppsBanner({
           className="h-8 w-8 shrink-0 rounded-[8px] object-cover"
         />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="whitespace-nowrap pr-4 text-sm font-semibold leading-[18px] text-foreground">
+          <span className="whitespace-nowrap pr-4 text-[13px] font-semibold leading-[18px] text-foreground">
             鹅的笔记 完全体
           </span>
           <span className="whitespace-nowrap text-xs leading-[16px] text-muted-foreground">
@@ -52,7 +52,7 @@ export function renderRecommendedAppsBanner({
           <span className="whitespace-nowrap text-xs font-semibold leading-[16px] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
             24.5 ms
           </span>
-          <span className="whitespace-nowrap text-xs leading-[16px] text-muted-foreground">
+          <span className="whitespace-nowrap text-[11px] leading-[15px] text-muted-foreground">
             瞬间打开
           </span>
         </div>
@@ -60,7 +60,7 @@ export function renderRecommendedAppsBanner({
           <span className="whitespace-nowrap text-xs font-semibold leading-[16px] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
             117 MB
           </span>
-          <span className="whitespace-nowrap text-xs leading-[16px] text-muted-foreground">
+          <span className="whitespace-nowrap text-[11px] leading-[15px] text-muted-foreground">
             内存
           </span>
         </div>
@@ -68,7 +68,7 @@ export function renderRecommendedAppsBanner({
           <span className="whitespace-nowrap text-xs font-semibold leading-[16px] tabular-nums text-[#4a7be6] dark:text-[#6b9dff]">
             27 MB
           </span>
-          <span className="whitespace-nowrap text-xs leading-[16px] text-muted-foreground">
+          <span className="whitespace-nowrap text-[11px] leading-[15px] text-muted-foreground">
             体积
           </span>
         </div>
