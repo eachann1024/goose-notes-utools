@@ -7,10 +7,10 @@
  * hover 背景统一用 rgba。
  */
 
-/* 宽度：短文案收成胶囊，长文案有上限；不强制 356px 固定宽 */
+/* 宽度：按小窗使用场景收紧最大宽度；短文案收成胶囊，长文案受上限约束 */
 .goose-toaster[data-sonner-toaster],
 [data-sonner-toaster].goose-toaster {
- --width: 356px;
+ --width: 280px;
  /* sonner 在 max-width:600px 会改成 left+right 通栏；Electron 窗口经常踩中，
      toast 会落在内容区中间。主窗始终钉在右上。 */
  left: auto !important;
@@ -18,7 +18,7 @@
  /* Electron 用 --goose-toast-offset-top 避开标题栏，对齐正文首行工具栏。 */
  top: var(--goose-toast-offset-top, var(--offset-top, 22px)) !important;
  bottom: auto !important;
- width: var(--width) !important;
+ width: min(var(--width), calc(100vw - 32px)) !important;
  transform: none !important;
 }
 
@@ -33,13 +33,13 @@
 .goose-toaster [data-sonner-toast][data-styled="true"],
 [data-sonner-toaster].goose-toaster [data-sonner-toast][data-styled="true"] {
  width: max-content !important;
- max-width: min(356px, calc(100vw - 32px)) !important;
+ max-width: min(280px, calc(100vw - 32px)) !important;
  min-width: 0 !important;
  display: flex !important;
  flex-wrap: nowrap !important;
  align-items: flex-start !important;
- column-gap: 12px;
- row-gap: 8px;
+ column-gap: 10px;
+ row-gap: 6px;
  overflow: visible !important;
 }
 
@@ -47,6 +47,7 @@
 .goose-toaster [data-sonner-toast] [data-title],
 [data-sonner-toaster].goose-toaster [data-sonner-toast] [data-title] {
  line-height: 1.5;
+ word-break: break-word;
 }
 
 .goose-toaster [data-sonner-toast] [data-icon],
@@ -61,7 +62,7 @@
 
 .goose-toaster [data-sonner-toast] [data-content],
 [data-sonner-toaster].goose-toaster [data-sonner-toast] [data-content] {
- flex: 1 1 0%;
+ flex: 0 1 auto;
  min-width: 0;
  padding-right: 20px;
 }
@@ -72,27 +73,85 @@
  margin-left: 0 !important;
 }
 
-/* 有按钮时按钮换到文案下方整行；图标仍与第一行中线对齐。 */
+/* 有按钮时保持按内容收拢，单行优先同行排布，长文案或有副文案时换到下方且按钮不撑满整行。 */
 .goose-toaster [data-sonner-toast]:has([data-button]),
 [data-sonner-toaster].goose-toaster [data-sonner-toast]:has([data-button]) {
- width: min(356px, calc(100vw - 32px)) !important;
- flex-wrap: wrap !important;
+ width: max-content !important;
+ max-width: min(280px, calc(100vw - 32px)) !important;
+ align-items: center !important;
+}
+
+.goose-toaster [data-sonner-toast]:has([data-button]) [data-icon],
+[data-sonner-toaster].goose-toaster
+ [data-sonner-toast]:has([data-button])
+ [data-icon],
+.goose-toaster [data-sonner-toast]:has([data-button]) .goose-toast-icon,
+[data-sonner-toaster].goose-toaster
+ [data-sonner-toast]:has([data-button])
+ .goose-toast-icon {
+ align-self: center;
+ margin-top: 0 !important;
 }
 
 .goose-toaster [data-sonner-toast]:has([data-button]) [data-content],
 [data-sonner-toaster].goose-toaster
  [data-sonner-toast]:has([data-button])
  [data-content] {
- flex: 1 1 0%;
+ flex: 0 1 auto;
  min-width: 0;
+ padding-right: 0;
 }
 
 .goose-toaster [data-sonner-toast]:has([data-button]) [data-button],
 [data-sonner-toaster].goose-toaster
  [data-sonner-toast]:has([data-button])
  [data-button] {
- flex: 1 0 100%;
+ flex: 0 0 auto;
  margin-top: 0;
+ margin-right: 20px !important;
+}
+
+.goose-toaster [data-sonner-toast]:has([data-description]):has([data-button]),
+[data-sonner-toaster].goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button]) {
+ flex-wrap: wrap !important;
+ align-items: flex-start !important;
+}
+
+.goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button])
+ [data-icon],
+[data-sonner-toaster].goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button])
+ [data-icon],
+.goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button])
+ .goose-toast-icon,
+[data-sonner-toaster].goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button])
+ .goose-toast-icon {
+ align-self: flex-start;
+ margin-top: calc((1.5em - 16px) / 2) !important;
+}
+
+.goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button])
+ [data-content],
+[data-sonner-toaster].goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button])
+ [data-content] {
+ flex: 1 1 0%;
+ padding-right: 20px;
+}
+
+.goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button])
+ [data-button],
+[data-sonner-toaster].goose-toaster
+ [data-sonner-toast]:has([data-description]):has([data-button])
+ [data-button] {
+ margin-left: 26px !important;
+ margin-right: 0 !important;
 }
 
 /* 通用关闭按钮 hover：安全半透明底，覆盖所有 toast 类型 */

@@ -248,7 +248,7 @@ body,
   top: 50% !important;
   bottom: auto !important;
   width: max-content !important;
-  max-width: calc(100vw - 48px) !important;
+  max-width: min(280px, calc(100vw - 48px)) !important;
   margin-inline: 0 !important;
   transform: translate(-50%, -50%) !important;
 }

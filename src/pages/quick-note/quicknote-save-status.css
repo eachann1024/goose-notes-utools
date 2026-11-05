@@ -4,7 +4,7 @@
  * Electron 的旧 Chromium 内核。
  */
 .quicknote-toaster[data-sonner-toaster] {
-  --width: min(356px, calc(100vw - 48px));
+  --width: min(280px, calc(100vw - 48px));
 }
 
 .quicknote-root .page-scroll-container {
