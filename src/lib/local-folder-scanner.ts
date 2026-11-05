@@ -20,6 +20,11 @@ import {
   toRelativePath,
   writeLocalPageIdMap,
 } from "@/lib/local-page-idmap";
+import {
+  type CompiledHiddenFolderMatcher,
+  compileHiddenFolderMatcher,
+  isHiddenFolderMatcher,
+} from "@/lib/local-folder-hidden-rules";
 import type { FontFamily, JSONContent, Page } from "@/types";
 
 const IGNORED_FOLDERS = new Set([
@@ -103,28 +108,64 @@ function normalizeLocalFileTitle(name: string) {
   const base = name.replace(/\.(md|markdown)$/i, "").trim();
   return base || "无标题";
 }
-export function shouldIgnoreEntry(name: string, hiddenFoldersSet: Set<string>) {
-  return (
-    name.startsWith(".") ||
-    isTransientOsEntry(name) ||
-    IGNORED_FOLDERS.has(name) ||
-    hiddenFoldersSet.has(name)
-  );
+
+function resolveHiddenFolderMatcher(
+  hiddenFoldersInput?: Iterable<string> | CompiledHiddenFolderMatcher,
+): CompiledHiddenFolderMatcher {
+  if (!hiddenFoldersInput) {
+    return compileHiddenFolderMatcher();
+  }
+  if (isHiddenFolderMatcher(hiddenFoldersInput)) {
+    return hiddenFoldersInput;
+  }
+  return compileHiddenFolderMatcher(hiddenFoldersInput);
 }
 
-/** 增量 watch 使用：只要相对路径任一目录段命中扫描器规则，就忽略整条路径。 */
+function shouldIgnoreCommonEntry(name: string): boolean {
+  return name.startsWith(".") || isTransientOsEntry(name);
+}
+
+export function shouldIgnoreEntry(
+  name: string,
+  hiddenFoldersInput: Iterable<string> | CompiledHiddenFolderMatcher = [],
+  options?: { isDirectory?: boolean },
+) {
+  if (shouldIgnoreCommonEntry(name) || IGNORED_FOLDERS.has(name)) {
+    return true;
+  }
+  const matcher = resolveHiddenFolderMatcher(hiddenFoldersInput);
+  if (options?.isDirectory === false) {
+    return matcher.exactNames.has(name);
+  }
+  return matcher.matches(name);
+}
+
+/** 增量 watch 使用：任一父目录段命中目录忽略规则，或末段命中通用忽略/非 md 目录规则时忽略整条路径。 */
 export function shouldIgnoreLocalRelativePath(
   relativePath: string,
-  hiddenFolders: readonly string[] = [],
+  hiddenFolders: readonly string[] | CompiledHiddenFolderMatcher = [],
 ) {
   const segments = relativePath
     .replace(/\\/g, "/")
     .split("/")
     .filter((segment) => segment && segment !== ".");
-  const hiddenFoldersSet = new Set(hiddenFolders);
-  return segments.some((segment) =>
-    shouldIgnoreEntry(segment, hiddenFoldersSet),
-  );
+  if (segments.length === 0) return false;
+
+  const matcher = resolveHiddenFolderMatcher(hiddenFolders);
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    const isLastSegment = i === segments.length - 1;
+    const isMarkdownFileSegment =
+      isLastSegment && /\.(md|markdown)$/i.test(segment);
+    if (
+      shouldIgnoreEntry(segment, matcher, {
+        isDirectory: !isMarkdownFileSegment,
+      })
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function readDirectory(
@@ -366,7 +407,7 @@ export async function scanLocalFolderPages({
   let idMapDirty = false;
   // 记录本次扫描实际存在的相对路径，用于扫描结束后剪枝。
   const liveRelativePaths = new Set<string>();
-  const hiddenFoldersSet = new Set(hiddenFolders);
+  const hiddenFolderMatcher = compileHiddenFolderMatcher(hiddenFolders);
 
   const scanDirectory = async (
     dirPath: string,
@@ -391,7 +432,13 @@ export async function scanLocalFolderPages({
     const pendingFiles: PendingFileEntry[] = [];
 
     for (const entry of entries) {
-      if (shouldIgnoreEntry(entry.name, hiddenFoldersSet)) continue;
+      if (
+        shouldIgnoreEntry(entry.name, hiddenFolderMatcher, {
+          isDirectory: entry.isDirectory,
+        })
+      ) {
+        continue;
+      }
 
       if (entry.isDirectory) {
         const relativePath = toRelativePath(basePath, entry.path);
