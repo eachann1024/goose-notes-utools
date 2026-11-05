@@ -82,6 +82,7 @@ export function TrashList({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => itemHeight,
     overscan: 6,
+    initialRect: { width: 240, height: 320 },
   });
   const pageInTrash = (pageId: string | null | undefined) => {
     if (!pageId) return false;
@@ -122,7 +123,7 @@ export function TrashList({
   ]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* 头部 */}
       {showHeader && (
         <div className="flex items-center gap-2 px-3 py-3 shadow-[inset_0_-1px_0_hsl(var(--foreground)/0.08)]">
