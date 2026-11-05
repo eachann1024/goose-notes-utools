@@ -8,8 +8,6 @@
   right: 6px;
   bottom: 48px;
   z-index: 20;
-  width: calc(100% - 12px);
-  min-width: 220px;
   pointer-events: none;
 }
 
