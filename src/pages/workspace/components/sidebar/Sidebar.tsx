@@ -76,6 +76,7 @@ export function Sidebar({
   const [noticeReady, setNoticeReady] = useState(false);
   useEffect(() => {
     if (__GOOSE_LITE__ || isElectronHost || sidebarCollapsed || !window.gooseFirstRunNotice) return;
+    if (window.gooseFirstRunNotice.hasSeen()) return;
     const showNotice = () => setNoticeReady(true);
     if (typeof requestIdleCallback === "function") {
       const id = requestIdleCallback(showNotice, { timeout: 3000 });
