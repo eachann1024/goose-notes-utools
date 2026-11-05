@@ -79,19 +79,7 @@ export function HiddenFoldersField({
           id={DESCRIPTION_ID}
           className="mt-1 pl-7 text-sm text-muted-foreground"
         >
-          不显示在本地文件夹侧边栏中。支持文件夹名或正则（如{" "}
-          <code className="rounded bg-[hsl(var(--foreground)/0.08)] px-1 py-0.5 font-mono text-sm text-foreground">
-            /^\./
-          </code>
-          、
-          <code className="rounded bg-[hsl(var(--foreground)/0.08)] px-1 py-0.5 font-mono text-sm text-foreground">
-            /^temp/i
-          </code>
-          ）；以{" "}
-          <code className="rounded bg-[hsl(var(--foreground)/0.08)] px-1 py-0.5 font-mono text-sm text-foreground">
-            .
-          </code>{" "}
-          开头的目录默认已隐藏。
+          匹配的文件夹将隐藏，支持正则。
         </p>
       </div>
 
@@ -145,7 +133,7 @@ export function HiddenFoldersField({
                 addFolder(inputValue);
               }
             }}
-            placeholder="如：obsidian 或 /^\./"
+            placeholder="文件夹名或正则，如 /temp/"
             className="h-9 text-sm"
           />
           <Button
