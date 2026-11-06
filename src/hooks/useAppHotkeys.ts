@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { toast } from "@/components/ui/sonner";
 import { useSettings, EDITOR_FONT_SIZE_DEFAULT } from "@/stores/useSettings";
 import { effectiveSingleTabMode } from "@/lib/tabMode";
@@ -43,37 +43,6 @@ type HotkeyEntry = {
 };
 
 export function useAppHotkeys() {
-  // Subscribe to closeTabShortcut so the ref stays in sync, but the keydown
-  // listener itself is registered only once (deps=[]).
-  const { closeTabShortcut, searchPanelCloseShortcut, appShortcuts } =
-    useSettings();
-  const { openTabs, activeTabId } = useTabs();
-
-  // Dynamic values consumed inside the single keydown listener must be read
-  // through refs, otherwise the once-registered listener would capture stale
-  // values (breaks tab switching / close after the list changes).
-  const closeTabShortcutRef = useRef(closeTabShortcut);
-  const searchPanelCloseShortcutRef = useRef(searchPanelCloseShortcut);
-  const appShortcutsRef = useRef(appShortcuts);
-  const openTabsRef = useRef(openTabs);
-  const activeTabIdRef = useRef(activeTabId);
-
-  useEffect(() => {
-    closeTabShortcutRef.current = closeTabShortcut;
-  }, [closeTabShortcut]);
-  useEffect(() => {
-    searchPanelCloseShortcutRef.current = searchPanelCloseShortcut;
-  }, [searchPanelCloseShortcut]);
-  useEffect(() => {
-    appShortcutsRef.current = appShortcuts;
-  }, [appShortcuts]);
-  useEffect(() => {
-    openTabsRef.current = openTabs;
-  }, [openTabs]);
-  useEffect(() => {
-    activeTabIdRef.current = activeTabId;
-  }, [activeTabId]);
-
   useEffect(() => {
     const fixedShortcuts = getFixedAppShortcuts();
     const isEditableEventTarget = (event: KeyboardEvent) => {
@@ -154,7 +123,7 @@ export function useAppHotkeys() {
       // 已分屏时先关当前格；最后一格才走原来的关 Tab。
       if (closePaneOrTab() === "closed-pane") return;
       if (!isElectronRuntime() && effectiveSingleTabMode()) return;
-      const activeId = activeTabIdRef.current;
+      const activeId = useTabs.getState().activeTabId;
       if (activeId) {
         useTabs.getState().closeTab(activeId);
         return;
@@ -208,7 +177,7 @@ export function useAppHotkeys() {
         id: "open-search",
         shortcutId: "openSearch",
         match: (event) => {
-          const s = appShortcutsRef.current.openSearch;
+          const s = useSettings.getState().appShortcuts.openSearch;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -223,7 +192,7 @@ export function useAppHotkeys() {
         id: "toggle-ai-panel",
         shortcutId: "toggleAIPanel",
         match: (event) => {
-          const s = appShortcutsRef.current.toggleAIPanel;
+          const s = useSettings.getState().appShortcuts.toggleAIPanel;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -236,7 +205,7 @@ export function useAppHotkeys() {
         id: "toggle-sidebar",
         shortcutId: "toggleSidebar",
         match: (event) => {
-          const s = appShortcutsRef.current.toggleSidebar;
+          const s = useSettings.getState().appShortcuts.toggleSidebar;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -380,7 +349,7 @@ export function useAppHotkeys() {
         id: "toggle-theme",
         shortcutId: "toggleTheme",
         match: (event) => {
-          const s = appShortcutsRef.current.toggleTheme;
+          const s = useSettings.getState().appShortcuts.toggleTheme;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -393,7 +362,7 @@ export function useAppHotkeys() {
         id: "nav-back",
         shortcutId: "navBack",
         match: (event) => {
-          const s = appShortcutsRef.current.navBack;
+          const s = useSettings.getState().appShortcuts.navBack;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         when: () => {
@@ -412,7 +381,7 @@ export function useAppHotkeys() {
         id: "nav-forward",
         shortcutId: "navForward",
         match: (event) => {
-          const s = appShortcutsRef.current.navForward;
+          const s = useSettings.getState().appShortcuts.navForward;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         when: () => {
@@ -433,7 +402,7 @@ export function useAppHotkeys() {
         shortcutId: "splitRight",
         when: () => isElectronRuntime(),
         match: (event) => {
-          const s = appShortcutsRef.current.splitRight;
+          const s = useSettings.getState().appShortcuts.splitRight;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -447,7 +416,7 @@ export function useAppHotkeys() {
         shortcutId: "splitDown",
         when: () => isElectronRuntime(),
         match: (event) => {
-          const s = appShortcutsRef.current.splitDown;
+          const s = useSettings.getState().appShortcuts.splitDown;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -462,7 +431,7 @@ export function useAppHotkeys() {
         allowRepeat: true,
         when: () => isElectronRuntime(),
         match: (event) => {
-          const s = appShortcutsRef.current.splitFocusLeft;
+          const s = useSettings.getState().appShortcuts.splitFocusLeft;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -477,7 +446,7 @@ export function useAppHotkeys() {
         allowRepeat: true,
         when: () => isElectronRuntime(),
         match: (event) => {
-          const s = appShortcutsRef.current.splitFocusRight;
+          const s = useSettings.getState().appShortcuts.splitFocusRight;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -492,7 +461,7 @@ export function useAppHotkeys() {
         allowRepeat: true,
         when: () => isElectronRuntime(),
         match: (event) => {
-          const s = appShortcutsRef.current.splitFocusUp;
+          const s = useSettings.getState().appShortcuts.splitFocusUp;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -507,7 +476,7 @@ export function useAppHotkeys() {
         allowRepeat: true,
         when: () => isElectronRuntime(),
         match: (event) => {
-          const s = appShortcutsRef.current.splitFocusDown;
+          const s = useSettings.getState().appShortcuts.splitFocusDown;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -521,7 +490,7 @@ export function useAppHotkeys() {
         shortcutId: "splitZoom",
         when: () => isElectronRuntime(),
         match: (event) => {
-          const s = appShortcutsRef.current.splitZoom;
+          const s = useSettings.getState().appShortcuts.splitZoom;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -535,7 +504,7 @@ export function useAppHotkeys() {
         shortcutId: "closeSplitPane",
         when: () => isElectronRuntime(),
         match: (event) => {
-          const s = appShortcutsRef.current.closeSplitPane;
+          const s = useSettings.getState().appShortcuts.closeSplitPane;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         handler: (event) => {
@@ -543,7 +512,7 @@ export function useAppHotkeys() {
           event.stopPropagation();
           if (closePaneOrTab() !== "close-tab") return;
           if (!isElectronRuntime() && effectiveSingleTabMode()) return;
-          const activeId = activeTabIdRef.current;
+          const activeId = useTabs.getState().activeTabId;
           if (activeId) useTabs.getState().closeTab(activeId);
         },
       },
@@ -552,7 +521,7 @@ export function useAppHotkeys() {
         id: "new-tab",
         shortcutId: "newTab",
         match: (event) => {
-          const s = appShortcutsRef.current.newTab;
+          const s = useSettings.getState().appShortcuts.newTab;
           return !!s && matchesConfiguredShortcut(event, s);
         },
         when: () => {
@@ -602,7 +571,7 @@ export function useAppHotkeys() {
                   shiftKey: event.shiftKey,
                 } as KeyboardEvent)
               : event;
-          if (matchShortcut(normalized, closeTabShortcutRef.current)) {
+          if (matchShortcut(normalized, useSettings.getState().closeTabShortcut)) {
             return true;
           }
           return isElectronRuntime() && matchShortcut(normalized, "Mod+W");
@@ -635,7 +604,7 @@ export function useAppHotkeys() {
             isElectronRuntime() && matchShortcut(event, "Mod+W");
           return (
             !isInEditableTarget ||
-            shortcutHasModifier(closeTabShortcutRef.current) ||
+            shortcutHasModifier(useSettings.getState().closeTabShortcut) ||
             electronModW
           );
         },
@@ -663,7 +632,7 @@ export function useAppHotkeys() {
         handler: (event) => {
           const code = event.code;
           const digit = Number(code.slice(-1)); // 1~9
-          const tabs = openTabsRef.current;
+          const tabs = useTabs.getState().openTabs;
           // Cmd+9 → 最后一个标签；Cmd+1~8 → 对应序号（0-based index）
           const targetTab =
             digit === 9 ? tabs[tabs.length - 1] : tabs[digit - 1];
@@ -682,11 +651,11 @@ export function useAppHotkeys() {
           !event.altKey &&
           event.key === "Tab",
         handler: (event) => {
-          const tabs = openTabsRef.current;
+          const { openTabs: tabs, activeTabId } = useTabs.getState();
           if (tabs.length < 2) return;
           event.preventDefault();
           const currentIndex = tabs.findIndex(
-            (tab) => tab.id === activeTabIdRef.current,
+            (tab) => tab.id === activeTabId,
           );
           const direction = event.shiftKey ? -1 : 1;
           const nextIndex =
@@ -712,10 +681,10 @@ export function useAppHotkeys() {
 
     const getShortcutForEntry = (entry: HotkeyEntry) => {
       if (entry.shortcutId === "close-tab") {
-        return closeTabShortcutRef.current;
+        return useSettings.getState().closeTabShortcut;
       }
       return entry.shortcutId
-        ? (appShortcutsRef.current[entry.shortcutId] ?? "")
+        ? (useSettings.getState().appShortcuts[entry.shortcutId] ?? "")
         : "";
     };
 
@@ -800,7 +769,7 @@ export function useAppHotkeys() {
       }
 
       // 搜索面板关闭键由 CommandPalette 自己处理；这里不抢先执行默认导航。
-      if (matchMouseShortcut(event, searchPanelCloseShortcutRef.current))
+      if (matchMouseShortcut(event, useSettings.getState().searchPanelCloseShortcut))
         return;
 
       // 未将侧键分配给其他动作时，保持浏览器式的后退 / 前进体验。

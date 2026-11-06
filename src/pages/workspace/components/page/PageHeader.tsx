@@ -46,15 +46,17 @@ export function PageHeader({
 }: PageHeaderProps) {
   const aiPhase = useAiStatus((state) => state.phase);
   const aiDoneToken = useAiStatus((state) => state.doneToken);
-  const notebooks = useNotebooks((state) => state.notebooks);
+  const isLocalFolder = useNotebooks((state) =>
+    page ? state.notebooks[page.workspaceId]?.source === "local-folder" : false,
+  );
   const showPageIcon = Boolean(
     page &&
       canCustomizePageIcon(
         page,
-        notebooks[page.workspaceId]?.source === "local-folder",
+        isLocalFolder,
       ),
   );
-  const { appShortcuts } = useSettings();
+  const appShortcuts = useSettings((state) => state.appShortcuts);
   const singleTabMode = useEffectiveSingleTabMode();
   const aiHeaderActions = useAiHeaderActions();
   const aiHeaderTitle = useAiHeaderTitle();

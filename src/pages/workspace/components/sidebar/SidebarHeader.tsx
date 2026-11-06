@@ -62,6 +62,7 @@ export function SidebarHeader({
     void catalogVersion;
     return pinnedIdsFor(usePages.getState().pages);
   }, [catalogVersion]);
+  const pinnedIsVirtual = pinnedIds.length > 24;
   const pinnedPages = useMemo(() => {
     const pages = usePages.getState().pages;
     const visibleIds =
@@ -73,6 +74,7 @@ export function SidebarHeader({
     }
     return result;
   }, [catalogVersion, pinnedIds, pinnedWindowStart]);
+  const hasPinnedItems = pinnedPages.length > 0;
 
   // 胶囊位置实测选中按钮的 offset*，nav 即 offsetParent，坐标不受 scrollLeft 影响
   const measurePinnedPill = useCallback(() => {
@@ -124,6 +126,10 @@ export function SidebarHeader({
       return nextBox;
     });
   }, [highlightedPageId, pinnedIds.length]);
+  const measurePinnedPillRef = useRef(measurePinnedPill);
+  useLayoutEffect(() => {
+    measurePinnedPillRef.current = measurePinnedPill;
+  }, [measurePinnedPill]);
 
   const pinnedMeasureKey = `${catalogVersion}:${pinnedIds.length}:${highlightedPageId ?? ""}`;
 
@@ -248,7 +254,7 @@ export function SidebarHeader({
     if (!scroller) return;
 
     const handleScroll = () => {
-      if (pinnedIds.length > 24) {
+      if (pinnedIsVirtual) {
         const start = Math.max(
           0,
           Math.floor((scroller.scrollLeft - 4) / PINNED_SLOT) - 2,
@@ -261,7 +267,7 @@ export function SidebarHeader({
 
     const observer = new ResizeObserver(() => {
       syncPinnedScrollState();
-      measurePinnedPill();
+      measurePinnedPillRef.current();
     });
     observer.observe(scroller);
     if (scroller.parentElement) {
@@ -275,7 +281,7 @@ export function SidebarHeader({
       scroller.removeEventListener("scroll", handleScroll);
       observer.disconnect();
     };
-  }, [syncPinnedScrollState, measurePinnedPill, pinnedMeasureKey]);
+  }, [syncPinnedScrollState, hasPinnedItems, pinnedIsVirtual]);
 
   useEffect(() => {
     return () => {

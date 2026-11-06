@@ -56,23 +56,30 @@ export function CommandPalette() {
   // cmdk 根的「当前选中项」受控值。cmdk 不会在结果列表变化时自动重选第一项，
   // 不受控就会出现「输完词没有任何项高亮、方向键/回车第一下没反应」。见下方 effect。
   const [commandValue, setCommandValue] = useState("");
-  const { openPreviewTab, openPermanentTab } = useTabs();
+  const openPreviewTab = useTabs((s) => s.openPreviewTab);
+  const openPermanentTab = useTabs((s) => s.openPermanentTab);
   const pages = usePages((s) => (open ? s.pages : IDLE_PAGES));
   const setExpandPageId = usePages((s) => s.setExpandPageId);
   const setSearchHighlightQuery = usePages((s) => s.setSearchHighlightQuery);
   const setSearchHighlightPageId = usePages((s) => s.setSearchHighlightPageId);
   const setSearchHighlightNonce = usePages((s) => s.setSearchHighlightNonce);
   const loadAllLocalFolderPages = usePages((s) => s.loadAllLocalFolderPages);
-  const { activeNotebookId, setActiveNotebook } = useNotebooks();
-  const {
-    searchAllNotebooks,
-    setSearchAllNotebooks,
-    showRecentInSearch,
-    setShowRecentInSearch,
-    searchPanelCloseShortcut,
-    singleTabMode: singleTabModeSetting,
-    appShortcuts,
-  } = useSettings();
+  const activeNotebookId = useNotebooks((s) => s.activeNotebookId);
+  const setActiveNotebook = useNotebooks((s) => s.setActiveNotebook);
+  const currentNotebookName = useNotebooks((s) =>
+    activeNotebookId
+      ? s.notebooks[activeNotebookId]?.name || "当前记事本"
+      : "当前记事本",
+  );
+  const searchAllNotebooks = useSettings((s) => s.searchAllNotebooks);
+  const setSearchAllNotebooks = useSettings((s) => s.setSearchAllNotebooks);
+  const showRecentInSearch = useSettings((s) => s.showRecentInSearch);
+  const setShowRecentInSearch = useSettings((s) => s.setShowRecentInSearch);
+  const searchPanelCloseShortcut = useSettings(
+    (s) => s.searchPanelCloseShortcut,
+  );
+  const singleTabModeSetting = useSettings((s) => s.singleTabMode);
+  const appShortcuts = useSettings((s) => s.appShortcuts);
   const singleTabMode = effectiveSingleTabMode(singleTabModeSetting);
   const {
     searchResults,
@@ -310,10 +317,6 @@ export function CommandPalette() {
     setOpen(false);
   }, []);
 
-  const currentNotebookName = activeNotebookId
-    ? useNotebooks.getState().notebooks[activeNotebookId]?.name || "当前记事本"
-    : "当前记事本";
-
   // 手动聚焦输入框，绕过 cmdk 的焦点管理。快捷键面板不能等双 rAF。
   useLayoutEffect(() => {
     if (!open) return;
@@ -382,10 +385,7 @@ export function CommandPalette() {
           <DialogDescription id={descriptionId} className="sr-only">
             搜索和快速访问页面
           </DialogDescription>
-          <div
-            className="flex items-center h-14 px-4"
-            cmdk-input-wrapper=""
-          >
+          <div className="flex items-center h-14 px-4" cmdk-input-wrapper="">
             <Search className="mr-3 h-4 w-4 shrink-0 text-muted-foreground/60" />
             <Command.Input
               ref={inputRef}

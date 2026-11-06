@@ -358,16 +358,14 @@ export function TabRail({
   const dirtyLocalPageIds = usePages((state) => state.dirtyLocalPageIds);
   const isTabDirty = (tabPageId: string) =>
     Boolean(dirtyLocalPageIds?.[tabPageId]);
-  const {
-    openTabs,
-    activeTabId,
-    setActiveTab,
-    closeTab,
-    reorderTabs,
-    togglePinTab,
-    promotePreviewTab,
-    syncNotebookForPage,
-  } = useTabs();
+  const openTabs = useTabs((state) => state.openTabs);
+  const activeTabId = useTabs((state) => state.activeTabId);
+  const setActiveTab = useTabs((state) => state.setActiveTab);
+  const closeTab = useTabs((state) => state.closeTab);
+  const reorderTabs = useTabs((state) => state.reorderTabs);
+  const togglePinTab = useTabs((state) => state.togglePinTab);
+  const promotePreviewTab = useTabs((state) => state.promotePreviewTab);
+  const syncNotebookForPage = useTabs((state) => state.syncNotebookForPage);
   const setExpandPageId = usePages((s) => s.setExpandPageId);
   const setSidebarCollapsedView = useSidebarView((s) => s.setSidebarCollapsed);
   const locateInTree = (pageId: string) => {
@@ -375,7 +373,8 @@ export function TabRail({
     syncNotebookForPage(pageId);
     setExpandPageId(pageId);
   };
-  const { closeTabShortcut, appShortcuts } = useSettings();
+  const closeTabShortcut = useSettings((state) => state.closeTabShortcut);
+  const appShortcuts = useSettings((state) => state.appShortcuts);
   const visibleTabs = listVisibleWorkspaceTabs(
     openTabs,
     getPage,

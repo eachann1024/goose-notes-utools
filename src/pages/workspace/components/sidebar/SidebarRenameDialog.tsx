@@ -70,7 +70,7 @@ export function useRenameDialog() {
   const [renameValue, setRenameValue] = useState("");
   const [renamePageId, setRenamePageId] = useState<string | null>(null);
 
-  const { pages, updatePage } = usePages();
+  const updatePage = usePages((state) => state.updatePage);
 
   const openRenameDialog = (pageId: string, currentTitle: string) => {
     setRenamePageId(pageId);
@@ -85,7 +85,7 @@ export function useRenameDialog() {
 
   const confirmRename = useCallback(async () => {
     if (!renamePageId) return;
-    const page = pages[renamePageId];
+    const page = usePages.getState().pages[renamePageId];
     const nextTitle = renameValue.trim();
     if (!page || nextTitle === "") return;
 
@@ -153,7 +153,7 @@ export function useRenameDialog() {
 
     setRenameDialogOpen(false);
     setRenamePageId(null);
-  }, [pages, renamePageId, renameValue, updatePage]);
+  }, [renamePageId, renameValue, updatePage]);
 
   return {
     renameDialogOpen,
