@@ -1,0 +1,1 @@
+{"entry":"quicknote.html","results":[{"label":"把当前便签存到鹅的笔记","result":"未验收：浏览器入口无 uTools 专属保存能力"},{"label":"使用说明","result":"通过","expected":"使用说明"},{"label":"关闭","result":"通过","expected":"收起小窗"},{"action":"点击使用说明","result":"通过"}],"errors":[]}
