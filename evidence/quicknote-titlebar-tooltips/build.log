@@ -1,7 +1,7 @@
 $ node src/lib/vite-stubs/assert-present.mjs && vite build && GOOSE_BUILD_TARGET=quicknote vite build && node scripts/utools-build.js
 vite v8.0.16 building client environment for production...
-✓ built in 2.12s
+✓ built in 2.04s
 vite v8.0.16 building client environment for production...
-✓ built in 1.43s
+✓ built in 1.37s
 [utools-build] dist-quicknote/ 产出完成
 [utools-build] app/ synced for ZTools
