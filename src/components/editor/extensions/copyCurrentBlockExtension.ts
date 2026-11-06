@@ -164,6 +164,25 @@ export function resolveCopyBlockSelection(
     return null;
   }
 
+  const rootNodes = selectedRootBlockNodes(state, hits);
+  if (!rootNodes || rootNodes.length === 0) return null;
+
+  const fullySelectedIds = new Set(hits.filter(isBlockFullySelected).map((hit) => hit.id));
+  for (const { node } of rootNodes) {
+    let hasUnselectedDescendant = false;
+    node.descendants((descendant) => {
+      if (
+        descendant.type.name === "blockContainer" &&
+        !fullySelectedIds.has(String(descendant.attrs.id))
+      ) {
+        hasUnselectedDescendant = true;
+        return false;
+      }
+      return true;
+    });
+    if (hasUnselectedDescendant) return null;
+  }
+
   if (hits.length === 1) {
     const pos = findBlockContainerPosById(state, hits[0].id);
     if (pos == null) return null;
@@ -172,8 +191,6 @@ export function resolveCopyBlockSelection(
     return NodeSelection.create(state.doc, pos);
   }
 
-  const rootNodes = selectedRootBlockNodes(state, hits);
-  if (!rootNodes || rootNodes.length === 0) return null;
   return new Slice(Fragment.from(rootNodes.map(({ node }) => node)), 0, 0);
 }
 
