@@ -61,7 +61,6 @@ interface SidebarMainTreeProps {
   rowHeight: number;
   itemHeight: number;
   viewportHeight: number;
-  onCreatePage: () => void;
 }
 
 const PENDING_CREATE_ID_PREFIX = "local-pending-";

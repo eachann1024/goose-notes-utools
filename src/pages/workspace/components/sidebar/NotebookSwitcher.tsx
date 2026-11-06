@@ -161,15 +161,13 @@ function SortableNotebookItem({
 }
 
 export function NotebookSwitcher() {
-  const {
-    notebooks,
-    activeNotebookId,
-    createNotebook,
-    createLocalFolderNotebook,
-    updateNotebook,
-    deleteNotebook,
-    reorderNotebooks,
-  } = useNotebooks();
+  const notebooks = useNotebooks((state) => state.notebooks);
+  const activeNotebookId = useNotebooks((state) => state.activeNotebookId);
+  const createNotebook = useNotebooks((state) => state.createNotebook);
+  const createLocalFolderNotebook = useNotebooks((state) => state.createLocalFolderNotebook);
+  const updateNotebook = useNotebooks((state) => state.updateNotebook);
+  const deleteNotebook = useNotebooks((state) => state.deleteNotebook);
+  const reorderNotebooks = useNotebooks((state) => state.reorderNotebooks);
   const notebookDropdownHoverExpand = useSettings(
     (state) => state.notebookDropdownHoverExpand,
   );

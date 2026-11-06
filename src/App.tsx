@@ -17,14 +17,12 @@ import {
 import { shouldPreserveStartupSelection } from "@/lib/workspaceStartup";
 
 function App() {
-  const {
-    uiFontSize,
-    editorFontSize,
-    sidebarFontSize,
-    customFonts,
-    privacy,
-    singleTabMode: singleTabModeSetting,
-  } = useSettings();
+  const uiFontSize = useSettings((s) => s.uiFontSize);
+  const editorFontSize = useSettings((s) => s.editorFontSize);
+  const sidebarFontSize = useSettings((s) => s.sidebarFontSize);
+  const customFonts = useSettings((s) => s.customFonts);
+  const privacy = useSettings((s) => s.privacy);
+  const singleTabModeSetting = useSettings((s) => s.singleTabMode);
   const hydrated = usePages((s) => s.hydrated);
   const onboardingCompleted = usePages((s) => s.onboardingCompleted);
   const activePageId = usePages((s) => s.activePageId);

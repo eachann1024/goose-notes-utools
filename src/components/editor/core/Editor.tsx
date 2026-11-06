@@ -139,13 +139,16 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
     onOpenPageRef,
   });
 
-  const initialContentRef = useRef(createEditorSafeContent(normalizeContent(page?.content), editorSchema));
+  const [initialContent] = useState(() =>
+    createEditorSafeContent(normalizeContent(page?.content), editorSchema),
+  );
+  const initialContentRef = useRef(initialContent);
   // 初次 mount 时给 syncedContentSignatureRef 设置基线，
   // 否则切走时 flush 会把"只读打开"误判成编辑、刷新 updatedAt。
   if (syncedContentSignatureRef.current === null) {
     syncedContentSignatureRef.current = getCachedContentSignature(initialContentRef.current);
   }
-  const editor = useCreateBlockNote(
+  const [editorOptions] = useState(() =>
     createEditorOptions({
       initialContentRef,
       usesRawEditorContentRef,
@@ -161,8 +164,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
       onOpenPageRef,
       openLinksInHostRef,
     }),
-    [],
   );
+  const editor = useCreateBlockNote(editorOptions, []);
   editorInstanceRef.current = editor;
   const { readCurrentEditorContent, debouncedUpdate } = useEditorContentSnapshot({
     editor,

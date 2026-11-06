@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useCreateBlockNote, BlockNoteViewRaw as BlockNoteView } from "@blocknote/react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCreateBlockNote,
+  BlockNoteViewRaw as BlockNoteView,
+} from "@blocknote/react";
 import { zh } from "@blocknote/core/locales";
 import * as LucideIcons from "lucide-react";
 import "@blocknote/react/style.css";
@@ -15,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useResolvedTheme } from "@/hooks/useResolvedTheme";
 
 interface HistoryReadOnlyEditorProps {
+  pageId: string;
   content: BlockNoteContent;
   /** 当前版本标识；变化时用 replaceBlocks 换内容，而非重建实例 */
   versionKey: string;
@@ -32,17 +36,23 @@ interface HistoryReadOnlyEditorProps {
  *  - 不挂 SideMenu / FormattingToolbar / SlashMenu：只读不需要任何编辑控件。
  */
 export function HistoryReadOnlyEditor({
+  pageId,
   content,
   versionKey,
 }: HistoryReadOnlyEditorProps) {
-  const { theme } = useSettings();
-  const { activePageId } = usePages();
-  const activePage = activePageId ? usePages.getState().pages[activePageId] : null;
+  const theme = useSettings((s) => s.theme);
+  const fontFamily = usePages((s) => s.pages[pageId]?.fontFamily);
+  const pageIdRef = useRef(pageId);
+  pageIdRef.current = pageId;
   const effectiveTheme = useResolvedTheme(theme);
   const [renderError, setRenderError] = useState(false);
 
   const normalized = useMemo(
-    () => createEditorSafeContent(normalizePageContent(content as any), editorSchema),
+    () =>
+      createEditorSafeContent(
+        normalizePageContent(content as any),
+        editorSchema,
+      ),
     [content],
   );
 
@@ -58,11 +68,11 @@ export function HistoryReadOnlyEditor({
     },
     // 与 Editor.tsx 共享同一解析实现和 ObjectURL 缓存，避免历史视图重复泄漏
     resolveFileUrl: async (url) => {
-      const { resolveImageRefToUrl } = await import("@/lib/imageStorage/resolveUrl");
+      const { resolveImageRefToUrl } =
+        await import("@/lib/imageStorage/resolveUrl");
       const { usePages } = await import("@/stores/usePages");
-      const activePageId = usePages.getState().activePageId;
-      const activePage = activePageId ? usePages.getState().pages[activePageId] : null;
-      return resolveImageRefToUrl(url, activePage?.localFilePath ?? null);
+      const page = usePages.getState().pages[pageIdRef.current];
+      return resolveImageRefToUrl(url, page?.localFilePath ?? null);
     },
   });
 
@@ -76,7 +86,7 @@ export function HistoryReadOnlyEditor({
   // 以 normalized 引用为准（content 真正到达才换），而非 versionKey——后者会先于
   // 异步内容变化，导致用旧内容多刷一次。
   const renderedContentRef = useRef(normalized);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (renderedContentRef.current === normalized) return; // 首次渲染由 initialContent 承担
     renderedContentRef.current = normalized;
     setRenderError(false);
@@ -89,17 +99,16 @@ export function HistoryReadOnlyEditor({
       });
       setRenderError(true);
       try {
-        const fallbackContent = createEditorSafeContent(undefined, editor.schema);
+        const fallbackContent = createEditorSafeContent(
+          undefined,
+          editor.schema,
+        );
         editor.replaceBlocks(editor.document, fallbackContent as any);
       } catch {
         // 如果 fallback 也失败，下面的内联状态会接管 UI，避免整窗白屏。
       }
     }
   }, [editor, normalized, versionKey]);
-
-  useEffect(() => {
-    setRenderError(false);
-  }, [versionKey]);
 
   if (renderError) {
     return (
@@ -108,7 +117,9 @@ export function HistoryReadOnlyEditor({
           <LucideIcons.FileWarning className="h-5 w-5" strokeWidth={1.75} />
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">此历史版本无法显示</p>
+          <p className="text-sm font-medium text-foreground">
+            此历史版本无法显示
+          </p>
           <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
             这条历史记录可能来自旧版格式或包含脏数据，已阻止历史视图白屏。
           </p>
@@ -120,7 +131,7 @@ export function HistoryReadOnlyEditor({
   // 与主 Editor 在 WorkspaceLayout 内的全宽包裹一致。
   return (
     <div
-      data-font-family={activePage?.fontFamily ?? "default"}
+      data-font-family={fontFamily ?? "default"}
       className={cn(
         "workspace-editor-surface mt-1 flex min-h-0 w-full flex-1 flex-col pt-1 pb-12",
         "max-w-full",

@@ -40,6 +40,7 @@ import {
 import {
   HistoryToolbar,
   HistoryReader,
+  HistoryViewProvider,
 } from "./components/history/HistoryView";
 import { useHistoryView } from "@/stores/useHistoryView";
 import {
@@ -350,7 +351,7 @@ export function WorkspaceLayout({
   }, [searchHighlightNonce, activePageId, page]);
 
   return (
-    <>
+    <HistoryViewProvider>
       <div
         className="workspace-shell window-shell-safe-top flex overflow-hidden bg-background text-foreground"
         data-electron-chrome={isElectronChrome || undefined}
@@ -496,7 +497,7 @@ export function WorkspaceLayout({
           </main>
         </div>
       </div>
-    </>
+    </HistoryViewProvider>
   );
 }
 

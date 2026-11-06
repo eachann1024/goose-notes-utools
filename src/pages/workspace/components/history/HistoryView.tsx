@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
@@ -95,17 +103,33 @@ function useHistoryViewLogic() {
   const select = useHistoryView((s) => s.select);
   const bumpRefresh = useHistoryView((s) => s.bumpRefresh);
 
-  const { getPage, updatePage } = usePages();
-  const pageId = active;
-  const page = pageId ? getPage(pageId) : undefined;
-  const pageTitle = page ? extractBlockNoteTitle(page.content) || "无标题" : "";
+  const getPage = usePages((s) => s.getPage);
+  const updatePage = usePages((s) => s.updatePage);
+  const activePageId = usePages((s) => s.activePageId);
+  const pageId = active === activePageId ? active : null;
+  const page = usePages((s) => (pageId ? s.pages[pageId] : undefined));
+  const pageTitle = useMemo(
+    () => (page ? extractBlockNoteTitle(page.content) || "无标题" : ""),
+    [page?.content],
+  );
 
   const [index, setIndex] = useState<HistoryIndex | null>(null);
   const [indexError, setIndexError] = useState<string | null>(null);
-  const [selectedContent, setSelectedContent] =
-    useState<BlockNoteContent | null>(null);
-  const [selectedStatus, setSelectedStatus] =
-    useState<SelectedHistoryStatus>("idle");
+  const [selectedResult, setSelectedResult] = useState<{
+    pageId: string;
+    versionId: string;
+    content: BlockNoteContent | null;
+    status: SelectedHistoryStatus;
+  } | null>(null);
+  const currentResult =
+    selectedResult?.pageId === pageId &&
+    selectedResult.versionId === selectedVersionId
+      ? selectedResult
+      : null;
+  const selectedContent = currentResult?.content ?? null;
+  const selectedStatus: SelectedHistoryStatus =
+    currentResult?.status ?? (pageId && selectedVersionId ? "loading" : "idle");
+  const currentIndex = index?.pageId === pageId ? index : null;
   const [isRestoring, setIsRestoring] = useState(false);
   const [pendingMilestoneVersionId, setPendingMilestoneVersionId] = useState<
     string | null
@@ -145,34 +169,48 @@ function useHistoryViewLogic() {
   // 加载选中版本内容
   useEffect(() => {
     if (!pageId || !selectedVersionId) {
-      setSelectedContent(null);
-      setSelectedStatus("idle");
+      setSelectedResult(null);
       return;
     }
     let cancelled = false;
-    setSelectedContent(null);
-    setSelectedStatus("loading");
+    setSelectedResult(null);
     materializeVersion(pageId, selectedVersionId)
       .then((result) => {
         if (cancelled) return;
         if (!result || result.content == null) {
-          setSelectedContent(null);
-          setSelectedStatus("missing");
+          setSelectedResult({
+            pageId,
+            versionId: selectedVersionId,
+            content: null,
+            status: "missing",
+          });
           return;
         }
         const safeContent = createSafeHistoryContent(result.content);
         if (!safeContent) {
-          setSelectedContent(null);
-          setSelectedStatus("error");
+          setSelectedResult({
+            pageId,
+            versionId: selectedVersionId,
+            content: null,
+            status: "error",
+          });
           return;
         }
-        setSelectedContent(safeContent);
-        setSelectedStatus("ready");
+        setSelectedResult({
+          pageId,
+          versionId: selectedVersionId,
+          content: safeContent,
+          status: "ready",
+        });
       })
       .catch(() => {
         if (!cancelled) {
-          setSelectedContent(null);
-          setSelectedStatus("error");
+          setSelectedResult({
+            pageId,
+            versionId: selectedVersionId,
+            content: null,
+            status: "error",
+          });
         }
       });
     return () => {
@@ -181,15 +219,16 @@ function useHistoryViewLogic() {
   }, [pageId, selectedVersionId]);
 
   useEffect(() => {
-    if (!index || index.versions.length === 0) return;
+    if (!currentIndex || currentIndex.versions.length === 0) return;
     if (selectedVersionId) {
-      if (index.versions.some((v) => v.versionId === selectedVersionId)) return;
+      if (currentIndex.versions.some((v) => v.versionId === selectedVersionId))
+        return;
     }
-    const sorted = [...index.versions].sort(
+    const sorted = [...currentIndex.versions].sort(
       (a, b) => b.createdAt - a.createdAt,
     );
     select(sorted[0].versionId);
-  }, [index, selectedVersionId, select]);
+  }, [currentIndex, selectedVersionId, select]);
 
   useEffect(() => {
     if (pageId && !page) {
@@ -198,6 +237,7 @@ function useHistoryViewLogic() {
   }, [pageId, page, exit]);
 
   useEffect(() => {
+    if (!pageId) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -206,11 +246,11 @@ function useHistoryViewLogic() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [exit]);
+  }, [exit, pageId]);
 
   const groups = useMemo(() => {
-    if (!index || index.versions.length === 0) return [];
-    const sorted = [...index.versions].sort(
+    if (!currentIndex || currentIndex.versions.length === 0) return [];
+    const sorted = [...currentIndex.versions].sort(
       (a, b) => b.createdAt - a.createdAt,
     );
     const now = Date.now();
@@ -225,12 +265,13 @@ function useHistoryViewLogic() {
       result[result.length - 1].items.push(v);
     }
     return result;
-  }, [index]);
+  }, [currentIndex]);
 
   const selectedEntry = useMemo(
     () =>
-      index?.versions.find((v) => v.versionId === selectedVersionId) ?? null,
-    [index, selectedVersionId],
+      currentIndex?.versions.find((v) => v.versionId === selectedVersionId) ??
+      null,
+    [currentIndex, selectedVersionId],
   );
 
   const handleRestore = () => {
@@ -351,7 +392,7 @@ function useHistoryViewLogic() {
     pageTitle,
     groups,
     isEmpty: groups.length === 0,
-    indexError,
+    indexError: currentIndex ? indexError : null,
     selectedVersionId,
     selectedEntry,
     selectedContent,
@@ -363,6 +404,25 @@ function useHistoryViewLogic() {
     handleRestore,
     handleToggleMilestone,
   };
+}
+
+const HistoryViewContext = createContext<ReturnType<
+  typeof useHistoryViewLogic
+> | null>(null);
+
+export function HistoryViewProvider({ children }: { children: ReactNode }) {
+  const value = useHistoryViewLogic();
+  return (
+    <HistoryViewContext.Provider value={value}>
+      {children}
+    </HistoryViewContext.Provider>
+  );
+}
+
+function useSharedHistoryView() {
+  const value = useContext(HistoryViewContext);
+  if (!value) throw new Error("HistoryViewProvider is required");
+  return value;
 }
 
 /**
@@ -379,7 +439,7 @@ export function HistoryVersionList() {
     pendingMilestoneVersionId,
     select,
     handleToggleMilestone,
-  } = useHistoryViewLogic();
+  } = useSharedHistoryView();
 
   return (
     <div className="flex-1 min-h-0 flex flex-col" aria-label="页面历史">
@@ -569,7 +629,7 @@ export function HistoryToolbar() {
     isRestoring,
     exit,
     handleRestore,
-  } = useHistoryViewLogic();
+  } = useSharedHistoryView();
 
   return (
     <header className="h-11 px-3 flex items-center gap-3 shrink-0 bg-[hsl(var(--goose-editor-bg))]">
@@ -661,15 +721,41 @@ function HistoryReaderState({
  */
 export function HistoryReader() {
   const {
+    pageId,
     selectedContent,
     selectedVersionId,
     selectedStatus,
     isEmpty,
     indexError,
-  } = useHistoryViewLogic();
+  } = useSharedHistoryView();
+  const lastReady = useRef<{
+    pageId: string;
+    versionId: string;
+    content: BlockNoteContent;
+  } | null>(null);
+  if (
+    pageId &&
+    selectedVersionId &&
+    selectedContent &&
+    selectedStatus === "ready"
+  ) {
+    lastReady.current = {
+      pageId,
+      versionId: selectedVersionId,
+      content: selectedContent,
+    };
+  }
+  const editorContent =
+    lastReady.current?.pageId === pageId ? lastReady.current : null;
+  const showEditor =
+    !!editorContent &&
+    selectedStatus === "ready" &&
+    editorContent.versionId === selectedVersionId &&
+    !isEmpty;
+  let state: ReactNode = null;
 
   if (selectedStatus === "loading") {
-    return (
+    state = (
       <HistoryReaderState
         icon={LucideIcons.LoaderCircle}
         title="正在读取历史版本"
@@ -677,43 +763,34 @@ export function HistoryReader() {
         spinning
       />
     );
-  }
-
-  if (isEmpty) {
-    return (
+  } else if (isEmpty) {
+    state = (
       <HistoryReaderState
         icon={indexError ? LucideIcons.FileWarning : LucideIcons.History}
         title={indexError ? "历史列表无法读取" : "暂无历史版本"}
         description={
-          indexError ??
-          "停笔一段时间后，鹅的笔记 会自动保存可回看的历史。"
+          indexError ?? "停笔一段时间后，鹅的笔记 会自动保存可回看的历史。"
         }
       />
     );
-  }
-
-  if (selectedStatus === "missing") {
-    return (
+  } else if (selectedStatus === "missing") {
+    state = (
       <HistoryReaderState
         icon={LucideIcons.FileQuestion}
         title="此历史版本不可读取"
         description="版本文件为空或无法读取。若仓库在云盘上，请先恢复云盘登录后再打开历史。"
       />
     );
-  }
-
-  if (selectedStatus === "error") {
-    return (
+  } else if (selectedStatus === "error") {
+    state = (
       <HistoryReaderState
         icon={LucideIcons.FileWarning}
         title="此历史版本格式异常"
         description="这条记录可能来自旧版格式或包含脏数据，已跳过渲染以避免白屏。"
       />
     );
-  }
-
-  if (!(selectedContent && selectedVersionId)) {
-    return (
+  } else if (!showEditor) {
+    state = (
       <HistoryReaderState
         icon={LucideIcons.MousePointerClick}
         title="选择一个历史版本"
@@ -723,32 +800,40 @@ export function HistoryReader() {
   }
 
   return (
-    <ErrorBoundary
-      resetKey={selectedVersionId}
-      fallback={(_, reset) => (
-        <HistoryReaderState
-          icon={LucideIcons.FileWarning}
-          title="此历史版本渲染失败"
-          description="已阻止历史视图白屏。可以重试，或切换左侧其他历史版本。"
-          action={
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="history-secondary-control mt-1 h-8 gap-1.5 rounded-[10px] text-xs shadow-none transition-[background-color,color,transform] hover:bg-[var(--goose-control-hover-bg)] hover:text-foreground active:translate-y-px active:bg-[var(--goose-interactive-selected)] active:text-[var(--goose-interactive-selected-fg)]"
-              onClick={reset}
-            >
-              <LucideIcons.RotateCcw className="h-3.5 w-3.5" />
-              重试
-            </Button>
-          }
-        />
+    <>
+      {state}
+      {editorContent && (
+        <div style={{ display: showEditor ? "contents" : "none" }}>
+          <ErrorBoundary
+            resetKey={editorContent.versionId}
+            fallback={(_, reset) => (
+              <HistoryReaderState
+                icon={LucideIcons.FileWarning}
+                title="此历史版本渲染失败"
+                description="已阻止历史视图白屏。可以重试，或切换左侧其他历史版本。"
+                action={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="history-secondary-control mt-1 h-8 gap-1.5 rounded-[10px] text-xs shadow-none transition-[background-color,color,transform] hover:bg-[var(--goose-control-hover-bg)] hover:text-foreground active:translate-y-px active:bg-[var(--goose-interactive-selected)] active:text-[var(--goose-interactive-selected-fg)]"
+                    onClick={reset}
+                  >
+                    <LucideIcons.RotateCcw className="h-3.5 w-3.5" />
+                    重试
+                  </Button>
+                }
+              />
+            )}
+          >
+            <HistoryReadOnlyEditor
+              pageId={editorContent.pageId}
+              content={editorContent.content}
+              versionKey={editorContent.versionId}
+            />
+          </ErrorBoundary>
+        </div>
       )}
-    >
-      <HistoryReadOnlyEditor
-        content={selectedContent}
-        versionKey={selectedVersionId}
-      />
-    </ErrorBoundary>
+    </>
   );
 }

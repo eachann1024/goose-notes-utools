@@ -57,12 +57,13 @@ export function Sidebar({
   const createLocalPage = usePages((s) => s.createLocalPage);
   const getPage = usePages((s) => s.getPage);
   const setExpandPageId = usePages((s) => s.setExpandPageId);
-  const { activeNotebookId, notebooks } = useNotebooks();
-  const { openInCurrentTab } = useTabs();
+  const activeNotebookId = useNotebooks((s) => s.activeNotebookId);
+  const isLocalFolder = useNotebooks((s) =>
+    activeNotebookId ? s.notebooks[activeNotebookId]?.source === "local-folder" : false,
+  );
+  const openInCurrentTab = useTabs((s) => s.openInCurrentTab);
   const setExpanded = useSidebarView((s) => s.setExpanded);
   const sidebarCollapsed = useEffectiveSidebarCollapsed();
-  const activeNotebook = activeNotebookId ? notebooks[activeNotebookId] : null;
-  const isLocalFolder = activeNotebook?.source === "local-folder";
   // Electron 仅本地模式：没有仓库时不露出「新建页面」入口与内置本语义
   const electronNoVault = isElectronHost && !activeNotebookId;
 
@@ -133,14 +134,16 @@ export function Sidebar({
     confirmRename,
   } = useRenameDialog();
 
+  const handleOpenSettings = useCallback((tab?: SettingsTab) => {
+    if (tab) setSettingsRequestedTab(tab);
+    setShowSettings(true);
+  }, []);
+
   useSidebarEffects({
     activePageId,
     activeNotebookId,
     currentView,
-    onOpenSettings: (tab) => {
-      if (tab) setSettingsRequestedTab(tab);
-      setShowSettings(true);
-    },
+    onOpenSettings: handleOpenSettings,
   });
 
   const exitTrashView = useCallback(() => {
@@ -375,7 +378,6 @@ export function Sidebar({
                       rowHeight={rowHeight}
                       itemHeight={itemHeight}
                       viewportHeight={scrollAreaHeight}
-                      onCreatePage={handleCreatePage}
                     />
                   </div>
                   <div

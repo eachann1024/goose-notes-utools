@@ -34,7 +34,7 @@ export function FontSelector({
   onChange,
   compact = false,
 }: FontSelectorProps) {
-  const { customFonts } = useSettings();
+  const customFonts = useSettings((s) => s.customFonts);
 
   const selectFont = (fontFamily: Page["fontFamily"]) => {
     if (fontFamily === value) return;
