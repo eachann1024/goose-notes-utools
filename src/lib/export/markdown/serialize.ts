@@ -145,8 +145,26 @@ const CHILDREN_CONSUMED_TYPES = new Set([
   "taskList",
 ]);
 
+const GOOSE_INDENT_MARKER_PREFIX = "<!-- goose-note:indent=";
+const GOOSE_EMPTY_BLOCK_MARKER = "<!-- goose-note:empty-block -->";
+
+function formatIndentMarker(depth: number): string {
+  return `${GOOSE_INDENT_MARKER_PREFIX}${depth} -->`;
+}
+
+function canSerializeTightListTree(blocks: any[]): boolean {
+  for (const block of blocks) {
+    if (!block || typeof block !== "object") continue;
+    if (!LIST_ITEM_TYPES.has(block.type)) return false;
+    if (Array.isArray(block.children) && block.children.length > 0) {
+      if (!canSerializeTightListTree(block.children)) return false;
+    }
+  }
+  return true;
+}
+
 /**
- * 序列化单个 BlockNote 列表项（含 children 子列表缩进递归）。
+ * 序列化单个 BlockNote 列表项（含纯列表子树缩进递归）。
  * num: numberedListItem 的实际编号（由 serializeBlocks 的 run 计数器推得）。
  *
  * 子缩进按 CommonMark 标记宽度对齐：`- ` → 2 空格，`1. ` → 3，`10. ` → 4。
@@ -156,6 +174,7 @@ function serializeListItemBlock(
   item: any,
   indent: string,
   num: number | null,
+  depth = 0,
 ): string {
   const text = blockNoteInlineToText(item.content);
   let marker: string;
@@ -175,6 +194,8 @@ function serializeListItemBlock(
     const childMd = serializeBlocks(
       item.children,
       indent + " ".repeat(childIndentWidth),
+      depth + 1,
+      true,
     );
     if (childMd) line += "\n" + childMd;
   }
@@ -183,11 +204,17 @@ function serializeListItemBlock(
 
 /**
  * 序列化块数组（顶层或任意嵌套层）。
- * - 连续的列表项块合并为一个列表（"\n" 相接）；有序编号从 props.start（或 1）递增。
+ * - 连续纯列表项树合并为一个标准 CommonMark 列表（"\n" 相接）；有序编号从 props.start（或 1）递增。
+ * - 非列表块的缩进子块、或列表项下的非列表子块通过 `<!-- goose-note:indent=N -->` 保留完整层级。
  * - 其余块之间以空行（"\n\n"）分隔。
  * - 空段落（spacer）会自然断开两段列表，对应 md 里的 loose list 空行。
  */
-function serializeBlocks(blocks: any[], indent: string): string {
+function serializeBlocks(
+  blocks: any[],
+  indent: string,
+  depth = 0,
+  insideListContext = false,
+): string {
   const segments: string[] = [];
   let i = 0;
 
@@ -199,8 +226,21 @@ function serializeBlocks(blocks: any[], indent: string): string {
     }
 
     if (LIST_ITEM_TYPES.has(block.type)) {
-      const lines: string[] = [];
       let counter: number | null = null;
+      let currentLines: string[] = [];
+      let runInsideList = depth === 0 || insideListContext;
+
+      const flushListLines = () => {
+        if (currentLines.length === 0) return;
+        const body = currentLines.join("\n");
+        segments.push(
+          depth > 0 && !runInsideList
+            ? `${formatIndentMarker(depth)}\n${body}`
+            : body,
+        );
+        currentLines = [];
+      };
+
       while (i < blocks.length && LIST_ITEM_TYPES.has(blocks[i]?.type)) {
         const item = blocks[i];
         if (item.type === "numberedListItem") {
@@ -214,15 +254,54 @@ function serializeBlocks(blocks: any[], indent: string): string {
         } else {
           counter = null;
         }
-        lines.push(serializeListItemBlock(item, indent, counter));
+
+        const itemIndent = runInsideList ? indent : "";
+        if (canSerializeTightListTree([item])) {
+          currentLines.push(
+            serializeListItemBlock(item, itemIndent, counter, depth),
+          );
+        } else {
+          const selfOnly = { ...item, children: undefined };
+          currentLines.push(
+            serializeListItemBlock(selfOnly, itemIndent, counter, depth),
+          );
+          flushListLines();
+          const childMd = serializeBlocks(item.children, "", depth + 1, false);
+          if (childMd) segments.push(childMd);
+          runInsideList = false;
+        }
         i++;
       }
-      segments.push(lines.join("\n"));
+
+      flushListLines();
       continue;
     }
 
-    const md = blockNoteBlockToMarkdown(block, indent);
-    if (md !== "") segments.push(md);
+    const selfMd = blockNoteBlockToMarkdown(block, "");
+    const hasChildren =
+      !CHILDREN_CONSUMED_TYPES.has(block.type) &&
+      Array.isArray(block.children) &&
+      block.children.length > 0;
+    const effectiveSelfMd =
+      selfMd !== ""
+        ? selfMd
+        : hasChildren && block.type === "paragraph"
+          ? GOOSE_EMPTY_BLOCK_MARKER
+          : "";
+
+    if (effectiveSelfMd !== "") {
+      segments.push(
+        depth > 0
+          ? `${formatIndentMarker(depth)}\n${effectiveSelfMd}`
+          : effectiveSelfMd,
+      );
+    }
+
+    if (hasChildren) {
+      const childMd = serializeBlocks(block.children, "", depth + 1, false);
+      if (childMd) segments.push(childMd);
+    }
+
     i++;
   }
 
@@ -510,19 +589,6 @@ function blockNoteBlockToMarkdown(block: any, indent = ""): string {
   }
 
   result = wrapLocalBlockPropsMarkdown(block, result);
-
-  // 通用 children 追加（如 isToggleable 折叠标题的子块）：
-  // 用空行分隔保证 md → blocks → md 二轮收敛（子块重读后成为兄弟块，输出不再变化）
-  if (
-    !CHILDREN_CONSUMED_TYPES.has(block.type) &&
-    Array.isArray(block.children) &&
-    block.children.length > 0
-  ) {
-    const childMd = serializeBlocks(block.children, indent);
-    if (childMd) {
-      result += (result ? "\n\n" : "") + childMd;
-    }
-  }
 
   return result;
 }

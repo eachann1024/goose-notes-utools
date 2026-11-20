@@ -194,38 +194,6 @@ function normalizeInlineContent(content: unknown): PartialBlock["content"] {
   return text || "";
 }
 
-function createParagraphFromInlineContent(
-  content: PartialBlock["content"] | undefined,
-): PartialBlock | null {
-  if (typeof content === "string") {
-    return content.trim() ? ({ type: "paragraph", content } as PartialBlock) : null;
-  }
-  if (Array.isArray(content)) {
-    const text = simpleExtractText({ content }).trim();
-    return text ? ({ type: "paragraph", content } as PartialBlock) : null;
-  }
-  return null;
-}
-
-function hasInlineText(content: unknown): boolean {
-  return simpleExtractText({ content }).trim().length > 0;
-}
-
-function isEmptyWrapperBlock(type: string, block: any): boolean {
-  if (
-    ![
-      "paragraph",
-      "heading",
-      "bulletListItem",
-      "numberedListItem",
-      "checkListItem",
-    ].includes(type)
-  ) {
-    return false;
-  }
-  return !hasInlineText(block.content);
-}
-
 function getPlainBlockText(block: PartialBlock | undefined): string {
   if (!block) return "";
   return simpleExtractText(block).trim();
@@ -312,34 +280,38 @@ function normalizeRedundantNumberedListStarts(
 }
 
 function normalizeQuoteBlock(block: any): PartialBlock[] {
-  const contentChildren = hasStructuredBlocks(block.content) ? block.content : [];
   const childBlocks = Array.isArray(block.children) ? block.children : [];
-  const nestedBlocks = normalizeBlocks([...contentChildren, ...childBlocks]);
+  const normalizedChildren = normalizeBlocks(childBlocks);
+  const props = block.props ?? block.attrs;
 
-  if (
-    nestedBlocks.length === 1 &&
-    nestedBlocks[0]?.type === "paragraph" &&
-    !(nestedBlocks[0] as any).children?.length
-  ) {
-    return [
-      {
-        type: "quote",
-        content: normalizeInlineContent(nestedBlocks[0].content),
-      } as PartialBlock,
-    ];
-  }
-
-  if (nestedBlocks.length > 0) {
-    const leadingParagraph = hasStructuredBlocks(block.content)
-      ? null
-      : createParagraphFromInlineContent(normalizeInlineContent(block.content));
-    return leadingParagraph ? [leadingParagraph, ...nestedBlocks] : nestedBlocks;
+  // 仅兼容极旧 TipTap blockquote（content 内含结构化块）；现代 BlockNote quote 保留自身文本与 Tab 缩进子块。
+  if (hasStructuredBlocks(block.content)) {
+    const contentBlocks = normalizeBlocks(block.content);
+    if (
+      contentBlocks.length === 1 &&
+      contentBlocks[0]?.type === "paragraph" &&
+      !(contentBlocks[0] as any).children?.length
+    ) {
+      return [
+        {
+          type: "quote",
+          ...(props ? { props } : {}),
+          content: normalizeInlineContent(contentBlocks[0].content),
+          ...(normalizedChildren.length > 0 ? { children: normalizedChildren } : {}),
+        } as PartialBlock,
+      ];
+    }
+    if (contentBlocks.length > 0) {
+      return [...contentBlocks, ...normalizedChildren];
+    }
   }
 
   return [
     {
       type: "quote",
+      ...(props ? { props } : {}),
       content: normalizeInlineContent(block.content),
+      ...(normalizedChildren.length > 0 ? { children: normalizedChildren } : {}),
     } as PartialBlock,
   ];
 }
@@ -352,14 +324,7 @@ function normalizeBlock(block: any): PartialBlock[] {
     return [{ type: "divider" } as PartialBlock];
   }
   if (type === "quote" || type === "blockquote") {
-    const flattened = normalizeQuoteBlock(block);
-    // 引用块不允许有 children，剥离并展平
-    return flattened.flatMap((b) => {
-      const children = (b as any).children;
-      if (!children?.length) return [b];
-      const { children: _, ...withoutChildren } = b as any;
-      return [withoutChildren as PartialBlock, ...normalizeBlocks(children)];
-    });
+    return normalizeQuoteBlock(block);
   }
 
   if (!type || !VALID_BLOCK_TYPES.has(type)) {
@@ -376,11 +341,6 @@ function normalizeBlock(block: any): PartialBlock[] {
   }
 
   const children = normalizeBlocks(block.children);
-
-  // 所有 heading 都保留 children；物理首块拍平由 ensureFirstTitleHeading 负责。
-  if (children.length > 0 && isEmptyWrapperBlock(type, block)) {
-    return children;
-  }
 
   const sanitized: PartialBlock = { type };
   if (block.props || block.attrs) sanitized.props = block.props ?? block.attrs;
@@ -482,22 +442,39 @@ function normalizeSectionFoldBlock(block: PartialBlock): PartialBlock[] {
   }
 
   if (working.type === "heading") {
+    const rawProps = (working.props ?? {}) as Record<string, unknown>;
+    const wasLegacyToggleable =
+      rawProps.isToggleable === true || rawProps.isToggleable === "true";
     const nestedChildren = Array.isArray((working as { children?: PartialBlock[] }).children)
       ? ((working as { children?: PartialBlock[] }).children as PartialBlock[])
       : [];
     const { children: _ignored, ...headingOnly } = working as PartialBlock & {
       children?: PartialBlock[];
     };
-    const flat: PartialBlock[] = [
+    // 仅迁移旧版 isToggleable 折叠标题的 children；普通标题下用 Tab 缩进的子块保留层级。
+    if (wasLegacyToggleable) {
+      const flat: PartialBlock[] = [
+        {
+          ...headingOnly,
+          props: normalizeHeadingProps(headingOnly.props),
+        } as PartialBlock,
+      ];
+      if (nestedChildren.length > 0) {
+        flat.push(...normalizeHeadingSectionFold(normalizeBlocks(nestedChildren)));
+      }
+      return flat;
+    }
+    const normalizedChildren =
+      nestedChildren.length > 0
+        ? normalizeHeadingSectionFold(nestedChildren)
+        : [];
+    return [
       {
         ...headingOnly,
         props: normalizeHeadingProps(headingOnly.props),
+        ...(normalizedChildren.length > 0 ? { children: normalizedChildren } : {}),
       } as PartialBlock,
     ];
-    if (nestedChildren.length > 0) {
-      flat.push(...normalizeHeadingSectionFold(normalizeBlocks(nestedChildren)));
-    }
-    return flat;
   }
 
   const children = (working as { children?: PartialBlock[] }).children;

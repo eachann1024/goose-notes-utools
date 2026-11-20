@@ -17,6 +17,9 @@ import {
  * 绕开这条有损路径，保证 scanner 读入的 page.content 与磁盘 md 零损对应。
  */
 
+const GOOSE_INDENT_MARKER_RE = /^<!--[ \t]*goose-note:indent=(\d+)[ \t]*-->$/i;
+const GOOSE_EMPTY_BLOCK_MARKER_RE = /^<!--[ \t]*goose-note:empty-block[ \t]*-->$/i;
+
 /** 计算行的缩进空格数（tab 记 2） */
 function indentLevel(line: string): number {
   let count = 0;
@@ -26,6 +29,10 @@ function indentLevel(line: string): number {
     else break;
   }
   return count;
+}
+
+function stripLeadingIndent(line: string): string {
+  return line.replace(/^[ \t]+/, "");
 }
 
 function decodeHtmlAttribute(value: string): string {
@@ -65,11 +72,11 @@ function parseNestedList(
       break;
     }
 
-    const stripped = line.slice(lvl);
+    const stripped = stripLeadingIndent(line);
 
     const taskM = stripped.match(/^-\s+\[([ xX])\](?:\s+(.*))?$/);
-    const orderedM = !taskM && stripped.match(/^(\d+)\.\s+(.+)$/);
-    const bulletM = !taskM && !orderedM && stripped.match(/^[-*+]\s+(.+)$/);
+    const orderedM = !taskM && stripped.match(/^(\d+)\.[ \t]+(.*)$/);
+    const bulletM = !taskM && !orderedM && stripped.match(/^[-*+][ \t]+(.*)$/);
 
     if (!taskM && !orderedM && !bulletM) break;
 
@@ -131,6 +138,46 @@ export function markdownToJsonContent(markdown: string): any {
     .replace(/\r/g, "\n")
     .split("\n");
   const content: any[] = [];
+  const depthStack: any[] = [];
+  let pendingIndent = 0;
+  let lastBlockWasTopLevelTightList = false;
+
+  const updateDepthStack = (baseDepth: number, lastAdded: any) => {
+    depthStack.length = baseDepth;
+    let cursor = lastAdded;
+    while (cursor) {
+      depthStack.push(cursor);
+      const children = cursor.children;
+      if (Array.isArray(children) && children.length > 0) {
+        cursor = children[children.length - 1];
+      } else {
+        break;
+      }
+    }
+  };
+
+  const pushBlocks = (
+    blocks: any[],
+    options?: { topLevelTightList?: boolean },
+  ) => {
+    if (blocks.length === 0) return;
+    const requestedDepth = pendingIndent;
+    pendingIndent = 0;
+    const targetDepth = Math.min(requestedDepth, depthStack.length);
+    if (targetDepth === 0) {
+      content.push(...blocks);
+    } else {
+      const parent = depthStack[targetDepth - 1];
+      if (!Array.isArray(parent.children)) {
+        parent.children = [];
+      }
+      parent.children.push(...blocks);
+    }
+    updateDepthStack(targetDepth, blocks[blocks.length - 1]);
+    lastBlockWasTopLevelTightList =
+      targetDepth === 0 && options?.topLevelTightList === true;
+  };
+
   let i = 0;
 
   if (lines.length > 0 && lines[0].trim() === "---") {
@@ -141,11 +188,13 @@ export function markdownToJsonContent(markdown: string): any {
       i++;
     }
     if (i < lines.length && lines[i].trim() === "---") {
-      content.push({
-        type: "codeBlock",
-        props: { language: "yaml-frontmatter" },
-        content: frontmatterLines.join("\n"),
-      });
+      pushBlocks([
+        {
+          type: "codeBlock",
+          props: { language: "yaml-frontmatter" },
+          content: frontmatterLines.join("\n"),
+        },
+      ]);
       i++;
     } else {
       i = 0;
@@ -161,16 +210,34 @@ export function markdownToJsonContent(markdown: string): any {
       continue;
     }
 
+    const indentMarkerMatch = trimmedLine.match(GOOSE_INDENT_MARKER_RE);
+    if (indentMarkerMatch) {
+      const parsedDepth = Number.parseInt(indentMarkerMatch[1], 10);
+      if (Number.isFinite(parsedDepth) && parsedDepth > 0) {
+        pendingIndent = Math.min(parsedDepth, 32);
+      }
+      i++;
+      continue;
+    }
+
+    if (GOOSE_EMPTY_BLOCK_MARKER_RE.test(trimmedLine)) {
+      pushBlocks([{ type: "paragraph" }]);
+      i++;
+      continue;
+    }
+
     // ── video 块（serialize 写出的 <video src="…" controls ...></video> 单行）
     // video 在 raw-guard allowlist 中不会被包成 goose-raw-block，这里映射回 video 块
     const videoLineMatch = trimmedLine.match(
       /^<video\s+src="([^"]*)"[^>]*>\s*<\/video>$/i,
     );
     if (videoLineMatch) {
-      content.push({
-        type: "video",
-        props: { url: decodeHtmlAttribute(videoLineMatch[1]) },
-      });
+      pushBlocks([
+        {
+          type: "video",
+          props: { url: decodeHtmlAttribute(videoLineMatch[1]) },
+        },
+      ]);
       i++;
       continue;
     }
@@ -192,11 +259,13 @@ export function markdownToJsonContent(markdown: string): any {
       }
 
       const childBlocks = markdownToJsonContent(detailsLines.join("\n"));
-      content.push({
-        type: "toggleListItem",
-        content: parseInlineMarkdown(summaryText),
-        ...(childBlocks.length ? { children: childBlocks } : {}),
-      });
+      pushBlocks([
+        {
+          type: "toggleListItem",
+          content: parseInlineMarkdown(summaryText),
+          ...(childBlocks.length ? { children: childBlocks } : {}),
+        },
+      ]);
       i++;
       continue;
     }
@@ -208,11 +277,13 @@ export function markdownToJsonContent(markdown: string): any {
         mathLines.push(lines[i]);
         i++;
       }
-      content.push({
-        type: "codeBlock",
-        props: { language: "math" },
-        content: mathLines.join("\n"),
-      });
+      pushBlocks([
+        {
+          type: "codeBlock",
+          props: { language: "math" },
+          content: mathLines.join("\n"),
+        },
+      ]);
       i++;
       continue;
     }
@@ -236,22 +307,26 @@ export function markdownToJsonContent(markdown: string): any {
       if (fenceInfo.collapsed) {
         codeBlockProps.collapsed = true;
       }
-      content.push({
-        type: "codeBlock",
-        props: codeBlockProps,
-        content: codeLines.join("\n"),
-      });
+      pushBlocks([
+        {
+          type: "codeBlock",
+          props: codeBlockProps,
+          content: codeLines.join("\n"),
+        },
+      ]);
       i++;
       continue;
     }
 
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
-      content.push({
-        type: "heading",
-        props: { level: headingMatch[1].length },
-        content: parseInlineMarkdown(headingMatch[2]),
-      });
+      pushBlocks([
+        {
+          type: "heading",
+          props: { level: headingMatch[1].length },
+          content: parseInlineMarkdown(headingMatch[2]),
+        },
+      ]);
       i++;
       continue;
     }
@@ -268,27 +343,31 @@ export function markdownToJsonContent(markdown: string): any {
     ) {
       const nextTrimmed = lines[i + 1].trim();
       if (/^={2,}$/.test(nextTrimmed)) {
-        content.push({
-          type: "heading",
-          props: { level: 1 },
-          content: parseInlineMarkdown(trimmedLine),
-        });
+        pushBlocks([
+          {
+            type: "heading",
+            props: { level: 1 },
+            content: parseInlineMarkdown(trimmedLine),
+          },
+        ]);
         i += 2;
         continue;
       }
       if (/^-{2,}$/.test(nextTrimmed)) {
-        content.push({
-          type: "heading",
-          props: { level: 2 },
-          content: parseInlineMarkdown(trimmedLine),
-        });
+        pushBlocks([
+          {
+            type: "heading",
+            props: { level: 2 },
+            content: parseInlineMarkdown(trimmedLine),
+          },
+        ]);
         i += 2;
         continue;
       }
     }
 
     if (isThematicBreakLine(line)) {
-      content.push({ type: "divider" });
+      pushBlocks([{ type: "divider" }]);
       i++;
       continue;
     }
@@ -309,11 +388,13 @@ export function markdownToJsonContent(markdown: string): any {
           calloutLines.push(lines[i].trim().slice(1).trim());
           i++;
         }
-        content.push({
-          type: "callout",
-          props: { icon: calloutMatch[1] },
-          content: parseInlineMarkdown(calloutLines.join("\n")),
-        });
+        pushBlocks([
+          {
+            type: "callout",
+            props: { icon: calloutMatch[1] },
+            content: parseInlineMarkdown(calloutLines.join("\n")),
+          },
+        ]);
         continue;
       }
 
@@ -324,17 +405,19 @@ export function markdownToJsonContent(markdown: string): any {
         quoteLines.push(lines[i].trim().slice(1).trim());
         i++;
       }
-      content.push({
-        type: "quote",
-        content: parseInlineMarkdown(quoteLines.join("\n")),
-      });
+      pushBlocks([
+        {
+          type: "quote",
+          content: parseInlineMarkdown(quoteLines.join("\n")),
+        },
+      ]);
       continue;
     }
 
     // Try parsing table
     const tableResult = parseTableBlock(lines, i, parseInlineMarkdown);
     if (tableResult) {
-      content.push(tableResult.block);
+      pushBlocks([tableResult.block]);
       i = tableResult.nextIndex;
       continue;
     }
@@ -342,24 +425,26 @@ export function markdownToJsonContent(markdown: string): any {
     // 文件附件（旧 serializer 写出的 [📎 name](url) 形式）→ BlockNote file 块
     const fileMatch = trimmedLine.match(/^\[📎\s+([^\]]*)\]\(([^)]*)\)$/);
     if (fileMatch) {
-      content.push({
-        type: "file",
-        props: {
-          name: fileMatch[1].trim(),
-          url: fileMatch[2],
+      pushBlocks([
+        {
+          type: "file",
+          props: {
+            name: fileMatch[1].trim(),
+            url: fileMatch[2],
+          },
         },
-      });
+      ]);
       i++;
       continue;
     }
 
     // 嵌套列表（task / bullet / ordered）
     const baseIndent = indentLevel(line);
-    const stripped = line.slice(baseIndent);
+    const stripped = stripLeadingIndent(line);
     if (
       stripped.match(/^-\s+\[[ xX]\](?:\s+.*)?$/) ||
-      stripped.match(/^[-*+]\s+\S/) ||
-      stripped.match(/^\d+\.\s+\S/)
+      stripped.match(/^[-*+][ \t]+/) ||
+      stripped.match(/^\d+\.[ \t]+/)
     ) {
       const { items, nextIndex } = parseNestedList(
         lines,
@@ -368,7 +453,7 @@ export function markdownToJsonContent(markdown: string): any {
         parseInlineMarkdown,
       );
       if (items.length) {
-        content.push(...items);
+        pushBlocks(items, { topLevelTightList: true });
         i = nextIndex;
         continue;
       }
@@ -393,15 +478,17 @@ export function markdownToJsonContent(markdown: string): any {
       const width = metaMap.get("width");
       const widthValue = width ? Number(width) : undefined;
       const align = metaMap.get("align");
-      content.push({
-        type: "image",
-        props: {
-          url: imgMatch[2],
-          caption: imgMatch[1],
-          ...(Number.isFinite(widthValue) ? { previewWidth: widthValue } : {}),
-          ...(align && align !== "left" ? { textAlignment: align } : {}),
+      pushBlocks([
+        {
+          type: "image",
+          props: {
+            url: imgMatch[2],
+            caption: imgMatch[1],
+            ...(Number.isFinite(widthValue) ? { previewWidth: widthValue } : {}),
+            ...(align && align !== "left" ? { textAlignment: align } : {}),
+          },
         },
-      });
+      ]);
       i++;
       continue;
     }
@@ -429,7 +516,9 @@ export function markdownToJsonContent(markdown: string): any {
             currentLine.match(/^\|/) ||
             currentLine.match(/^\[📎/) ||
             trimmed.match(/^<video\s+src=/) ||
-            trimmed.startsWith("<details>")
+            trimmed.startsWith("<details>") ||
+            GOOSE_INDENT_MARKER_RE.test(trimmed) ||
+            GOOSE_EMPTY_BLOCK_MARKER_RE.test(trimmed)
           ) {
             break;
           }
@@ -448,20 +537,22 @@ export function markdownToJsonContent(markdown: string): any {
         // 软换行保真：段内换行用 \n 保留（BlockNote 文本内 \n = hardBreak）
         const combinedText = paragraphLines.join("\n");
         const inline = parseInlineMarkdown(combinedText);
-        content.push(
+        pushBlocks([
           inline.length > 0
             ? { type: "paragraph", content: inline }
             : { type: "paragraph" },
-        );
+        ]);
         continue;
       }
-    } else if (
-      content.length > 0 &&
-      ["bulletListItem", "numberedListItem", "checkListItem"].includes(
-        content[content.length - 1].type,
-      )
-    ) {
-      content.push({ type: "paragraph" });
+    } else if (lastBlockWasTopLevelTightList && pendingIndent === 0) {
+      let nextNonEmpty = i + 1;
+      while (nextNonEmpty < lines.length && !lines[nextNonEmpty].trim()) {
+        nextNonEmpty++;
+      }
+      const nextTrimmed = lines[nextNonEmpty]?.trim() ?? "";
+      if (!GOOSE_INDENT_MARKER_RE.test(nextTrimmed)) {
+        pushBlocks([{ type: "paragraph" }]);
+      }
     }
     i++;
   }
