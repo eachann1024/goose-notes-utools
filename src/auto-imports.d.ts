@@ -623,6 +623,7 @@ declare global {
   const trackAppError: typeof import('./lib/analytics').trackAppError
   const trackError: typeof import('./lib/telemetry').trackError
   const trackEvent: typeof import('./lib/analytics').trackEvent
+  const trackMcpCall: typeof import('./lib/analytics').trackMcpCall
   const trackNotebookCount: typeof import('./lib/analytics').trackNotebookCount
   const transcodeVideo: typeof import('./lib/videoProcessor').transcodeVideo
   const triggerAutoWebdavBackup: typeof import('./lib/webdavSync').triggerAutoWebdavBackup

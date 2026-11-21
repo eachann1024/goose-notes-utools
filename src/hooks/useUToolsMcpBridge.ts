@@ -21,7 +21,7 @@ import {
 import { reloadEditorIfActive } from "@/lib/notebook-ai/liveWriter";
 import { readLocalPageIdMap } from "@/lib/local-page-idmap";
 import type { BlockNoteContent } from "@/components/editor/utils/blocknote-content";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackMcpCall } from "@/lib/analytics";
 
 /**
  * uTools MCP 工具桥接（渲染层）
@@ -449,14 +449,14 @@ export function useUToolsMcpBridge() {
       void (async () => {
         try {
           const result = await executeTool(tool, detail?.params || {});
-          trackEvent("mcp.call", { tool, ok: true });
+          trackMcpCall(tool, true);
           window.dispatchEvent(
             new CustomEvent(MCP_TOOL_RESPONSE_EVENT, {
               detail: { requestId, ok: true, result },
             }),
           );
         } catch (error) {
-          trackEvent("mcp.call", { tool, ok: false });
+          trackMcpCall(tool, false);
           window.dispatchEvent(
             new CustomEvent(MCP_TOOL_RESPONSE_EVENT, {
               detail: {

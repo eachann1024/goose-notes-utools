@@ -73,6 +73,18 @@ export function trackAppError(error: unknown, module?: string): void {
   trackError(error, module ?? currentModule);
 }
 
+// Only tool names declared in plugin.json may be reported; anything else becomes "other".
+const MCP_TOOLS = new Set([
+  "list_notebooks", "list_notes", "search_notes", "get_note", "get_mcp_capabilities",
+  "create_note", "append_note", "update_note", "rename_note", "delete_note", "restore_note",
+  "create_notebook", "update_notebook", "delete_notebook",
+]);
+
+export function trackMcpCall(tool: unknown, ok: boolean): void {
+  const name = typeof tool === "string" && MCP_TOOLS.has(tool) ? tool : "other";
+  trackEvent("mcp.call", { tool: name, ok });
+}
+
 export function trackNotebookCount(count: number): void {
   trackEvent("notebook.count", { range: bucket(count) });
 }

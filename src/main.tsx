@@ -241,6 +241,7 @@ import {
   initAppTelemetry,
   trackAppError,
   trackEvent,
+  trackMcpCall,
   trackNotebookCount,
 } from "./lib/analytics";
 import { migrateLegacyStorage } from "./lib/storage/migrateLegacyStorage";
@@ -678,7 +679,7 @@ export const bootstrap = async (
       event as CustomEvent<{ tool?: string; ok?: boolean }>
     ).detail;
     if (detail?.tool) {
-      trackEvent("mcp.call", { tool: detail.tool, ok: Boolean(detail.ok) });
+      trackMcpCall(detail.tool, Boolean(detail.ok));
     }
   });
 
