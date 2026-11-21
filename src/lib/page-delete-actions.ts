@@ -4,6 +4,7 @@ import { useNotebooks } from "@/stores/useNotebooks";
 import { useTabs } from "@/stores/useTabs";
 import { getPageTitle } from "@/components/editor/utils/page-title";
 import { closeNotebookAiIfFullscreen } from "@/pages/workspace/components/notebook-ai/useNotebookAiPanel";
+import { trackEvent } from "@/lib/analytics";
 
 /**
  * 页面删除/恢复的唯一入口。
@@ -18,6 +19,7 @@ export function restorePageWithToast(
 ) {
   const result = usePages.getState().restorePage(pageId);
   if (!result.ok) return;
+  trackEvent("note.restore");
 
   if (opts.reopenTab) {
     closeNotebookAiIfFullscreen();
@@ -78,6 +80,7 @@ export function permanentlyDeletePageWithCleanup(pageId: string) {
               throw new Error("页面仍然存在");
             }
             useTabs.getState().removeDeletedPage(pageId);
+            trackEvent("note.delete");
             toast.success(`已永久删除「${title}」`, { id: toastId });
           })
           .catch((error) => {
@@ -105,6 +108,7 @@ export async function deletePageWithUndo(pageId: string) {
 
   const deleted = await usePages.getState().deletePage(pageId);
   if (!deleted) return;
+  trackEvent("note.delete");
 
   useTabs.getState().removeDeletedPage(pageId);
 

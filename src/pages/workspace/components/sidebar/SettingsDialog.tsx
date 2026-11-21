@@ -19,7 +19,14 @@ import { SettingsLocalFolder } from "./SettingsLocalFolder";
 import { SettingsDataPanel } from "./settings/SettingsDataPanel";
 import { SettingsAI } from "./SettingsAI";
 import { SettingsScaffold } from "./settings/SettingsScaffold";
+import { SettingsSectionCard } from "./settings/SettingsSectionCard";
 import type { SettingsTab } from "./settings/types";
+import {
+  isTelemetryEnabled,
+  setTelemetryEnabled,
+  subscribeTelemetry,
+  telemetryPreview,
+} from "@/lib/telemetry";
 import { useShallow } from "zustand/react/shallow";
 import { useNotebooks, sortNotebooksByOrder } from "@/stores/useNotebooks";
 import { useSettings } from "@/stores/useSettings";
@@ -209,6 +216,22 @@ export function SettingsDialog({
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetInput, setResetInput] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [telemetryEnabled, setTelemetryEnabledState] = useState(() =>
+    isTelemetryEnabled(),
+  );
+  const [telemetryPreviewOpen, setTelemetryPreviewOpen] = useState(false);
+  const [telemetrySnapshot, setTelemetrySnapshot] = useState(() =>
+    telemetryPreview(),
+  );
+
+  useEffect(() => {
+    const syncTelemetry = () => {
+      setTelemetryEnabledState(isTelemetryEnabled());
+      setTelemetrySnapshot(telemetryPreview());
+    };
+    syncTelemetry();
+    return subscribeTelemetry(syncTelemetry);
+  }, [open, telemetryPreviewOpen]);
   const {
     visible: appsBannerVisible,
     dismiss: dismissAppsBanner,
@@ -339,6 +362,52 @@ export function SettingsDialog({
                 updateCustomAction={updateCustomAction}
                 removeCustomAction={removeCustomAction}
               />
+
+              <SettingsSectionCard
+                title="隐私与统计"
+                actions={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-[10px]"
+                    onClick={() => {
+                      setTelemetrySnapshot(telemetryPreview());
+                      setTelemetryPreviewOpen(true);
+                    }}
+                  >
+                    查看上报内容
+                  </Button>
+                }
+              >
+                <div className="flex items-center justify-between gap-4 rounded-[12px] bg-[hsl(var(--goose-selected-bg)/0.58)] p-4 dark:bg-[hsl(var(--foreground)/0.08)]">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <LucideIcons.BarChart2
+                        className="h-4 w-4 shrink-0 text-muted-foreground"
+                        strokeWidth={1.75}
+                      />
+                      <Label
+                        htmlFor="telemetry-enabled"
+                        className="cursor-pointer"
+                      >
+                        发送匿名使用统计
+                      </Label>
+                    </div>
+                    <p className="mt-1 pl-7 text-xs text-muted-foreground">
+                      只统计功能使用次数和报错类型，不含任何笔记内容，关闭后会删除匿名编号。
+                    </p>
+                  </div>
+                  <Switch
+                    id="telemetry-enabled"
+                    checked={telemetryEnabled}
+                    onCheckedChange={(checked) => {
+                      setTelemetryEnabled(checked);
+                    }}
+                    className="data-[state=unchecked]:bg-[hsl(var(--foreground)/0.12)]"
+                  />
+                </div>
+              </SettingsSectionCard>
             </div>
           )}
 
@@ -444,6 +513,31 @@ export function SettingsDialog({
         resetting,
         handleManualReset,
       })}
+
+      <DialogShell
+        open={telemetryPreviewOpen}
+        onOpenChange={setTelemetryPreviewOpen}
+        title="上报内容预览"
+      >
+        <div className="space-y-4 px-6 pt-4 pb-6">
+          <pre
+            data-testid="telemetry-preview-json"
+            className="max-h-[60vh] overflow-auto rounded-[12px] border border-border/70 bg-[hsl(var(--goose-selected-bg)/0.45)] p-3 font-mono text-xs leading-relaxed text-foreground/90 select-text dark:bg-[hsl(var(--foreground)/0.06)]"
+          >
+            {JSON.stringify(telemetrySnapshot, null, 2)}
+          </pre>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-[10px]"
+              onClick={() => setTelemetryPreviewOpen(false)}
+            >
+              关闭
+            </Button>
+          </div>
+        </div>
+      </DialogShell>
     </>
   );
 }

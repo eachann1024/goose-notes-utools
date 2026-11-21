@@ -11,6 +11,7 @@ import {
   extractLastUserPrompt,
   uiMessagesToAgentMessages,
 } from "./messages";
+import { trackEvent } from "@/lib/analytics";
 
 function createMessageId(prefix: string) {
   if (typeof globalThis.crypto?.randomUUID === "function") {
@@ -55,6 +56,16 @@ export function buildPiTransport(
           let reasoningId: string | null = null;
           let stepOpen = false;
           let finished = false;
+          const requestStartedAt = Date.now();
+          let telemetrySent = false;
+          const emitAiRequestTelemetry = (ok: boolean) => {
+            if (telemetrySent) return;
+            telemetrySent = true;
+            trackEvent("ai.request", {
+              ok,
+              dur_ms: Date.now() - requestStartedAt,
+            });
+          };
 
           const openStep = () => {
             if (!stepOpen) {
@@ -198,6 +209,7 @@ export function buildPiTransport(
                   if (!finished) {
                     finished = true;
                     const err = agent.state.errorMessage;
+                    emitAiRequestTelemetry(!err);
                     if (err) {
                       writer.write({ type: "error", errorText: err });
                     }
@@ -227,6 +239,7 @@ export function buildPiTransport(
             if (!finished) {
               finished = true;
               const err = agent.state.errorMessage;
+              emitAiRequestTelemetry(!err);
               if (err) {
                 writer.write({ type: "error", errorText: err });
               }
@@ -239,6 +252,7 @@ export function buildPiTransport(
               });
             }
           } catch (error) {
+            emitAiRequestTelemetry(false);
             if (!finished) {
               finished = true;
               const errorText =
@@ -250,6 +264,7 @@ export function buildPiTransport(
               writer.write({ type: "finish", finishReason: "error" });
             }
           } finally {
+            emitAiRequestTelemetry(false);
             unsub();
             abortSignal?.removeEventListener("abort", onAbort);
           }

@@ -237,6 +237,12 @@ import {
   runCodeStyleMigration2026,
 } from "./lib/code-style-migration";
 import { recoverMissingNotebooksFromPages } from "./lib/storage/recoverMissingNotebooks";
+import {
+  initAppTelemetry,
+  trackAppError,
+  trackEvent,
+  trackNotebookCount,
+} from "./lib/analytics";
 import { migrateLegacyStorage } from "./lib/storage/migrateLegacyStorage";
 import { UToolsAdapter } from "./lib/utools";
 import { DEFAULT_NOTEBOOK, useNotebooks } from "./stores/useNotebooks";
@@ -473,6 +479,8 @@ export const bootstrap = async (
   // 且 hydrateFromStorage 随笔记数线性变慢，是小窗冷启动的最大开销。
   // 仍保留：initHostFs（编辑器文件能力）、设置/字体（主题）、保存守卫（关窗 flush 草稿）。
   const { lean = false, beforeInit } = options;
+  const bootstrapStart =
+    typeof performance !== "undefined" ? performance.now() : Date.now();
   const root = createRoot(rootElement);
   // 主工作区在恢复完成前保持 index.html 的空 root，不提交启动页或首页。
   // uTools 会先显示 BrowserWindow，任何提前 render 都会成为用户看见的错误首帧。
@@ -615,14 +623,48 @@ export const bootstrap = async (
         renderError: (error) => {
           console.error("[bootstrap] 工作区恢复失败", error);
           clearStartupSettling();
+          initAppTelemetry({
+            surface: "workspace",
+            theme: () => useSettings.getState().theme,
+          });
+          trackAppError(error, "bootstrap");
           root.render(<BootstrapScreen lean={false} error={error} />);
         },
       });
       if (startupResult === "error") return;
     }
+
+    const coldMs =
+      (typeof performance !== "undefined" ? performance.now() : Date.now()) -
+      bootstrapStart;
+    const initialEntry =
+      typeof window !== "undefined" ? window.__gooseLastEnterCode : undefined;
+    initAppTelemetry({
+      surface: lean ? "quicknote" : "workspace",
+      entry: initialEntry,
+      coldMs,
+      theme: () => useSettings.getState().theme,
+      onWarmEnter: lean
+        ? undefined
+        : () => {
+            trackNotebookCount(
+              Object.keys(useNotebooks.getState().notebooks).length,
+            );
+          },
+    });
+    if (!lean) {
+      trackNotebookCount(
+        Object.keys(useNotebooks.getState().notebooks).length,
+      );
+    }
   } catch (error) {
     console.error("[bootstrap] 初始化失败", error);
     clearStartupSettling();
+    initAppTelemetry({
+      surface: lean ? "quicknote" : "workspace",
+      theme: () => useSettings.getState().theme,
+    });
+    trackAppError(error, "bootstrap");
     root.render(<BootstrapScreen lean={lean} error={error} />);
     return;
   }
@@ -630,6 +672,15 @@ export const bootstrap = async (
   // 速记收件箱消费：B 插件 redirect 回传的 blocks 落库。由主应用（plugin A）消费；
   // 速记小窗自身（lean）是发送方，不接收，故跳过。
   if (lean) return;
+
+  window.addEventListener("goose-note:mcp-call", (event) => {
+    const detail = (
+      event as CustomEvent<{ tool?: string; ok?: boolean }>
+    ).detail;
+    if (detail?.tool) {
+      trackEvent("mcp.call", { tool: detail.tool, ok: Boolean(detail.ok) });
+    }
+  });
 
   // 冷启动时 preload 已 push 进 window.__gooseQuickNoteInbox，mount 后在此消费；
   // 热场景（A 已在运行）通过 "goose-note:quicknote-inbox" 事件触发消费。
@@ -644,9 +695,12 @@ export const bootstrap = async (
         const blocks = JSON.parse(blocksJson);
         const nbId =
           useNotebooks.getState().activeNotebookId ?? DEFAULT_NOTEBOOK;
-        usePages
+        const pageId = usePages
           .getState()
           .createPageRecord({ workspaceId: nbId, content: blocks });
+        if (pageId) {
+          trackEvent("note.create", { source: "quicknote" });
+        }
       } catch (e) {
         console.error("[quicknote_save] 落库失败", e);
       }

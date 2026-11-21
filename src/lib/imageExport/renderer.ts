@@ -18,6 +18,7 @@ import { renderMathBlocksAsImages } from "./math";
 import { toast } from "@/components/ui/sonner";
 import { cloneExportBlocks } from "@/lib/export/prepareExportBlocks";
 import { splitImageExportTitle } from "./titleLift";
+import { trackEvent } from "@/lib/analytics";
 
 export { getSelectionBlocksToRender } from "./titleLift";
 
@@ -352,6 +353,7 @@ async function captureElementToPng(element: HTMLElement, filename: string) {
       "保存图片超时",
     );
     if (saved) {
+      trackEvent("export", { format: "png" });
       toast.success("图片已保存到下载文件夹");
     } else {
       throw new Error("保存图片失败");

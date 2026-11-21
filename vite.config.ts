@@ -1,5 +1,5 @@
 import path from "path";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { defineConfig, createLogger } from "vite";
 import react from "@vitejs/plugin-react";
 import AutoImport from "unplugin-auto-import/vite";
@@ -206,11 +206,21 @@ const codeSplittingGroups: ChunkGroup[] = [
   },
 ];
 
+const appVersion: string = (() => {
+  try {
+    const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8"));
+    return typeof pkg?.version === "string" ? pkg.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+})();
+
 // https://vite.dev/config/
 export default defineConfig({
   customLogger: logger,
   base: "./", // utools 需要相对路径
   define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
     __HOST_TARGET__: JSON.stringify(hostTarget),
     __GOOSE_LITE__: JSON.stringify(isQuicknoteBuild),
     __GOOSE_EDITOR_COMPACT__: JSON.stringify(isQuicknoteBuild),

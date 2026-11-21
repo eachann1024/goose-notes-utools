@@ -1,0 +1,42 @@
+{
+  "entries": [
+    "index.html",
+    "quicknote.html"
+  ],
+  "results": [
+    {
+      "step": "1. 默认开关开启且生成 32 位匿名编号",
+      "result": "通过"
+    },
+    {
+      "step": "2. 初始预览结构正确且记录 app.open 与 notebook.count",
+      "result": "通过"
+    },
+    {
+      "step": "3. 关闭开关删除 did 且刷新后保持关闭",
+      "result": "通过"
+    },
+    {
+      "step": "4. 关闭后操作不入队且 0 请求发出",
+      "result": "通过"
+    },
+    {
+      "step": "5. 重新开启生成新 did，工作区事件正常记录且不含标题/正文",
+      "result": "通过"
+    },
+    {
+      "step": "6. 工作区请求体脱敏校验通过",
+      "result": "通过"
+    },
+    {
+      "step": "7. 速记小窗事件上报（surface=quicknote）且无草稿泄漏",
+      "result": "通过"
+    },
+    {
+      "step": "8. 速记小窗共享主设置关闭状态且 0 请求",
+      "result": "通过"
+    }
+  ],
+  "consoleErrors": []
+}
+

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { trackAppError } from "@/lib/analytics";
 
 type ErrorBoundaryProps = {
   children: ReactNode;
@@ -23,6 +24,7 @@ export class ErrorBoundary extends Component<
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary] render failed", error, info);
     try {
+      trackAppError(error, "error_boundary");
       window.__gooseNoteReportError?.(error, {
         componentStack: info.componentStack,
       });

@@ -199,6 +199,7 @@ declare global {
   const blobToBase64: typeof import('./lib/imageProcessor').blobToBase64
   const blocksToHTML: typeof import('./lib/export/index').blocksToHTML
   const blocksToMarkdown: typeof import('./lib/export/index').blocksToMarkdown
+  const bucket: typeof import('./lib/telemetry').bucket
   const buildInheritedPasteBlocks: typeof import('./components/editor/utils/multilinePaste').buildInheritedPasteBlocks
   const buildLocalFolderPickerItems: typeof import('./lib/local-folder-target').buildLocalFolderPickerItems
   const buildLocalPageId: typeof import('./lib/local-folder-scanner').buildLocalPageId
@@ -259,6 +260,7 @@ declare global {
   const deleteWebdavBackup: typeof import('./lib/webdavSync').deleteWebdavBackup
   const describeDiskWriteError: typeof import('./lib/diskWriteError').describeDiskWriteError
   const downloadWebdavBackup: typeof import('./lib/webdavSync').downloadWebdavBackup
+  const durationBucket: typeof import('./lib/telemetry').durationBucket
   const editorSplitPersistKey: typeof import('./stores/useEditorSplit').editorSplitPersistKey
   const effectiveSingleTabMode: typeof import('./lib/tabMode').effectiveSingleTabMode
   const emptyBlock: typeof import('./components/editor/utils/blocknote-content/index').emptyBlock
@@ -298,6 +300,7 @@ declare global {
   const findTabLeaf: typeof import('./stores/useEditorSplit').findTabLeaf
   const finishPasteAtAnchor: typeof import('./components/editor/hooks/useEditorPaste').finishPasteAtAnchor
   const flattenParsedBlocksToSoftWrapInline: typeof import('./components/editor/utils/softWrapPaste').flattenParsedBlocksToSoftWrapInline
+  const flush: typeof import('./lib/telemetry').flush
   const flushEditorContent: typeof import('./stores/pages/index').flushEditorContent
   const flushSidebarViewPersist: typeof import('./stores/useSidebarView').flushSidebarViewPersist
   const flushUToolsStorageWrites: typeof import('./lib/storage').flushUToolsStorageWrites
@@ -375,6 +378,8 @@ declare global {
   const importNotebooksFromZip: typeof import('./lib/export/index').importNotebooksFromZip
   const importTextFilesToLocalFolder: typeof import('./lib/local-folder-import').importTextFilesToLocalFolder
   const inferProviderIdFromSettings: typeof import('./lib/ai-provider/index').inferProviderIdFromSettings
+  const initAppTelemetry: typeof import('./lib/analytics').initAppTelemetry
+  const initTelemetry: typeof import('./lib/telemetry').initTelemetry
   const insertSoftWrappedInline: typeof import('./components/editor/utils/softWrapPaste').insertSoftWrappedInline
   const insertSoftWrappedLines: typeof import('./components/editor/utils/softWrapPaste').insertSoftWrappedLines
   const inspectNotebookImportZip: typeof import('./lib/export/index').inspectNotebookImportZip
@@ -420,6 +425,7 @@ declare global {
   const isStatMatchingSnapshot: typeof import('./lib/local-md-snapshot').isStatMatchingSnapshot
   const isSuggestionMenuAcceptKey: typeof import('./components/editor/utils/slashMenuPolicy').isSuggestionMenuAcceptKey
   const isSupportedTextImportFile: typeof import('./lib/local-folder-import').isSupportedTextImportFile
+  const isTelemetryEnabled: typeof import('./lib/telemetry').isTelemetryEnabled
   const isToggleBlock: typeof import('./components/editor/utils/toggleNesting').isToggleBlock
   const isUnsavedLocalPage: typeof import('./lib/unsavedLocalPage').isUnsavedLocalPage
   const isValidImageUrl: typeof import('./lib/imageProcessor').isValidImageUrl
@@ -564,10 +570,13 @@ declare global {
   const serializeQuickNoteSlotNames: typeof import('./stores/useQuickNote').serializeQuickNoteSlotNames
   const serializeSlicePlainText: typeof import('./components/editor/utils/clipboard').serializeSlicePlainText
   const serializeWikiLinkMarkdown: typeof import('./lib/wikiLink').serializeWikiLinkMarkdown
+  const setAnalyticsModule: typeof import('./lib/analytics').setAnalyticsModule
+  const setAnalyticsSurface: typeof import('./lib/analytics').setAnalyticsSurface
   const setDbStorageItem: typeof import('./lib/storage').setDbStorageItem
   const setFeedbackUnread: typeof import('./lib/feedback').setFeedbackUnread
   const setLocalFolderFileDropTarget: typeof import('./lib/local-folder-file-drop-target').setLocalFolderFileDropTarget
   const setLocalMdSnapshot: typeof import('./lib/local-md-snapshot').setLocalMdSnapshot
+  const setTelemetryEnabled: typeof import('./lib/telemetry').setTelemetryEnabled
   const shortcutHasModifier: typeof import('./lib/shortcut-match').shortcutHasModifier
   const shouldCollapseSidebarListOnEscape: typeof import('./lib/sidebarListCollapse').shouldCollapseSidebarListOnEscape
   const shouldIgnoreEntry: typeof import('./lib/local-folder-scanner').shouldIgnoreEntry
@@ -591,12 +600,15 @@ declare global {
   const splitFilePath: typeof import('./lib/local-title-binding').splitFilePath
   const splitPlainTextPasteLines: typeof import('./components/editor/utils/multilinePaste').splitPlainTextPasteLines
   const startTransition: typeof import('react').startTransition
+  const stopTelemetry: typeof import('./lib/telemetry').stopTelemetry
   const stripComposerDraftImages: typeof import('./stores/useNotebookAiChats').stripComposerDraftImages
   const stripInheritedListPrefix: typeof import('./components/editor/utils/multilinePaste').stripInheritedListPrefix
   const stripMarkdownHardBreaks: typeof import('./components/editor/utils/clipboard').stripMarkdownHardBreaks
   const stripWikiMarkdownExtension: typeof import('./lib/wikiLink').stripWikiMarkdownExtension
   const subscribePageTitleFocus: typeof import('./lib/page-title-focus').subscribePageTitleFocus
+  const subscribeTelemetry: typeof import('./lib/telemetry').subscribeTelemetry
   const syncAccentColorCssVars: typeof import('./lib/accentColor').syncAccentColorCssVars
+  const telemetryPreview: typeof import('./lib/telemetry').telemetryPreview
   const testWebdavConnection: typeof import('./lib/webdavSync').testWebdavConnection
   const textareaClass: typeof import('./components/ui/textarea').textareaClass
   const titleHeadingBlock: typeof import('./components/editor/utils/blocknote-content/index').titleHeadingBlock
@@ -607,6 +619,11 @@ declare global {
   const toast: typeof import('./components/ui/sonner').toast
   const toggleSidebarFolder: typeof import('./stores/useSidebarView').toggleSidebarFolder
   const toggleVariants: typeof import('./components/ui/toggle').toggleVariants
+  const track: typeof import('./lib/telemetry').track
+  const trackAppError: typeof import('./lib/analytics').trackAppError
+  const trackError: typeof import('./lib/telemetry').trackError
+  const trackEvent: typeof import('./lib/analytics').trackEvent
+  const trackNotebookCount: typeof import('./lib/analytics').trackNotebookCount
   const transcodeVideo: typeof import('./lib/videoProcessor').transcodeVideo
   const triggerAutoWebdavBackup: typeof import('./lib/webdavSync').triggerAutoWebdavBackup
   const tryCollapseSidebarListOnEscape: typeof import('./lib/sidebarListCollapse').tryCollapseSidebarListOnEscape
@@ -721,6 +738,9 @@ declare global {
   export type { CustomAIProtocol, AIProviderIdLike, AIModelOption, AIReasoningLevel, AISettingsLike, AIMessage, AIStreamPhase, AIStreamUpdate, AIRequestOverrides, RunAITextOptions, RunAITextStreamOptions, AIProviderId, AIProviderPreset } from './lib/ai-provider/index'
   import('./lib/ai-provider/index')
   // @ts-ignore
+  export type { TelemetrySurface } from './lib/analytics'
+  import('./lib/analytics')
+  // @ts-ignore
   export type { DiskWriteError } from './lib/diskWriteError'
   import('./lib/diskWriteError')
   // @ts-ignore
@@ -765,6 +785,9 @@ declare global {
   // @ts-ignore
   export type { SidebarCollapsePage } from './lib/sidebarListCollapse'
   import('./lib/sidebarListCollapse')
+  // @ts-ignore
+  export type { TelemetryValue, TelemetryProps, TelemetryStorage, TelemetryOptions } from './lib/telemetry'
+  import('./lib/telemetry')
   // @ts-ignore
   export type { PlatformKind } from './lib/utils'
   import('./lib/utils')

@@ -19,6 +19,7 @@ import { HistoryVersionList } from "../history/HistoryView";
 import { useHistoryView } from "@/stores/useHistoryView";
 import { closeNotebookAiIfFullscreen } from "../notebook-ai/useNotebookAiPanel";
 import { isElectronHost } from "@/lib/local-vault";
+import { trackEvent } from "@/lib/analytics";
 
 // 设置页牵连导出/序列化管线（unified、katex、webdav 等），首次打开时再加载，不拖慢冷启动。
 const loadSettingsDialog = () => import("./SettingsDialog");
@@ -252,10 +253,15 @@ export function Sidebar({
         ? basePage.parentId
         : undefined;
     if (isLocalFolder) {
-      void createLocalPage(siblingParentId, activeNotebookId);
+      void createLocalPage(siblingParentId, activeNotebookId).then((id) => {
+        if (id) trackEvent("note.create", { source: "sidebar" });
+      });
       return;
     }
     const newPageId = createPage(siblingParentId, activeNotebookId);
+    if (newPageId) {
+      trackEvent("note.create", { source: "sidebar" });
+    }
     openInCurrentTab(newPageId);
     if (siblingParentId) setExpandPageId(newPageId);
   }, [

@@ -10,6 +10,7 @@ import { extractImagesFromContent } from "./assets";
 import { sanitizeFileName } from "./paths";
 import { downloadBlob } from "./download";
 import type { ExportOptions } from "./types";
+import { trackEvent } from "@/lib/analytics";
 
 function normalizeExportContent(
   content: Page["content"],
@@ -213,4 +214,5 @@ export async function exportNotebooks(
   const pad = (n: number) => n.toString().padStart(2, "0");
   const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
   await downloadBlob(content, `goose-note-export-${timestamp}.zip`);
+  trackEvent("export", { format: options.format });
 }

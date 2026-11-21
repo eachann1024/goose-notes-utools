@@ -32,6 +32,14 @@ const {
 
 if (typeof window !== "undefined" && typeof utools !== "undefined") {
   window.utools = utools;
+  try {
+    window.__gooseSystemInfo = {
+      osVersion: os.release(),
+      arch: process.arch,
+    };
+  } catch {
+    /* noop */
+  }
   const PENDING_OPEN_FOLDER_KEY = "__gooseNotePendingOpenFolder";
   const SETTINGS_STORAGE_KEY = "goose-note-settings";
   const NOTEBOOK_STORAGE_KEY = "goose-note-notebooks";
@@ -1088,10 +1096,33 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     return item;
   };
 
+  const dispatchMcpCallEvent = (tool, ok) => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent("goose-note:mcp-call", { detail: { tool, ok } }),
+      );
+    } catch {
+      /* noop */
+    }
+  };
+
+  const registerReadonlyMcpTool = (name, handler) => {
+    utools.registerTool(name, async (params = {}) => {
+      try {
+        const result = await handler(params);
+        dispatchMcpCallEvent(name, true);
+        return result;
+      } catch (err) {
+        dispatchMcpCallEvent(name, false);
+        throw err;
+      }
+    });
+  };
+
   const registerMcpTools = () => {
     if (typeof utools?.registerTool !== "function") return;
 
-    utools.registerTool("list_notebooks", async (params = {}) => {
+    registerReadonlyMcpTool("list_notebooks", async (params = {}) => {
       const notebooks = listPersistedNotebooks();
       const items = notebooks.map((notebook) =>
         buildNotebookSummary(notebook, {
@@ -1102,7 +1133,7 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
       return { items };
     });
 
-    utools.registerTool("list_notes", async (params = {}) => {
+    registerReadonlyMcpTool("list_notes", async (params = {}) => {
       const { notes } = await listAllNotes();
       const filtered = filterNotes(notes, params);
       const sorted = sortNoteItems(filtered, params.sort_by || "updated_at_desc");
@@ -1120,7 +1151,7 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
       };
     });
 
-    utools.registerTool("search_notes", async (params = {}) => {
+    registerReadonlyMcpTool("search_notes", async (params = {}) => {
       const query = typeof params.query === "string" ? params.query.trim() : "";
       if (!query) {
         throw new Error("query 不能为空");
@@ -1150,7 +1181,7 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
       };
     });
 
-    utools.registerTool("get_note", async (params = {}) => {
+    registerReadonlyMcpTool("get_note", async (params = {}) => {
       const noteId = typeof params.note_id === "string" ? params.note_id.trim() : "";
       if (!noteId) {
         throw new Error("note_id 不能为空");
@@ -1975,7 +2006,7 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
   const registerMcpWriteTools = () => {
     if (typeof utools?.registerTool !== "function") return;
 
-    utools.registerTool("get_mcp_capabilities", async () => MCP_TOOL_CAPABILITIES);
+    registerReadonlyMcpTool("get_mcp_capabilities", async () => MCP_TOOL_CAPABILITIES);
 
     MCP_WRITE_TOOL_NAMES.forEach((toolName) => {
       utools.registerTool(toolName, async (params, context) => {
@@ -2074,6 +2105,9 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     }
 
     pluginVisible = true;
+    if (typeof code === "string" && code) {
+      window.__gooseLastEnterCode = code;
+    }
 
     // 普通进入插件时不要挂 uTools 宿主输入框。应用内已有 CommandPalette；
     // 宿主 subInput 会抢走编辑器焦点，导致正文输入跑到窗口左侧。

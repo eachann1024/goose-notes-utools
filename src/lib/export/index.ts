@@ -12,6 +12,7 @@ import {
   buildSinglePageExport,
   type SinglePageExportFormat,
 } from "./pageWithAttachments";
+import { trackEvent } from "@/lib/analytics";
 
 export { jsonContentToMarkdown } from "./markdown/serialize";
 export { blocksToMarkdown, blocksToHTML } from "./blocknoteSerializer";
@@ -54,6 +55,7 @@ async function exportPage(
 ) {
   const { blob, filename } = await buildSinglePageExport(page, format, pdfBlob);
   await downloadBlob(blob, filename);
+  trackEvent("export", { format });
 }
 
 export async function exportToJSON(page: Page) {

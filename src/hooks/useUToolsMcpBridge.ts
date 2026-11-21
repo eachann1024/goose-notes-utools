@@ -21,6 +21,7 @@ import {
 import { reloadEditorIfActive } from "@/lib/notebook-ai/liveWriter";
 import { readLocalPageIdMap } from "@/lib/local-page-idmap";
 import type { BlockNoteContent } from "@/components/editor/utils/blocknote-content";
+import { trackEvent } from "@/lib/analytics";
 
 /**
  * uTools MCP 工具桥接（渲染层）
@@ -247,6 +248,7 @@ async function executeTool(tool: string, params: ToolParams): Promise<unknown> {
       if (!pageId) throw new Error("创建笔记失败");
       const page = usePages.getState().pages[pageId];
       if (!page) throw new Error("创建笔记失败");
+      trackEvent("note.create", { source: "mcp" });
       return serializeNote(page);
     }
 
@@ -351,6 +353,7 @@ async function executeTool(tool: string, params: ToolParams): Promise<unknown> {
 
       const deleted = await usePages.getState().deletePage(noteId);
       if (!deleted) throw new Error("删除失败");
+      trackEvent("note.delete");
       return {
         ok: true,
         id: noteId,
@@ -369,6 +372,7 @@ async function executeTool(tool: string, params: ToolParams): Promise<unknown> {
       if (!page.trashedAt) throw new Error("该笔记不在回收站中");
       const result = usePages.getState().restorePage(noteId);
       if (!result.ok) throw new Error("恢复失败");
+      trackEvent("note.restore");
       const restored = usePages.getState().pages[noteId];
       return {
         ok: true,
@@ -445,12 +449,14 @@ export function useUToolsMcpBridge() {
       void (async () => {
         try {
           const result = await executeTool(tool, detail?.params || {});
+          trackEvent("mcp.call", { tool, ok: true });
           window.dispatchEvent(
             new CustomEvent(MCP_TOOL_RESPONSE_EVENT, {
               detail: { requestId, ok: true, result },
             }),
           );
         } catch (error) {
+          trackEvent("mcp.call", { tool, ok: false });
           window.dispatchEvent(
             new CustomEvent(MCP_TOOL_RESPONSE_EVENT, {
               detail: {

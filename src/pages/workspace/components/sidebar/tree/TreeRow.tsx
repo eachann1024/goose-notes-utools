@@ -28,6 +28,7 @@ import { useTabs } from "@/stores/useTabs";
 import type { FlatTreeItem } from "../tree-dnd";
 import { InlineOverflowRevealText } from "../InlineOverflowRevealText";
 import { SidebarContextMenu } from "../SidebarContextMenu";
+import { trackEvent } from "@/lib/analytics";
 import {
   LocalFileIcon,
   shouldRenderExpandArrowSlot,
@@ -196,7 +197,11 @@ export function SortablePageRow({
     closeNotebookAiIfFullscreen();
 
     if (isLocalFolder) {
-      void createLocalPage(page.id, activeNotebookId || undefined);
+      void createLocalPage(page.id, activeNotebookId || undefined).then(
+        (id) => {
+          if (id) trackEvent("note.create", { source: "sidebar" });
+        },
+      );
       if (!item.isOpen) {
         onToggleOpen(page.id);
       }
@@ -241,6 +246,7 @@ export function SortablePageRow({
     }
     const newId = createPage(page.id, activeNotebookId || DEFAULT_NOTEBOOK);
     if (!newId) return;
+    trackEvent("note.create", { source: "sidebar" });
     openInCurrentTab(newId);
   };
 

@@ -658,8 +658,18 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     // 注入标志：告知 QuickNoteApp 当前运行于 B 插件独立速记子窗，保存应 redirect 回 A。
     window.__GOOSE_QUICKNOTE_STANDALONE__ = true;
     try {
+      window.__gooseSystemInfo = {
+        osVersion: os.release(),
+        arch: process.arch,
+      };
+    } catch {
+      /* noop */
+    }
+    try {
       const { ipcRenderer } = require("electron");
       ipcRenderer.on("quicknote:enter", (_e, data) => {
+        window.__gooseLastEnterCode =
+          data?.mode === "last" ? "quicknote_last" : "quicknote_new";
         window.dispatchEvent(
           new CustomEvent("goose-note:quicknote-enter", { detail: data || {} }),
         );

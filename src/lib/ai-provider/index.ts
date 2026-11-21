@@ -1,3 +1,5 @@
+import { trackEvent } from "@/lib/analytics";
+
 export type {
   CustomAIProtocol,
   AIProviderIdLike,
@@ -172,6 +174,7 @@ export async function runAITextStream(
     options.onUpdate({ phase: "connecting", text: "", reasoningText: "" });
   }
 
+  const startedAt = Date.now();
   try {
     const finalChunk = await handleCustomStream(
       settings,
@@ -188,8 +191,16 @@ export async function runAITextStream(
         reasoningText: finalChunk.reasoningText,
       });
     }
+    trackEvent("ai.request", {
+      ok: true,
+      dur_ms: Date.now() - startedAt,
+    });
     return finalChunk.text;
   } catch (err: unknown) {
+    trackEvent("ai.request", {
+      ok: false,
+      dur_ms: Date.now() - startedAt,
+    });
     if (signal.aborted) {
       throw new DOMException("The operation was aborted", "AbortError");
     }

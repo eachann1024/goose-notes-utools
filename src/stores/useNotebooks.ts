@@ -6,6 +6,7 @@ import { fs } from "@/lib/utools/fs";
 import { persistPageSnapshots } from "./pages/persistence";
 import { useSettings } from "./useSettings";
 import { effectiveSingleTabMode } from "@/lib/tabMode";
+import { trackEvent } from "@/lib/analytics";
 
 export interface Notebook {
   id: string;
@@ -220,6 +221,9 @@ export const useNotebooks = create<NotebooksState>()(
           notebooks: nextNotebooks,
           activeNotebookId: finalId,
         });
+        if (!customId) {
+          trackEvent("notebook.create");
+        }
         return finalId;
       },
 
@@ -263,6 +267,7 @@ export const useNotebooks = create<NotebooksState>()(
           notebooks: nextNotebooks,
           activeNotebookId: id,
         });
+        trackEvent("notebook.mount_local");
         return id;
       },
 

@@ -58,6 +58,7 @@ import {
   computeEditorUiScale,
   EDITOR_UI_SCALE_CHANGE_EVENT,
 } from "@/lib/appearance";
+import { trackEvent } from "@/lib/analytics";
 
 const QUICKNOTE_STORE_HINT_ID = "quicknote-note-store-hint";
 const GOOSE_NOTE_STORE_URL =
@@ -231,6 +232,7 @@ export function QuickNoteApp() {
     }
     const filePath = quickNoteWindow.redirectSaveToMainApp(content);
     if (!filePath) {
+      trackEvent("quicknote.save", { ok: false });
       toast.error("无法存入鹅的笔记，请确认主插件已安装");
       return;
     }
@@ -257,6 +259,7 @@ export function QuickNoteApp() {
       }
       if (consumed) {
         stopWatch();
+        trackEvent("quicknote.save", { ok: true });
         toast.success("已存入鹅的笔记");
         useQuickNote.getState().clearDraft(savedSlot);
         if (useQuickNote.getState().activeSlot !== savedSlot) return;
@@ -277,6 +280,7 @@ export function QuickNoteApp() {
           /* 删除失败也要停掉轮询，草稿保持不动 */
         }
         stopWatch();
+        trackEvent("quicknote.save", { ok: false });
         toast.error("没能存进鹅的笔记，请确认已安装并启用鹅的笔记");
       }
     }, SAVE_TO_NOTES_POLL_MS);

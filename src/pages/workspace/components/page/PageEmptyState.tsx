@@ -21,6 +21,7 @@ import { useSettings } from "@/stores/useSettings";
 import { effectiveSingleTabMode } from "@/lib/tabMode";
 import { isElectronHost, pickVaultParentDirectory } from "@/lib/local-vault";
 import { CreateVaultDialog } from "@/pages/workspace/components/sidebar/CreateVaultDialog";
+import { trackEvent } from "@/lib/analytics";
 
 const isEmptyContent = (
   content:
@@ -166,7 +167,9 @@ export function PageEmptyState() {
     parentDir: string | null;
   }>({ open: false, parentDir: null });
 
-  const activateOrCreatePage = useCallback(async () => {
+  const activateOrCreatePage = useCallback(async (
+    source: "sidebar" | "shortcut" = "sidebar",
+  ) => {
     // Electron 仅本地文件夹模式：无仓库时禁止建页，也绝不自动创建内置笔记本
     if (isElectronHost && activeNotebook?.source !== "local-folder") return null;
     // 如果没有活跃笔记本，创建一个默认笔记本
@@ -187,7 +190,10 @@ export function PageEmptyState() {
 
     if (isLocalFolder) {
       const localPageId = await createLocalPage(undefined, notebookId || undefined);
-      if (localPageId) openInCurrentTab(localPageId);
+      if (localPageId) {
+        trackEvent("note.create", { source });
+        openInCurrentTab(localPageId);
+      }
       return localPageId;
     }
 
@@ -215,6 +221,9 @@ export function PageEmptyState() {
     }
 
     const newPageId = createPage(undefined, matchWorkspaceId);
+    if (newPageId) {
+      trackEvent("note.create", { source });
+    }
     openInCurrentTab(newPageId);
     return newPageId;
   }, [
@@ -231,7 +240,11 @@ export function PageEmptyState() {
   ]);
 
   const onCreatePage = useCallback(async () => {
-    await activateOrCreatePage();
+    await activateOrCreatePage("sidebar");
+  }, [activateOrCreatePage]);
+
+  const onCreatePageByShortcut = useCallback(async () => {
+    await activateOrCreatePage("shortcut");
   }, [activateOrCreatePage]);
 
   const onSearch = useCallback(() => {
@@ -262,7 +275,7 @@ export function PageEmptyState() {
       // Cmd+Option+P: 新建页面
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key === "p") {
         e.preventDefault();
-        onCreatePage();
+        void onCreatePageByShortcut();
       }
     };
 
@@ -270,7 +283,7 @@ export function PageEmptyState() {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onCreatePage]);
+  }, [onCreatePageByShortcut]);
 
   useEffect(() => {
     const syncPaused = () => setPaused(document.hidden);

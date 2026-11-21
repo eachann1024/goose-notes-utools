@@ -21,6 +21,7 @@ import { getFixedAppShortcuts } from "@/lib/fixed-app-shortcuts";
 import { isPlatformPrimaryModifierEvent } from "@/lib/shortcut-platform";
 import { closeNotebookAiIfFullscreen } from "@/pages/workspace/components/notebook-ai/useNotebookAiPanel";
 import { useLocalFolderTargetPicker } from "@/stores/useLocalFolderTargetPicker";
+import { trackEvent } from "@/lib/analytics";
 import {
   isImeKeyboardEvent,
   shouldSkipAppHotkeyEvent,
@@ -305,6 +306,7 @@ export function useAppHotkeys() {
                 ? await pagesStore.createLocalPage(undefined, activeNotebookId)
                 : pagesStore.createPage(undefined, activeNotebookId);
             if (!newPageId) return;
+            trackEvent("note.create", { source: "shortcut" });
             useTabs.getState().openTab(newPageId);
             toast.success(
               notebook?.source === "local-folder"

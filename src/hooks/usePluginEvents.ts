@@ -16,6 +16,7 @@ import {
   restoreLastNoteIfNeeded,
 } from "@/lib/workspaceStartup";
 import { getGooseDesktop } from "@/lib/electron/runtime";
+import { trackEvent } from "@/lib/analytics";
 
 type UToolsPluginEnterDetail = {
   code?: string;
@@ -101,6 +102,9 @@ export function usePluginEvents() {
       } else {
         // 解析失败或无选中文字：回退到空白新页，绝不复用/覆盖已存在页面。
         newId = pagesStore.createPage(undefined, nbId);
+      }
+      if (newId) {
+        trackEvent("note.create", { source: "shortcut" });
       }
       // openTab 内部会 scheduleSetActivePage → setActivePage（含 setLastActivePage），
       // 无需再显式调用，避免重复/竞态。

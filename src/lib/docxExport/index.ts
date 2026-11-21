@@ -15,6 +15,7 @@ import { prepareExportBlocks } from "@/lib/export/prepareExportBlocks";
 import { stripFirstH1 } from "@/lib/export/pageMarkdown";
 import { processBlockChildren, type DocxExportContext } from "./docxBlocks";
 import { emptyRun, resolveDocxFonts, runFont } from "./docxStyles";
+import { trackEvent } from "@/lib/analytics";
 import {
   DOCX_BODY_SIZE,
   DOCX_COLORS,
@@ -181,4 +182,5 @@ export async function exportToWord(page: Page) {
   const filename = `${sanitizeFileName(getPageTitle(page) || "untitled")}.docx`;
   const { saveBlobAndReveal } = await import("@/lib/export/fileSave");
   await saveBlobAndReveal(blob, filename);
+  trackEvent("export", { format: "docx" });
 }

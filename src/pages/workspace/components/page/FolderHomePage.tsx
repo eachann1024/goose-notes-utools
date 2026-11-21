@@ -27,6 +27,7 @@ import { useTabs } from "@/stores/useTabs";
 import { useSidebarView } from "@/stores/useSidebarView";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import { areSidebarPagesEqual } from "@/stores/pages/areSidebarPagesEqual";
+import { trackEvent } from "@/lib/analytics";
 
 interface FolderHomePageProps {
   page: Page;
@@ -85,6 +86,7 @@ export function FolderHomePage({ page }: FolderHomePageProps) {
         toast.error("新建文件失败，请重试");
         return;
       }
+      trackEvent("note.create", { source: "sidebar" });
       // createLocalPage 内部已激活新页；确保父文件夹在侧栏展开可见
       expandView(page.workspaceId, page.id);
     } finally {

@@ -2,6 +2,7 @@ import type { BlockNoteEditor } from "@blocknote/core";
 import { FilePanelExtension } from "@blocknote/core/extensions";
 import { GooseAIExtension } from "@/components/editor/ai/GooseAIExtension";
 import { createRoot, type Root } from "react-dom/client";
+import { trackEvent } from "@/lib/analytics";
 import {
   CheckSquare,
   Code,
@@ -183,7 +184,37 @@ export function getBlockNoteSlashMenuItems(
         target = inserted;
       }
     }
+const SLASH_BLOCK_TYPE_MAP: Record<string, string> = {
+  heading: "heading",
+  checkListItem: "checklist",
+  bulletListItem: "bullet_list",
+  numberedListItem: "numbered_list",
+  quote: "quote",
+  callout: "callout",
+  divider: "divider",
+  table: "table",
+  image: "image",
+  video: "video",
+  file: "file",
+};
+
+function resolveSlashInsertBlockType(block: {
+  type?: string;
+  props?: { language?: string };
+}): string {
+  if (block.type === "codeBlock") {
+    const lang = block.props?.language;
+    if (lang === "mermaid") return "mermaid";
+    if (lang === "math") return "math";
+    return "code_block";
+  }
+  return SLASH_BLOCK_TYPE_MAP[block.type ?? ""] ?? "other";
+}
+
     if (target?.id) focusAndScrollTo(target);
+    trackEvent("editor.block_insert", {
+      type: resolveSlashInsertBlockType(block),
+    });
     return target;
   };
 
