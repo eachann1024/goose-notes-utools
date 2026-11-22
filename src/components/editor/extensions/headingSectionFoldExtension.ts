@@ -71,6 +71,29 @@ function firstContainerId(doc: Node): string | undefined {
 
 type FoldSnapshots = Map<string, string[]>;
 
+const collapsedGroups = new WeakMap<Node, boolean>();
+
+function groupHasCollapsedHeading(group: Node): boolean {
+  const cached = collapsedGroups.get(group);
+  if (cached !== undefined) return cached;
+
+  let collapsed = false;
+  for (let index = 0; index < group.childCount; index += 1) {
+    const block = group.child(index);
+    if (block.type.name !== "blockContainer") continue;
+    const nested = block.lastChild;
+    if (
+      isCollapsedHeadingContent(block.firstChild, block) ||
+      (nested?.type.name === "blockGroup" && groupHasCollapsedHeading(nested))
+    ) {
+      collapsed = true;
+      break;
+    }
+  }
+  collapsedGroups.set(group, collapsed);
+  return collapsed;
+}
+
 /**
  * 收集 decorations：
  * - 隐藏区间 = snapshot 里仍存在的 sibling blockContainer + 标题残留 children；
@@ -169,37 +192,51 @@ export function collectSectionFoldDecorations(
   return DecorationSet.create(doc, decorations);
 }
 
-const headingSectionFoldPluginKey = new PluginKey<FoldSnapshots>(
+type HeadingSectionFoldState = {
+  snapshots: FoldSnapshots;
+  decorations: DecorationSet;
+};
+
+const emptyFoldState: HeadingSectionFoldState = {
+  snapshots: new Map(),
+  decorations: DecorationSet.empty,
+};
+
+function readHeadingSectionFoldState(
+  doc: Node,
+  previous: HeadingSectionFoldState = emptyFoldState,
+  previousDoc?: Node,
+): HeadingSectionFoldState {
+  const root = doc.firstChild;
+  if (!root || !groupHasCollapsedHeading(root)) return emptyFoldState;
+
+  const snapshots = updateFoldSnapshots(
+    previous.snapshots,
+    previousDoc ? sectionTreeFromDoc(previousDoc) : null,
+    sectionTreeFromDoc(doc),
+    firstContainerId(doc),
+  );
+  return { snapshots, decorations: collectSectionFoldDecorations(doc, snapshots) };
+}
+
+const headingSectionFoldPluginKey = new PluginKey<HeadingSectionFoldState>(
   "goose-heading-section-fold",
 );
 
-const headingSectionFoldPlugin = new Plugin<FoldSnapshots>({
+const headingSectionFoldPlugin = new Plugin<HeadingSectionFoldState>({
   key: headingSectionFoldPluginKey,
   state: {
     init(_, state) {
-      return updateFoldSnapshots(
-        new Map(),
-        null,
-        sectionTreeFromDoc(state.doc),
-        firstContainerId(state.doc),
-      );
+      return readHeadingSectionFoldState(state.doc);
     },
     apply(tr, value, oldState, newState) {
       if (!tr.docChanged) return value;
-      return updateFoldSnapshots(
-        value,
-        sectionTreeFromDoc(oldState.doc),
-        sectionTreeFromDoc(newState.doc),
-        firstContainerId(newState.doc),
-      );
+      return readHeadingSectionFoldState(newState.doc, value, oldState.doc);
     },
   },
   props: {
     decorations(state): DecorationSet {
-      return collectSectionFoldDecorations(
-        state.doc,
-        headingSectionFoldPluginKey.getState(state) ?? new Map(),
-      );
+      return headingSectionFoldPluginKey.getState(state)?.decorations ?? DecorationSet.empty;
     },
   },
 });
