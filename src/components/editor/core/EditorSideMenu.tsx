@@ -60,12 +60,14 @@ export function EditorSideMenu() {
   });
 
   const block = state?.block;
-  const firstBlockId = editor.document[0]?.id as string | undefined;
-  const showHeadingToggle = isFoldableHeadingBlock(block, firstBlockId);
-  const liveHeading = block ? editor.getBlock(block.id) ?? block : undefined;
-  const headingExpanded = liveHeading
-    ? !readHeadingCollapsed(liveHeading)
-    : false;
+  const showHeadingToggle = isFoldableHeadingBlock(
+    block,
+    editor.prosemirrorState.doc.firstChild?.firstChild?.attrs.id,
+  );
+  const liveHeading = showHeadingToggle && block
+    ? editor.getBlock(block.id) ?? block
+    : undefined;
+  const headingExpanded = liveHeading ? !readHeadingCollapsed(liveHeading) : false;
   void foldTick;
 
   const sideMenuGap =
