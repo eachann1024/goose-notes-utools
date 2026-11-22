@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { CircleAlert, Save, X, Pencil } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import {
@@ -99,7 +100,6 @@ export function QuickNoteApp() {
   } | null>(null);
 
   const activeSlot = useQuickNote((s) => s.activeSlot);
-  const drafts = useQuickNote((s) => s.drafts);
   const setActiveSlot = useQuickNote((s) => s.setActiveSlot);
   const setDraftContent = useQuickNote((s) => s.setDraftContent);
   const undoDraft = useQuickNote((s) => s.undoDraft);
@@ -167,24 +167,20 @@ export function QuickNoteApp() {
 
   const displaySlot = previewSlot ?? activeSlot;
   const displaySlotName = getQuickNoteSlotName(displaySlot, slotNames);
-  const occupiedSlots = useMemo(
-    () =>
+  const occupiedSlots = useQuickNote(
+    useShallow((state) =>
       Object.fromEntries(
         QUICKNOTE_SLOTS.map((slot) => [
           slot,
-          !isQuickNoteDraftEmpty(drafts[slot] ?? null),
+          !isQuickNoteDraftEmpty(state.drafts[slot] ?? null),
         ]),
       ) as Record<QuickNoteSlot, boolean>,
-    [drafts],
+    ),
   );
 
-  // 草稿 page：基于显示槽位草稿现造。仅随 displaySlot / 历史恢复重建，
-  // 避免编辑 onChange 回灌打断输入。预览拖动时只换显示、不改 activeSlot。
+  // 当前编辑器维护正文。切槽或撤销/重做时才读取草稿以重建编辑器。
   const draftPage = useMemo(
-    () => buildQuickNoteDraftPage(drafts[displaySlot] ?? null),
-    // 有意不依赖 drafts 的每次击键：槽位内容变更由编辑器内部维护。
-    // historyEpoch 仅在撤销/重做后变化。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => buildQuickNoteDraftPage(useQuickNote.getState().drafts[displaySlot] ?? null),
     [displaySlot, historyEpoch],
   );
 
@@ -197,10 +193,9 @@ export function QuickNoteApp() {
   const onDraftChange = useMemo(() => {
     const boundSlot = displaySlot;
     return (content: BlockNoteContent) => {
-      const signature = getContentSignature(content);
       const restored = restoredContentSignatureRef.current;
       const isRestoreSync =
-        restored?.slot === boundSlot && signature === restored.signature;
+        restored?.slot === boundSlot && getContentSignature(content) === restored.signature;
       if (restored?.slot === boundSlot) {
         restoredContentSignatureRef.current = null;
       }
