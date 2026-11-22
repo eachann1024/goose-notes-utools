@@ -394,6 +394,7 @@ export function Sidebar({
                     )}
                   >
                     <SidebarOutline
+                      enabled={currentView === "outline" && !sidebarCollapsed}
                       editorRef={editorRef}
                       scrollContainerRef={scrollContainerRef}
                       pageId={activePageId}

@@ -25,6 +25,7 @@ export function getHeadingAnchorElement(
 export function useActiveHeading(
   scrollContainerRef: React.RefObject<HTMLDivElement | null> | undefined,
   headingIds: string[],
+  enabled: boolean,
 ) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -101,6 +102,7 @@ export function useActiveHeading(
   }, [findTopMost]);
 
   useEffect(() => {
+    if (!enabled) return;
     const container = scrollContainerRef?.current;
     if (!container || headingIds.length === 0) {
       setActiveId(null);
@@ -136,7 +138,7 @@ export function useActiveHeading(
         frameRef.current = null;
       }
     };
-  }, [scrollContainerRef, headingIds, findTopMost, scheduleFindTopMost]);
+  }, [enabled, scrollContainerRef, headingIds, findTopMost, scheduleFindTopMost]);
 
   return activeId;
 }

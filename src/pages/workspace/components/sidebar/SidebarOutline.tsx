@@ -16,15 +16,17 @@ interface SidebarOutlineProps {
   editorRef?: React.RefObject<EditorRef | null>;
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
   pageId?: string | null;
+  enabled: boolean;
 }
 
 export function SidebarOutline({
   editorRef,
   scrollContainerRef,
   pageId,
+  enabled,
 }: SidebarOutlineProps) {
   const editor = editorRef?.current?.editor ?? null;
-  const headings = useHeadings(editor, pageId);
+  const headings = useHeadings(editor, enabled, pageId);
   const headingIds = useMemo(() => {
     const ids: string[] = [];
     const visit = (items: HeadingItem[]) => {
@@ -38,7 +40,7 @@ export function SidebarOutline({
     visit(headings);
     return ids;
   }, [headings]);
-  const activeId = useActiveHeading(scrollContainerRef, headingIds);
+  const activeId = useActiveHeading(scrollContainerRef, headingIds, enabled);
 
   const handleHeadingClick = useCallback(
     (blockId: string) => {

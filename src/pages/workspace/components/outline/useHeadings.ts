@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import type { BlockNoteEditor } from "@blocknote/core";
 import { isFoldableHeadingBlock } from "@/components/editor/core/headingSectionFold";
 
@@ -87,54 +87,45 @@ function headingsEqual(left: HeadingItem[], right: HeadingItem[]): boolean {
 
 export function useHeadings(
   editor: BlockNoteEditor | null,
+  enabled: boolean,
   pageId?: string | null,
 ) {
   const [headings, setHeadings] = useState<HeadingItem[]>([]);
 
-  const refresh = useCallback(() => {
+  useEffect(() => {
+    if (!enabled) return;
     if (!editor) {
-      setHeadings([]);
+      setHeadings((current) => (current.length ? [] : current));
       return;
     }
-    const doc = editor.document as any[];
-    const nextHeadings = collectHeadings(doc);
-    // 非标题编辑同样会触发 editor.onChange；内容未变时沿用旧引用，
-    // 避免大纲面板的无关重渲染。标题文案、层级或收起状态变化仍会立即更新。
-    setHeadings((current) =>
-      headingsEqual(current, nextHeadings) ? current : nextHeadings,
-    );
-  }, [editor]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh, pageId]);
-
-  useEffect(() => {
-    if (!editor) return;
-    // IME composition 期间每个拼音中间态都会触发 onChange，这里调 editor.document
-    // 全量转换 + collectHeadings 遍历全文 + setHeadings 触发大纲面板重渲染，
-    // 高频叠加会与 PM composition 抢主线程导致输入卡顿。composition 中跳过，
-    // compositionend 后刷新一次即可（大纲对中间态不可见，无功能损失）。
-    const isComposing = () =>
-      Boolean(
-        (editor as { prosemirrorView?: { composing?: boolean } }).prosemirrorView
-          ?.composing,
+    const refresh = () => {
+      const nextHeadings = collectHeadings(editor.document);
+      setHeadings((current) =>
+        headingsEqual(current, nextHeadings) ? current : nextHeadings,
       );
-    const unsub = editor.onChange?.(() => {
-      if (isComposing()) return;
-      refresh();
+    };
+    let frame: number | null = null;
+    const scheduleRefresh = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        if (!editor.prosemirrorView?.composing) refresh();
+      });
+    };
+    const unsubscribe = editor.onChange(() => {
+      if (!editor.prosemirrorView?.composing) scheduleRefresh();
     });
-    const dom = (editor as { prosemirrorView?: { dom?: HTMLElement } })
-      .prosemirrorView?.dom;
-    const handleCompositionEnd = () => {
-      requestAnimationFrame(() => refresh());
-    };
-    dom?.addEventListener("compositionend", handleCompositionEnd);
+    const dom = editor.prosemirrorView?.dom;
+    dom?.addEventListener("compositionend", scheduleRefresh);
+    refresh();
+
     return () => {
-      if (typeof unsub === "function") unsub();
-      dom?.removeEventListener("compositionend", handleCompositionEnd);
+      unsubscribe?.();
+      dom?.removeEventListener("compositionend", scheduleRefresh);
+      if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [editor, refresh]);
+  }, [editor, enabled, pageId]);
 
   return headings;
 }
