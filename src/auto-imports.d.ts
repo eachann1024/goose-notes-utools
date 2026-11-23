@@ -470,6 +470,7 @@ declare global {
   const normalizeExternalUrl: typeof import('./lib/openExternalUrl').normalizeExternalUrl
   const normalizeHeadingSectionFold: typeof import('./components/editor/utils/blocknote-content/index').normalizeHeadingSectionFold
   const normalizeHeadingToggleableFlags: typeof import('./components/editor/utils/blocknote-content/index').normalizeHeadingToggleableFlags
+  const normalizeLocalFolderAppId: typeof import('./lib/local-folder-open-apps').normalizeLocalFolderAppId
   const normalizeMarkdownPasteText: typeof import('./components/editor/utils/clipboard').normalizeMarkdownPasteText
   const normalizePageContent: typeof import('./components/editor/utils/blocknote-content/index').normalizePageContent
   const normalizePageTitle: typeof import('./components/editor/utils/page-title').normalizePageTitle

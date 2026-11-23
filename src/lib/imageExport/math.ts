@@ -64,24 +64,7 @@ async function renderMathBlockAsImage(block: any, theme: CardTheme): Promise<voi
 
   try {
     const { default: katex } = await import("katex");
-    // 确保 katex CSS 已注入（MathView 运行时会带；导出时可能未加载）
-    if (typeof document !== "undefined" && !document.getElementById("goose-katex-css")) {
-      try {
-        // 动态 import 副作用 CSS 可能不可用；忽略失败，依赖内联样式
-        const link = document.createElement("link");
-        link.id = "goose-katex-css";
-        link.rel = "stylesheet";
-        link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
-        document.head.appendChild(link);
-        await new Promise<void>((resolve) => {
-          link.onload = () => resolve();
-          link.onerror = () => resolve();
-          setTimeout(() => resolve(), 1500);
-        });
-      } catch {
-        // ignore
-      }
-    }
+    await import("katex/dist/katex.min.css");
 
     const html = katex.renderToString(source, {
       displayMode: true,

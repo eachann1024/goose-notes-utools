@@ -6,6 +6,7 @@ import {
   getMermaidInitConfig,
   stripMermaidInitDirectives,
 } from "@/lib/imageExport/mermaidTheme";
+import { sanitizeRenderedSvg } from "@/lib/notebook-ai/svgSanitizer";
 import { tryRenderMermaidTimeline } from "@/lib/imageExport/timelineSvg";
 
 interface MermaidViewProps {
@@ -14,7 +15,7 @@ interface MermaidViewProps {
 
 export const MermaidView: React.FC<MermaidViewProps> = ({ value }) => {
   const [svg, setSvg] = useState<string>("");
-  const { theme, features } = useEditorSettings();
+  const { theme } = useEditorSettings();
   const resolvedTheme = useResolvedTheme(theme);
   const skipDebounceRef = useRef(true);
 
@@ -33,7 +34,7 @@ export const MermaidView: React.FC<MermaidViewProps> = ({ value }) => {
           isDark ? "dark" : "light",
         );
         if (timeline) {
-          if (active) setSvg(timeline);
+          if (active) setSvg(sanitizeRenderedSvg(timeline));
           return;
         }
         const mermaid = await loadMermaid();
@@ -41,7 +42,7 @@ export const MermaidView: React.FC<MermaidViewProps> = ({ value }) => {
         mermaid.initialize(
           getMermaidInitConfig({
             mode: isDark ? "dark" : "light",
-            securityLevel: features.mermaidUnsafeHTML ? "loose" : "strict",
+            securityLevel: "strict",
             fontFamily: "inherit",
             useMaxWidth: true,
           }),
@@ -49,7 +50,7 @@ export const MermaidView: React.FC<MermaidViewProps> = ({ value }) => {
         const id = `mermaid-${Math.random().toString(36).slice(2, 11)}`;
         const { svg } = await mermaid.render(id, stripMermaidInitDirectives(value));
         if (!active) return;
-        setSvg(svg);
+        setSvg(sanitizeRenderedSvg(svg));
       } catch {
         if (active) setSvg("");
       }
@@ -64,7 +65,7 @@ export const MermaidView: React.FC<MermaidViewProps> = ({ value }) => {
       active = false;
       if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [features.mermaidUnsafeHTML, value, resolvedTheme]);
+  }, [value, resolvedTheme]);
 
   if (!svg) return null;
 

@@ -51,10 +51,16 @@ export interface UToolsSettings {
 /** Agent 运行时：pi = Pi harness；legacy = 自研 ToolLoopAgent。 */
 export type AIAgentRuntime = "legacy" | "pi";
 
+export interface AISelectedContextFile {
+  path: string;
+  name: string;
+}
+
 export interface AISettings {
   enabled: boolean;
   readGlobalPrompt: boolean;
   readLocalSkills: boolean;
+  selectedContextFiles: AISelectedContextFile[];
   /** Agent 运行时；默认 pi。可用 localStorage goose-ai-runtime 覆盖。 */
   runtime: AIAgentRuntime;
   selectedModelId: string | null;
@@ -596,12 +602,33 @@ export function normalizeAISettings(
         customClaudeBaseURL,
       });
 
+  const selectedContextFiles: AISelectedContextFile[] = Array.isArray(
+    ai?.selectedContextFiles,
+  )
+    ? ai.selectedContextFiles
+        .filter(
+          (item): item is AISelectedContextFile =>
+            Boolean(item) &&
+            typeof item === "object" &&
+            typeof (item as AISelectedContextFile).path === "string" &&
+            (item as AISelectedContextFile).path.trim().length > 0,
+        )
+        .map((item) => ({
+          path: item.path.trim(),
+          name:
+            typeof item.name === "string" && item.name.trim()
+              ? item.name.trim()
+              : item.path.split(/[\\/]/).pop() || item.path,
+        }))
+    : [];
+
   return {
     enabled: Boolean(ai?.enabled),
     readGlobalPrompt:
-      typeof ai?.readGlobalPrompt === "boolean" ? ai.readGlobalPrompt : true,
+      typeof ai?.readGlobalPrompt === "boolean" ? ai.readGlobalPrompt : false,
     readLocalSkills:
-      typeof ai?.readLocalSkills === "boolean" ? ai.readLocalSkills : true,
+      typeof ai?.readLocalSkills === "boolean" ? ai.readLocalSkills : false,
+    selectedContextFiles,
     runtime,
     selectedModelId,
     workspaceSelectedModelId: storedWorkspaceSelectedModelId,

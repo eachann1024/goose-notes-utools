@@ -6,14 +6,7 @@ export const DEFAULT_FONT_NAMES = {
   mono: "DM Mono",
 } as const;
 
-const HARMONYOS_SPLIT_CSS = {
-  primary:
-    "https://cdn.jsdelivr.net/npm/harmonyos-sans-webfont-splitted@1.2.1/dist/HarmonyOS_Sans_SC/Regular/Regular.css",
-  fallback:
-    "https://unpkg.com/harmonyos-sans-webfont-splitted@1.2.1/dist/HarmonyOS_Sans_SC/Regular/Regular.css",
-} as const;
-
-/** 本机安装时的常见 family / 文件名，先于远端。 */
+/** 本机安装时的常见 family / 文件名，仅使用本地字体，不再请求外部 CDN。 */
 const CANGER_JINKAI_LOCAL_NAMES = [
   "仓耳今楷",
   "仓耳今楷03W04",
@@ -23,18 +16,7 @@ const CANGER_JINKAI_LOCAL_NAMES = [
 
 const SERIF_LOCAL_FALLBACKS = ["Songti SC", "STSong", "SimSun", "Cambria"];
 
-/** 钉 commit 的仓耳今楷 woff2：国内镜像优先，再 jsDelivr / GitHub raw。不要拷进项目。 */
-const CANGER_JINKAI_WOFF2_URLS = [
-  "https://cdn.jsdmirror.com/gh/eachann1024/Resources@d6dc229cd882dc0983dc5ce7cf28fb85047a4a76/%E4%BB%93%E8%80%B3%E4%BB%8A%E6%A5%B703W04.woff2",
-  "https://cdn.jsdelivr.net/gh/eachann1024/Resources@d6dc229cd882dc0983dc5ce7cf28fb85047a4a76/%E4%BB%93%E8%80%B3%E4%BB%8A%E6%A5%B703W04.woff2",
-  "https://raw.githubusercontent.com/eachann1024/Resources/d6dc229cd882dc0983dc5ce7cf28fb85047a4a76/%E4%BB%93%E8%80%B3%E4%BB%8A%E6%A5%B703W04.woff2",
-] as const;
-
-/** 鸿蒙走分包 CSS（unicode-range 按需拉 woff2）；仓耳今楷走 @font-face 远端 woff2。 */
-export const REMOTE_FONT_SOURCES = {
-  "HarmonyOS Sans SC": HARMONYOS_SPLIT_CSS,
-  仓耳今楷: CANGER_JINKAI_WOFF2_URLS,
-} as const;
+export const REMOTE_FONT_SOURCES = {} as const;
 
 const UI_SANS_FALLBACKS = [
   "-apple-system",
@@ -63,7 +45,6 @@ const UI_MONO_FALLBACKS = [
 type PersistentWoff2Family = "仓耳今楷";
 
 const persistentFontLoads = new Map<string, Promise<boolean>>();
-let harmonyOSCssEnsured = false;
 
 const trimFontName = (font: string) =>
   font.trim().replace(/^["']+|["']+$/g, "");
@@ -151,47 +132,9 @@ const getPlatformFallbacks = () => {
 
 const joinFonts = (fonts: string[]) => fonts.filter(Boolean).join(", ");
 
-const injectStylesheet = (href: string, onError?: () => void) => {
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = href;
-  link.crossOrigin = "anonymous";
-  if (onError) link.onerror = onError;
-  document.head.appendChild(link);
-};
-
-/** 外网字体不参与初始文档加载；再让出一个任务，避开宿主的 load 回调。 */
-const waitForPageLoad = async () => {
-  if (document.readyState !== "complete") {
-    await new Promise<void>((resolve) => {
-      window.addEventListener("load", () => resolve(), { once: true });
-    });
-  }
-  await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-};
-
-/** 唯一的鸿蒙分包 CSS 入口，页面加载完成后才挂载，失败时改用备用 CDN。 */
-const ensureHarmonyOSSplitCss = () => {
-  if (harmonyOSCssEnsured || typeof document === "undefined") return;
-  harmonyOSCssEnsured = true;
-
-  void waitForPageLoad().then(() => {
-    const { primary, fallback } = REMOTE_FONT_SOURCES["HarmonyOS Sans SC"];
-    injectStylesheet(primary, () => {
-      console.warn("[fontLoader] HarmonyOS Sans SC 主 CDN 失败，改用 unpkg");
-      injectStylesheet(fallback, () => {
-        console.warn(
-          "[fontLoader] HarmonyOS Sans SC 远程字体均失败，回退系统中文字体",
-        );
-      });
-    });
-  });
-};
-
-/** 启动时仅安排鸿蒙分包；仓耳今楷由使用衬线字体的笔记按需加载。 */
+/** 仅使用本地字体，不再向外部 CDN 注入样式表。 */
 export function preloadFonts() {
-  if (typeof document === "undefined") return;
-  ensureHarmonyOSSplitCss();
+  // 默认离线，不发外部字体 CDN 请求
 }
 
 const isFontReady = (family: string) =>
@@ -219,24 +162,8 @@ const tryInstallLocalFont = async (family: PersistentWoff2Family) => {
 
 const installRemoteFontFromUrls = async (family: PersistentWoff2Family) => {
   if (await tryInstallLocalFont(family)) return true;
-
   await waitForFonts([family]);
-  if (isFontReady(family)) return true;
-
-  for (const url of CANGER_JINKAI_WOFF2_URLS) {
-    try {
-      const face = new FontFace(family, `url("${url}")`, {
-        style: "normal",
-        weight: "400",
-      });
-      await face.load();
-      document.fonts.add(face);
-      return true;
-    } catch (error) {
-      console.warn(`[fontLoader] ${family} 从 ${url} 加载失败`, error);
-    }
-  }
-  return false;
+  return isFontReady(family);
 };
 
 /**
@@ -285,7 +212,6 @@ export async function ensureEditorFontAvailable(
 
 export function applyFontVariables(customFonts: CustomFonts) {
   if (typeof document === "undefined") return;
-  ensureHarmonyOSSplitCss();
   const fallbacks = getPlatformFallbacks();
   const root = document.documentElement;
   const customDefaultList = splitFontList(customFonts.default.font);

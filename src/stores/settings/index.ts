@@ -53,6 +53,13 @@ import {
 import { createWebdavSlice, type WebdavSlice } from "./slices/webdavSlice";
 import { normalizeWatermarkConfig } from "@/lib/imageExport";
 import { migrateSettingsPersistedState } from "./migrations";
+import {
+  hasAnySecret,
+  readLocalSecrets,
+  writeLocalSecrets,
+  type LocalSecretsPayload,
+} from "./localSecrets";
+import { normalizeLocalFolderAppId } from "@/lib/local-folder-open-apps";
 
 export type SettingsState = AISlice &
   AppearanceSlice &
@@ -140,6 +147,27 @@ export const useSettings = create<SettingsState>()(
         migrateSettingsPersistedState(persistedState),
       storage: createJSONStorage(() => uToolsStorage),
       skipHydration: true,
+      partialize: (state) => {
+        const {
+          _hasHydrated: _ignoreHydrated,
+          webdavPassword: _ignoreWebdavPassword,
+          ai,
+          ...rest
+        } = state;
+        return {
+          ...rest,
+          webdavPassword: "",
+          ai: ai
+            ? {
+                ...ai,
+                customOpenAIResponsesApiKey: "",
+                customOpenAIApiKey: "",
+                customClaudeApiKey: "",
+                tinyfishApiKey: "",
+              }
+            : ai,
+        };
+      },
       onRehydrateStorage: () => (state) => {
         const theme = state?.theme || "system";
         const accentColor = normalizeAccentColor(state?.accentColor);
@@ -383,18 +411,18 @@ export const useSettings = create<SettingsState>()(
         }
 
         if (state) {
-          const normalizedLocalFolderFileManager =
-            typeof state.localFolderFileManager === "string"
-              ? state.localFolderFileManager.trim()
-              : "";
-          const normalizedLocalFolderExternalEditor =
-            typeof state.localFolderExternalEditor === "string"
-              ? state.localFolderExternalEditor.trim()
-              : "";
-          const normalizedLocalFolderTerminal =
-            typeof state.localFolderTerminal === "string"
-              ? state.localFolderTerminal.trim()
-              : "";
+          const normalizedLocalFolderFileManager = normalizeLocalFolderAppId(
+            "file-manager",
+            state.localFolderFileManager,
+          );
+          const normalizedLocalFolderExternalEditor = normalizeLocalFolderAppId(
+            "editor",
+            state.localFolderExternalEditor,
+          );
+          const normalizedLocalFolderTerminal = normalizeLocalFolderAppId(
+            "terminal",
+            state.localFolderTerminal,
+          );
           const normalizedLocalFolderHiddenFolders = Array.isArray(
             state.localFolderHiddenFolders,
           )
@@ -418,6 +446,58 @@ export const useSettings = create<SettingsState>()(
               localFolderHiddenFolders: normalizedLocalFolderHiddenFolders,
             });
           }
+
+          // 建议 #1：把旧版写入同步 utools.db 的密钥平滑迁移到纯本地存储，并擦除同步库明文。
+          const legacySecrets: LocalSecretsPayload = {
+            customOpenAIResponsesApiKey:
+              state.ai?.customOpenAIResponsesApiKey || undefined,
+            customOpenAIApiKey: state.ai?.customOpenAIApiKey || undefined,
+            customClaudeApiKey: state.ai?.customClaudeApiKey || undefined,
+            tinyfishApiKey: state.ai?.tinyfishApiKey || undefined,
+            webdavPassword: state.webdavPassword || undefined,
+          };
+          const storedLocalSecrets = readLocalSecrets();
+          const mergedSecrets: LocalSecretsPayload = {
+            customOpenAIResponsesApiKey:
+              storedLocalSecrets.customOpenAIResponsesApiKey ||
+              legacySecrets.customOpenAIResponsesApiKey ||
+              "",
+            customOpenAIApiKey:
+              storedLocalSecrets.customOpenAIApiKey ||
+              legacySecrets.customOpenAIApiKey ||
+              "",
+            customClaudeApiKey:
+              storedLocalSecrets.customClaudeApiKey ||
+              legacySecrets.customClaudeApiKey ||
+              "",
+            tinyfishApiKey:
+              storedLocalSecrets.tinyfishApiKey ||
+              legacySecrets.tinyfishApiKey ||
+              "",
+            webdavPassword:
+              storedLocalSecrets.webdavPassword ||
+              legacySecrets.webdavPassword ||
+              "",
+          };
+          if (hasAnySecret(legacySecrets)) {
+            writeLocalSecrets(mergedSecrets);
+          }
+          if (hasAnySecret(mergedSecrets)) {
+            useSettings.setState({
+              webdavPassword: mergedSecrets.webdavPassword || "",
+              ai: {
+                ...useSettings.getState().ai,
+                customOpenAIResponsesApiKey:
+                  mergedSecrets.customOpenAIResponsesApiKey || "",
+                customOpenAIApiKey: mergedSecrets.customOpenAIApiKey || "",
+                customClaudeApiKey: mergedSecrets.customClaudeApiKey || "",
+                tinyfishApiKey: mergedSecrets.tinyfishApiKey || "",
+              },
+            });
+          } else if (hasAnySecret(legacySecrets)) {
+            // 触发一次 partialize 写回，清理同步库中的旧明文
+            useSettings.setState({});
+          }
         }
         // 标记 hydration 完成
         useSettings.setState({ _hasHydrated: true });
@@ -425,6 +505,26 @@ export const useSettings = create<SettingsState>()(
     },
   ),
 );
+
+useSettings.subscribe((state, prevState) => {
+  if (!state._hasHydrated) return;
+  const secretsChanged =
+    state.ai.customOpenAIResponsesApiKey !==
+      prevState.ai.customOpenAIResponsesApiKey ||
+    state.ai.customOpenAIApiKey !== prevState.ai.customOpenAIApiKey ||
+    state.ai.customClaudeApiKey !== prevState.ai.customClaudeApiKey ||
+    state.ai.tinyfishApiKey !== prevState.ai.tinyfishApiKey ||
+    state.webdavPassword !== prevState.webdavPassword ||
+    !prevState._hasHydrated;
+  if (!secretsChanged) return;
+  writeLocalSecrets({
+    customOpenAIResponsesApiKey: state.ai.customOpenAIResponsesApiKey,
+    customOpenAIApiKey: state.ai.customOpenAIApiKey,
+    customClaudeApiKey: state.ai.customClaudeApiKey,
+    tinyfishApiKey: state.ai.tinyfishApiKey,
+    webdavPassword: state.webdavPassword,
+  });
+});
 
 // 监听系统主题变化
 if (typeof window !== "undefined") {

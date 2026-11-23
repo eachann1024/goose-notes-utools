@@ -189,6 +189,48 @@ function ensureRenderableSvg(svg: string): string {
   return next;
 }
 
+/**
+ * 过滤本地渲染器（如 Mermaid）产出的 SVG：保留图表所需的 <style> 与 <foreignObject>，
+ * 但移除所有可执行脚本、危险标签、on* 事件属性以及 javascript:/vbscript:/data:text/html 协议。
+ */
+export function sanitizeRenderedSvg(svg: string): string {
+  if (!svg) return "";
+  let cleaned = svg;
+  if (typeof window !== "undefined") {
+    const purifierFactory = createDOMPurify as unknown as
+      | { sanitize?: typeof createDOMPurify.sanitize }
+      | ((root: Window) => { sanitize: typeof createDOMPurify.sanitize });
+    const purifier =
+      typeof purifierFactory === "function"
+        ? purifierFactory(window)
+        : purifierFactory;
+    if (typeof purifier.sanitize === "function") {
+      cleaned = purifier.sanitize(svg, {
+        USE_PROFILES: { svg: true, svgFilters: true, html: true },
+        ADD_TAGS: ["foreignObject"],
+        FORBID_TAGS: ["script", "iframe", "object", "embed", "link", "meta", "base"],
+        FORBID_ATTR: ["srcdoc"],
+        ALLOW_UNKNOWN_PROTOCOLS: false,
+      });
+    }
+  }
+  return cleaned
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<(?:iframe|object|embed|link|meta|base)\b[^>]*\/?>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(
+      /\s(?:href|xlink:href|src|action|formaction)\s*=\s*(?:"\s*(?:javascript|vbscript|data:text\/html)[^"]*"|'\s*(?:javascript|vbscript|data:text\/html)[^']*')/gi,
+      "",
+    )
+    .replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi, (_m, attrs, css) => {
+      const safeCss = String(css)
+        .replace(/@import\b[^;]*;?/gi, "")
+        .replace(/expression\s*\([^)]*\)/gi, "")
+        .replace(/javascript\s*:/gi, "");
+      return `<style${attrs}>${safeCss}</style>`;
+    });
+}
+
 export function normalizeRenderableSvgMarkup(svg: string): string {
   return ensureRenderableSvg(svg.trim());
 }

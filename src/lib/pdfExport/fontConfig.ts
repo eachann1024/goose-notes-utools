@@ -39,16 +39,13 @@ export const PDF_FONT_RELATIVE_PATHS = [
   "fonts/NotoSansSC-Regular.otf",
 ] as const;
 
-/** Noto Sans SC static TTF（fontsource 分包，钉版本）。不要 WOFF2 / OTF。 */
-export const PDF_CJK_FONT_URLS = [
-  "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@5.2.8/chinese-simplified-400-normal.ttf",
-  "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@5.1.0/chinese-simplified-400-normal.ttf",
+/** 仅使用本地相对路径，不再请求外部 CDN 字体。 */
+export const PDF_CJK_FONT_URLS: readonly string[] = [
+  "fonts/NotoSansSC-Regular.ttf",
+  "fonts/NotoSansSC-Regular.otf",
 ] as const;
 
-export const PDF_DM_MONO_TTF_URLS = [
-  "https://cdn.jsdelivr.net/fontsource/fonts/dm-mono@5.2.6/latin-400-normal.ttf",
-  "https://github.com/google/fonts/raw/main/ofl/dmmono/DMMono-Regular.ttf",
-] as const;
+export const PDF_DM_MONO_TTF_URLS: readonly string[] = [] as const;
 
 const MIN_CJK_FONT_BYTES = 100_000;
 const MIN_LATIN_FONT_BYTES = 4_000;

@@ -26,6 +26,8 @@ export interface AISliceActions {
   setAIEnabled: (enabled: boolean) => void;
   setAIReadGlobalPrompt: (enabled: boolean) => void;
   setAIReadLocalSkills: (enabled: boolean) => void;
+  addAISelectedContextFiles: (files: Array<{ path: string; name: string }>) => void;
+  removeAISelectedContextFile: (filePath: string) => void;
   setAISelectedModelId: (modelId: string | null) => void;
   setAIWorkspaceSelectedModelId: (modelId: string | null) => void;
   setAIWorkspaceReasoningLevel: (level: AIReasoningLevel) => void;
@@ -43,8 +45,9 @@ export type AISlice = AISliceState & AISliceActions;
 export const AI_INITIAL_STATE: AISliceState = {
   ai: {
     enabled: false,
-    readGlobalPrompt: true,
-    readLocalSkills: true,
+    readGlobalPrompt: false,
+    readLocalSkills: false,
+    selectedContextFiles: [],
     runtime: "pi",
     selectedModelId: null,
     workspaceSelectedModelId: null,
@@ -78,6 +81,27 @@ export function createAISlice(set: SetFn): AISlice {
       set((state) => ({ ai: { ...state.ai, readGlobalPrompt } })),
     setAIReadLocalSkills: (readLocalSkills) =>
       set((state) => ({ ai: { ...state.ai, readLocalSkills } })),
+    addAISelectedContextFiles: (files) =>
+      set((state) => {
+        const existing = state.ai.selectedContextFiles ?? [];
+        const seen = new Set(existing.map((f) => f.path));
+        const added = files.filter((f) => f.path && !seen.has(f.path));
+        return {
+          ai: {
+            ...state.ai,
+            selectedContextFiles: [...existing, ...added],
+          },
+        };
+      }),
+    removeAISelectedContextFile: (filePath) =>
+      set((state) => ({
+        ai: {
+          ...state.ai,
+          selectedContextFiles: (state.ai.selectedContextFiles ?? []).filter(
+            (f) => f.path !== filePath,
+          ),
+        },
+      })),
     setAISelectedModelId: (selectedModelId) =>
       set((state) => {
         const nextAI = { ...state.ai, selectedModelId };

@@ -78,7 +78,6 @@ export function SettingsLocalFolder({
             value={localFolderFileManager}
             onChange={setLocalFolderFileManager}
             defaultLabel={systemDefaultLabels.fileManager}
-            customPlaceholder="如：Path Finder"
             options={fileManagerOptions}
           />
           <OpenAppField
@@ -89,7 +88,6 @@ export function SettingsLocalFolder({
             value={localFolderExternalEditor}
             onChange={setLocalFolderExternalEditor}
             defaultLabel="系统默认"
-            customPlaceholder="如：Cursor、Zed、code -r"
             options={editorOptions}
           />
           <OpenAppField
@@ -100,7 +98,6 @@ export function SettingsLocalFolder({
             value={localFolderTerminal}
             onChange={setLocalFolderTerminal}
             defaultLabel={systemDefaultLabels.terminal}
-            customPlaceholder="如：Ghostty、iTerm、wezterm"
             options={terminalOptions}
           />
         </div>

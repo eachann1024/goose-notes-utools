@@ -12,7 +12,6 @@ import { getExportHtmlCss, sanitizePrintCss } from "@/lib/export/exportHtmlCss";
 import {
   EXPORT_HTML_HEAD_ASSETS,
 } from "@/lib/export/blocknoteSerializer";
-import { getMermaidInitConfig } from "@/lib/imageExport/mermaidTheme";
 
 const PRINT_FONT_STACK =
   '"PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
@@ -135,31 +134,7 @@ ${editorCss}
 ${bodyHeading}${wrapExportEditorHtml(bodyHtml)}
 </main>
 <script>
-window.__GOOSE_PRINT_READY__ = false;
-</script>
-<script type="module">
-const done = () => { window.__GOOSE_PRINT_READY__ = true; };
-const timeout = new Promise((resolve) => setTimeout(resolve, 6000));
-try {
-  await Promise.race([
-    (async () => {
-      const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
-      mermaid.initialize(${JSON.stringify({
-        ...getMermaidInitConfig({
-          mode: "light",
-          securityLevel: "loose",
-          useMaxWidth: true,
-        }),
-        startOnLoad: true,
-      })});
-      if (typeof mermaid.run === "function") {
-        await mermaid.run();
-      }
-    })(),
-    timeout,
-  ]);
-} catch (e) { console.warn("[printPdf] mermaid 加载失败:", e); }
-done();
+window.__GOOSE_PRINT_READY__ = true;
 </script>
 </body>
 </html>`;

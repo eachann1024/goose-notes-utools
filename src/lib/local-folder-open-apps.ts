@@ -84,9 +84,54 @@ export const LOCAL_FOLDER_TERMINAL_CANDIDATES: LocalFolderOpenAppCandidate[] = [
   { id: "kero", label: "Kero", appName: "Kero", kind: "terminal" },
 ];
 
+const CANDIDATES_BY_KIND: Record<
+  LocalFolderOpenAppKind,
+  LocalFolderOpenAppCandidate[]
+> = {
+  "file-manager": LOCAL_FOLDER_FILE_MANAGER_CANDIDATES,
+  editor: LOCAL_FOLDER_EDITOR_CANDIDATES,
+  terminal: LOCAL_FOLDER_TERMINAL_CANDIDATES,
+};
+
+const ALL_CANDIDATES: LocalFolderOpenAppCandidate[] = [
+  ...LOCAL_FOLDER_FILE_MANAGER_CANDIDATES,
+  ...LOCAL_FOLDER_EDITOR_CANDIDATES,
+  ...LOCAL_FOLDER_TERMINAL_CANDIDATES,
+];
+
+/**
+ * 将设置值规范化为固定候选枚举 ID；兼容旧版保存的 appName / alias，
+ * 不在候选表内的任意自定义命令直接归零为系统默认（""）。
+ */
+export function normalizeLocalFolderAppId(
+  kind: LocalFolderOpenAppKind,
+  value: unknown,
+): string {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const lower = trimmed.toLowerCase().replace(/\.app$/i, "");
+  const list = CANDIDATES_BY_KIND[kind] ?? [];
+  const matched = list.find((candidate) => {
+    if (candidate.id.toLowerCase() === lower) return true;
+    if (candidate.appName.toLowerCase() === lower) return true;
+    if (candidate.aliases?.some((a) => a.toLowerCase() === lower)) return true;
+    if (candidate.commands?.some((c) => c.toLowerCase() === lower)) return true;
+    return false;
+  });
+  return matched ? matched.id : "";
+}
+
 export function formatLocalFolderOpenAppName(value: string, fallback: string): string {
   const trimmed = value.trim();
   if (!trimmed) return fallback;
-  const lastPart = trimmed.split(/[\\/]/).filter(Boolean).pop() ?? trimmed;
-  return lastPart.replace(/\.app$/i, "") || fallback;
+  const lower = trimmed.toLowerCase();
+  const matched = ALL_CANDIDATES.find(
+    (c) =>
+      c.id.toLowerCase() === lower ||
+      c.appName.toLowerCase() === lower ||
+      c.aliases?.some((a) => a.toLowerCase() === lower),
+  );
+  if (matched) return matched.label;
+  return fallback;
 }

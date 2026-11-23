@@ -34,9 +34,14 @@ https://github.com/user-attachments/assets/95f9bf50-3992-4f99-a256-b52ee6f41b74
 - [鹅的验证](https://github.com/eachann1024/goose-2fa)
 - [鹅的 Agent](https://github.com/eachann1024/eachann1024)
 
-## 不做什么
+## 联网与隐私说明
 
-不把笔记默认送到别人的云。不把「搜索 / 暗色 / 多平台」当卖点。
+默认纯本地离线运行，应用启动与日常笔记编辑不连接外部服务器。仅在你主动使用以下功能时访问网络：
+
+- **AI 对话与联网搜索**：发送消息时访问你所选模型服务商或自定义的 Base URL 域名（如 `api.openai.com`、`api.anthropic.com`、`api.deepseek.com` 等），联网搜索时访问搜索服务与目标网页域名。
+- **WebDAV 同步备份**：触发备份或恢复时访问你配置的 WebDAV 服务器域名。
+- **外链图片**：笔记中包含远程图片链接时访问对应图片所在域名。
+- **匿名统计与错误上报**：默认关闭；仅在你显式开启后，按配置的遥测/Sentry 域名上报匿名计数或异常摘要，不含笔记内容。
 
 开发说明见 [DEVELOP.md](DEVELOP.md)。
 

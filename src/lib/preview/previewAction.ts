@@ -200,6 +200,8 @@ export async function openPreviewInSystem(
   }
 
   const { default: katex } = await import("katex");
+  const { default: katexCss } = await import("katex/dist/katex.min.css?raw");
+  const safeKatexCss = katexCss.replace(/@font-face\s*\{[^}]*\}/g, "");
   const mathHtml = katex.renderToString(content.source, {
     displayMode: true,
     throwOnError: false,
@@ -208,8 +210,7 @@ export async function openPreviewInSystem(
   await openTextFileInSystem(
     wrapHtmlDocument(`<div class="katex-preview">${mathHtml}</div>`, {
       title: "公式预览",
-      extraHead:
-        '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">',
+      extraHead: `<style>${safeKatexCss}</style>`,
     }),
     withExtension(content.fileName ?? "formula.html", "html"),
   );

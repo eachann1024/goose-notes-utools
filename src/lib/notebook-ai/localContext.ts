@@ -2,6 +2,7 @@ import { extractTextFromContent } from "@/components/editor/utils/content-text-e
 import { getLocalMdSnapshot } from "@/lib/local-md-snapshot";
 import { useNotebooks } from "@/stores/useNotebooks";
 import { usePages } from "@/stores/usePages";
+import { useSettings } from "@/stores/useSettings";
 import type { Page } from "@/types";
 
 const MAX_GLOBAL_PROMPT_CHARACTERS = 24_000;
@@ -50,16 +51,16 @@ function normalizeSkillName(name: string) {
   return /^[a-z0-9][a-z0-9-]*$/.test(normalized) ? normalized : "";
 }
 
-let cachedSkillFiles: ReturnType<
-  NonNullable<Window["gooseAiContext"]>["listLocalSkills"]
-> | null = null;
+let cachedSkillFiles: Array<{ path: string; content: string }> | null = null;
 let cachedAt = 0;
-/** 本地 Skill 列表缓存；避免每次 `/` 同步读 ~/.agents/skills 卡主线程 */
+let cachedPathsKey = "";
+/** 已选本地 Skill 文件缓存；避免每次 `/` 同步读盘卡主线程 */
 const LOCAL_SKILL_CACHE_MS = 60_000;
 
 export function clearLocalSkillsCache() {
   cachedSkillFiles = null;
   cachedAt = 0;
+  cachedPathsKey = "";
 }
 
 /**
@@ -152,14 +153,29 @@ function dedupeSkillsByName(skills: LocalSkill[]): LocalSkill[] {
   });
 }
 
-function loadGlobalSkills(forceRefresh = false): LocalSkill[] {
-  const cacheFresh = Date.now() - cachedAt < LOCAL_SKILL_CACHE_MS;
-  const files =
-    !forceRefresh && cachedSkillFiles && cacheFresh
-      ? cachedSkillFiles
-      : (window.gooseAiContext?.listLocalSkills?.() ?? []);
+function loadSelectedContextFiles(forceRefresh = false): Array<{ path: string; content: string }> {
+  const selected = useSettings.getState().ai.selectedContextFiles ?? [];
+  if (selected.length === 0) return [];
+  const paths = selected.map((item) => item.path);
+  const pathsKey = paths.join("\n");
+  const cacheFresh =
+    !forceRefresh &&
+    cachedSkillFiles != null &&
+    cachedPathsKey === pathsKey &&
+    Date.now() - cachedAt < LOCAL_SKILL_CACHE_MS;
+  if (cacheFresh && cachedSkillFiles) {
+    return cachedSkillFiles;
+  }
+  const files = window.gooseAiContext?.readSelectedFiles?.(paths) ?? [];
   cachedSkillFiles = files;
+  cachedPathsKey = pathsKey;
   cachedAt = Date.now();
+  return files;
+}
+
+function loadGlobalSkills(forceRefresh = false): LocalSkill[] {
+  if (!useSettings.getState().ai.readLocalSkills) return [];
+  const files = loadSelectedContextFiles(forceRefresh);
   return files
     .map(({ path, content }) => skillFromFile(path, content))
     .filter((skill): skill is LocalSkill => skill != null);
@@ -234,10 +250,13 @@ export function resolveInvokedLocalSkillFromTokens(
 }
 
 export function readGlobalAgentsPrompt() {
-  return (
-    window.gooseAiContext
-      ?.readGlobalPrompt?.()
-      ?.trim()
-      .slice(0, MAX_GLOBAL_PROMPT_CHARACTERS) ?? ""
-  );
+  const ai = useSettings.getState().ai;
+  if (!ai.readGlobalPrompt) return "";
+  const files = loadSelectedContextFiles();
+  if (files.length === 0) return "";
+  return files
+    .map((f) => f.content.trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, MAX_GLOBAL_PROMPT_CHARACTERS);
 }

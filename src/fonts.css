@@ -1,5 +1,4 @@
-/* 远程鸿蒙分包 CSS 由 fontLoader 在页面 load 后挂载，避免 CDN 阻塞首屏。 */
-/* 已安装系统鸿蒙时优先本地，避免再拉远程分包。 */
+/* 本地字体优先：不再从外部 CDN 拉取字体，确保默认启动与离线使用零外部请求。 */
 @font-face {
   font-family: "HarmonyOS Sans SC";
   font-style: normal;
@@ -10,23 +9,14 @@
     local("HarmonyOS Sans");
 }
 
-/* DM Mono Font Family
- * 使用 swap 而非 optional，避免「首次进入页面 DM Mono 永久失效」与
- * 「二次进入因缓存命中、加上 unicode-range 不含 CJK 导致字符回退到非等宽字体」
- * 的行为差异。unicode-range 已移除，让浏览器对所有字符尝试 DM Mono，
- * CJK 字符在 DM Mono 中无字形时会自然走到 monospace generic 的系统兜底。 */
 @font-face {
   font-family: "DM Mono";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src:
-    local("DM Mono"),
-    url("https://cdn.jsdelivr.net/npm/@fontsource/dm-mono@5.1.0/files/dm-mono-latin-400-normal.woff2")
-      format("woff2");
+  src: local("DM Mono");
 }
 
-/* 仓耳今楷：本机 family 优先，没有再拉远端 woff2，不打进安装包。 */
 @font-face {
   font-family: "仓耳今楷";
   font-style: normal;
@@ -36,11 +26,5 @@
     local("仓耳今楷"),
     local("仓耳今楷03W04"),
     local("仓耳今楷03简繁 W04"),
-    local("TsangerJinKai03-W04"),
-    url("https://cdn.jsdmirror.com/gh/eachann1024/Resources@d6dc229cd882dc0983dc5ce7cf28fb85047a4a76/%E4%BB%93%E8%80%B3%E4%BB%8A%E6%A5%B703W04.woff2")
-      format("woff2"),
-    url("https://cdn.jsdelivr.net/gh/eachann1024/Resources@d6dc229cd882dc0983dc5ce7cf28fb85047a4a76/%E4%BB%93%E8%80%B3%E4%BB%8A%E6%A5%B703W04.woff2")
-      format("woff2"),
-    url("https://raw.githubusercontent.com/eachann1024/Resources/d6dc229cd882dc0983dc5ce7cf28fb85047a4a76/%E4%BB%93%E8%80%B3%E4%BB%8A%E6%A5%B703W04.woff2")
-      format("woff2");
+    local("TsangerJinKai03-W04");
 }

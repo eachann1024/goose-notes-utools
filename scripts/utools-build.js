@@ -9,13 +9,18 @@ if (!fs.existsSync(distDir)) {
   process.exit(1);
 }
 
-// 递归删除 .map 文件（正式构建用；GOOSE_DEBUG=1 时跳过）。
-const removeMapFiles = (dir) => {
+// 递归删除构建产物中的 .map（正式构建用）和 macOS 元数据文件（.DS_Store）。
+const cleanBuildDirectory = (dir, { removeMaps }) => {
+  if (!fs.existsSync(dir)) return;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      removeMapFiles(full);
-    } else if (entry.name.endsWith('.map')) {
+      cleanBuildDirectory(full, { removeMaps });
+    } else if (
+      entry.name === '.DS_Store' ||
+      entry.name.startsWith('._') ||
+      (removeMaps && entry.name.endsWith('.map'))
+    ) {
       fs.unlinkSync(full);
     }
   }
@@ -63,11 +68,11 @@ try {
 
   // 调试构建 (GOOSE_DEBUG=1) 保留 .map，供 uTools 开发者工具(Chromium DevTools) 还原 src/；
   // 正式构建删除 .map：vite sourcemap='hidden' 已让 JS 不含 sourceMappingURL，删 .map 既不外泄也不增体积。
-  if (process.env.GOOSE_DEBUG === '1') {
+  const removeMaps = process.env.GOOSE_DEBUG !== '1';
+  if (!removeMaps) {
     console.log('[utools-build] GOOSE_DEBUG=1：保留 sourcemap (.map) 文件');
-  } else {
-    removeMapFiles(distDir);
   }
+  cleanBuildDirectory(distDir, { removeMaps });
 } catch (e) {
   console.error(e);
   process.exit(1);
@@ -119,12 +124,12 @@ try {
   // package.json（type: commonjs，同 A）。
   fs.writeFileSync(path.join(distQuicknoteDir, 'package.json'), JSON.stringify({ type: 'commonjs' }));
 
-  // 删 .map 规则同 A。
-  if (process.env.GOOSE_DEBUG === '1') {
+  // 删 .map 与 .DS_Store 规则同 A。
+  const removeQnMaps = process.env.GOOSE_DEBUG !== '1';
+  if (!removeQnMaps) {
     console.log('[utools-build] GOOSE_DEBUG=1：dist-quicknote 保留 sourcemap (.map) 文件');
-  } else {
-    removeMapFiles(distQuicknoteDir);
   }
+  cleanBuildDirectory(distQuicknoteDir, { removeMaps: removeQnMaps });
 
   console.log('[utools-build] dist-quicknote/ 产出完成');
 } catch (e) {
@@ -135,5 +140,8 @@ try {
 // ZTools CLI ignores dist/; keep a copy in app/.
 const appDir = path.resolve('app');
 fs.rmSync(appDir, { recursive: true, force: true });
-fs.cpSync(distDir, appDir, { recursive: true });
+fs.cpSync(distDir, appDir, {
+  recursive: true,
+  filter: (src) => path.basename(src) !== '.DS_Store' && !path.basename(src).startsWith('._'),
+});
 console.log('[utools-build] app/ synced for ZTools');

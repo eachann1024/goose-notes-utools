@@ -407,6 +407,9 @@ export function SettingsDialog({
                     className="data-[state=unchecked]:bg-[hsl(var(--foreground)/0.12)]"
                   />
                 </div>
+                <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
+                  联网说明：默认离线运行，不主动连接外部服务器。仅在你主动使用 AI 对话/联网搜索（访问所选模型服务商或自定义域名）、WebDAV 备份（访问你配置的服务器域名）、笔记外链图片（访问图片所在域名）或开启匿名统计/错误上报时产生网络请求。
+                </p>
               </SettingsSectionCard>
             </div>
           )}

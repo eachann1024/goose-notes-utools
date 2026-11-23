@@ -4,6 +4,7 @@ import { toast } from "@/components/ui/sonner";
 import { AiGradientIcon } from "@/components/ui/ai-gradient-icon";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   DEFAULT_CLAUDE_BASE_URL,
   DEFAULT_OPENAI_BASE_URL,
@@ -17,7 +18,7 @@ import {
   type AIProviderId,
   type CustomAIProtocol,
 } from "@/lib/ai-provider";
-import type { AISettings } from "@/stores/useSettings";
+import { useSettings, type AISettings } from "@/stores/useSettings";
 import { SettingsSectionCard } from "./settings/SettingsSectionCard";
 import { cn } from "@/lib/utils";
 import { SettingsAIModelsSection } from "./settings-ai/SettingsAIModelsSection";
@@ -461,6 +462,64 @@ export function SettingsAI({
         <div className="space-y-2">
           <div
             className={cn(
+              "space-y-3 p-4",
+              SETTINGS_OPTION_ROW_CLASS,
+            )}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-foreground">
+                  手动指定上下文文件
+                </div>
+                <div className="text-xs leading-5 text-muted-foreground">
+                  仅读取你手动选中的 Markdown 文件（不自动扫描主目录）；开启下方开关后，内容才会在发送 AI 请求时随上下文发往所选模型服务。
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 rounded-[10px]"
+                onClick={async () => {
+                  const files =
+                    await window.gooseAiContext?.selectContextFiles?.();
+                  if (files && files.length > 0) {
+                    useSettings.getState().addAISelectedContextFiles(files);
+                    toast.success(`已添加 ${files.length} 个上下文文件`);
+                  }
+                }}
+              >
+                选择文件
+              </Button>
+            </div>
+            {(ai.selectedContextFiles?.length ?? 0) > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {ai.selectedContextFiles.map((file) => (
+                  <div
+                    key={file.path}
+                    className="flex items-center justify-between gap-2 rounded-[8px] bg-background/60 px-3 py-1.5 text-xs"
+                  >
+                    <span className="truncate text-foreground" title={file.path}>
+                      {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() =>
+                        useSettings
+                          .getState()
+                          .removeAISelectedContextFile(file.path)
+                      }
+                    >
+                      移除
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div
+            className={cn(
               "flex items-center justify-between gap-4 p-4",
               SETTINGS_OPTION_ROW_CLASS,
             )}
@@ -470,10 +529,10 @@ export function SettingsAI({
                 htmlFor="ai-read-global-prompt"
                 className="cursor-pointer text-sm font-medium text-foreground"
               >
-                读取全局提示词
+                将已选文件并入 AI 系统提示词
               </Label>
               <div className="text-xs leading-5 text-muted-foreground">
-                并入 AI 系统提示词
+                勾选后，发送对话时附带上述已选文件全文
               </div>
             </div>
             <Switch
@@ -493,10 +552,10 @@ export function SettingsAI({
                 htmlFor="ai-read-local-skills"
                 className="cursor-pointer text-sm font-medium text-foreground"
               >
-                读取本地 Skill
+                启用已选文件作为 Skill
               </Label>
               <div className="text-xs leading-5 text-muted-foreground">
-                输入 / 调用
+                勾选后，可通过输入 / 调用已选 Skill 文件
               </div>
             </div>
             <Switch

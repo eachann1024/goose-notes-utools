@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Minus, Plus, RotateCcw, X } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { MathView } from "@/components/editor/blocks/math/MathView";
+import { sanitizeRenderedSvg } from "@/lib/notebook-ai/svgSanitizer";
 import {
   clampPreviewZoomPercent,
   normalizeSvgIntrinsicSize,
@@ -283,7 +284,9 @@ export function FullscreenPreview({
                     // SVG comes from local mermaid/export sanitizers, not raw model HTML.
                     // eslint-disable-next-line react/no-danger
                     dangerouslySetInnerHTML={{
-                      __html: normalizeSvgIntrinsicSize(content.markup),
+                      __html: sanitizeRenderedSvg(
+                        normalizeSvgIntrinsicSize(content.markup),
+                      ),
                     }}
                   />
                 ) : null}

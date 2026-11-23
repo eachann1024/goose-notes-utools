@@ -401,13 +401,17 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
       throw new Error("relativePath is required");
     }
 
+    const tmpRoot = fs.realpathSync(os.tmpdir());
     const normalized = path
       .normalize(relativePath)
       .replace(/^(\.\.(\/|\\|$))+/, "")
       .replace(/^[/\\]+/, "");
-    const targetPath = path.join(os.tmpdir(), normalized);
+    const targetPath = path.join(tmpRoot, normalized);
 
-    if (!targetPath.startsWith(os.tmpdir())) {
+    if (
+      targetPath !== tmpRoot &&
+      !targetPath.startsWith(`${tmpRoot}${path.sep}`)
+    ) {
       throw new Error("invalid temp path");
     }
 
@@ -459,10 +463,86 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     }
   };
 
+  const isPathCaseInsensitive = () =>
+    process.platform === "win32" || process.platform === "darwin";
+
+  const mountedRoots = new Set();
+
+  const isPathInsideRoot = (candidateRealPath, rootRealPath) => {
+    const normalize = (value) =>
+      isPathCaseInsensitive() ? value.toLowerCase() : value;
+    const target = normalize(candidateRealPath);
+    const root = normalize(rootRealPath);
+    return target === root || target.startsWith(`${root}${path.sep}`);
+  };
+
+  const addMountedRoot = (dirPath) => {
+    if (typeof dirPath !== "string" || !dirPath.trim()) return null;
+    try {
+      const real = fs.realpathSync(dirPath.trim());
+      const stat = fs.statSync(real);
+      if (!stat.isDirectory()) return null;
+      mountedRoots.add(real);
+      return real;
+    } catch {
+      return null;
+    }
+  };
+
+  // 启动时将已持久化的本地文件夹笔记本纳入根目录白名单
+  try {
+    for (const notebook of listPersistedNotebooks()) {
+      if (notebook?.source === "local-folder" && typeof notebook.localPath === "string") {
+        addMountedRoot(notebook.localPath);
+      }
+    }
+  } catch {
+    /* noop */
+  }
+
+  // 校验目标路径（不存在时校验最近已存在祖先目录的 realpath）是否落在已挂载根目录内
+  const resolveSafePath = (targetPath) => {
+    if (typeof targetPath !== "string" || !targetPath.trim()) return null;
+    if (mountedRoots.size === 0) return null;
+
+    let absPath;
+    try {
+      absPath = path.resolve(targetPath.trim());
+    } catch {
+      return null;
+    }
+
+    let cursor = absPath;
+    while (!fs.existsSync(cursor)) {
+      const parent = path.dirname(cursor);
+      if (!parent || parent === cursor) return null;
+      cursor = parent;
+    }
+
+    let ancestorReal;
+    try {
+      ancestorReal = fs.realpathSync(cursor);
+    } catch {
+      return null;
+    }
+
+    const rel = path.relative(cursor, absPath);
+    const effectiveRealPath = rel ? path.join(ancestorReal, rel) : ancestorReal;
+
+    for (const root of mountedRoots) {
+      if (isPathInsideRoot(effectiveRealPath, root)) {
+        return effectiveRealPath;
+      }
+    }
+    return null;
+  };
+
   const revealItemInFolder = (targetPath) => {
+    const safePath = resolveSafePath(targetPath);
+    if (!safePath) return false;
     try {
       if (typeof utools?.shellShowItemInFolder === "function") {
-        return !!utools.shellShowItemInFolder(targetPath);
+        return !!utools.shellShowItemInFolder(safePath);
       }
     } catch (err) {
       console.error("[gooseFs] utools shellShowItemInFolder failed:", err);
@@ -470,7 +550,7 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
 
     try {
       if (typeof utools?.shellOpenPath === "function") {
-        return !!utools.shellOpenPath(path.dirname(targetPath));
+        return !!utools.shellOpenPath(path.dirname(safePath));
       }
     } catch (err) {
       console.error("[gooseFs] utools shellOpenPath failed:", err);
@@ -479,7 +559,48 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     return false;
   };
 
-  const quoteShellArg = (value) => `'${String(value).replace(/'/g, "'\\''")}'`;
+  const OPEN_APP_CANDIDATES = [
+    { id: "finder", appName: "Finder", aliases: ["Finder"], kind: "file-manager" },
+    { id: "path-finder", appName: "Path Finder", kind: "file-manager" },
+    { id: "forklift", appName: "ForkLift", kind: "file-manager" },
+    { id: "commander-one", appName: "Commander One", kind: "file-manager" },
+    { id: "cursor", appName: "Cursor", commands: ["cursor"], kind: "editor" },
+    { id: "trae", appName: "Trae", commands: ["trae"], kind: "editor" },
+    { id: "zed", appName: "Zed", commands: ["zed"], kind: "editor" },
+    { id: "vscode", appName: "Visual Studio Code", aliases: ["Code"], commands: ["code"], kind: "editor" },
+    { id: "windsurf", appName: "Windsurf", commands: ["windsurf"], kind: "editor" },
+    { id: "typora", appName: "Typora", commands: ["typora"], kind: "editor" },
+    { id: "obsidian", appName: "Obsidian", kind: "editor" },
+    { id: "sublime-text", appName: "Sublime Text", aliases: ["Sublime Text 2"], commands: ["subl"], kind: "editor" },
+    { id: "vscodium", appName: "VSCodium", commands: ["codium"], kind: "editor" },
+    { id: "coteditor", appName: "CotEditor", kind: "editor" },
+    { id: "bbedit", appName: "BBEdit", commands: ["bbedit"], kind: "editor" },
+    { id: "textmate", appName: "TextMate", commands: ["mate"], kind: "editor" },
+    { id: "nova", appName: "Nova", kind: "editor" },
+    { id: "webstorm", appName: "WebStorm", aliases: ["JetBrains WebStorm"], kind: "editor" },
+    { id: "intellij-idea", appName: "IntelliJ IDEA", aliases: ["IntelliJ IDEA Ultimate", "IntelliJ IDEA CE"], kind: "editor" },
+    { id: "pycharm", appName: "PyCharm", aliases: ["PyCharm Professional", "PyCharm CE"], kind: "editor" },
+    { id: "goland", appName: "GoLand", kind: "editor" },
+    { id: "phpstorm", appName: "PhpStorm", kind: "editor" },
+    { id: "rubymine", appName: "RubyMine", kind: "editor" },
+    { id: "clion", appName: "CLion", kind: "editor" },
+    { id: "fleet", appName: "Fleet", kind: "editor" },
+    { id: "terminal", appName: "Terminal", aliases: ["Terminal"], kind: "terminal" },
+    { id: "iterm", appName: "iTerm", aliases: ["iTerm2"], kind: "terminal" },
+    { id: "ghostty", appName: "Ghostty", commands: ["ghostty"], kind: "terminal" },
+    { id: "wezterm", appName: "WezTerm", commands: ["wezterm"], kind: "terminal" },
+    { id: "warp", appName: "Warp", kind: "terminal" },
+    { id: "kitty", appName: "kitty", aliases: ["Kitty"], commands: ["kitty"], kind: "terminal" },
+    { id: "alacritty", appName: "Alacritty", commands: ["alacritty"], kind: "terminal" },
+    { id: "tabby", appName: "Tabby", commands: ["tabby"], kind: "terminal" },
+    { id: "hyper", appName: "Hyper", commands: ["hyper"], kind: "terminal" },
+    { id: "rio", appName: "Rio", commands: ["rio"], kind: "terminal" },
+    { id: "cmux", appName: "Cmux", commands: ["cmux"], kind: "terminal" },
+    { id: "otty", appName: "Otty", commands: ["otty"], kind: "terminal" },
+    { id: "kero", appName: "Kero", kind: "terminal" },
+  ];
+
+  const OPEN_APP_BY_ID = new Map(OPEN_APP_CANDIDATES.map((c) => [c.id, c]));
 
   const getCandidateNames = (candidate) => {
     const names = [candidate?.appName, ...(candidate?.aliases || [])]
@@ -496,7 +617,7 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     path.join(os.homedir(), "Applications"),
   ];
 
-  const commandExistsCache = new Map(); // command -> Promise<boolean>
+  const commandPathCache = new Map(); // command -> resolved executable path | null
   const macAppExistsCache = new Map(); // bundle path -> boolean
   const listAvailableOpenAppsCache = new Map(); // signature -> resolved candidates
 
@@ -527,75 +648,78 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     return exists;
   };
 
-  const resolveMacAppName = (candidate) => {
+  const resolveMacAppBundlePath = (candidate) => {
     for (const name of getCandidateNames(candidate)) {
       const bundleName = `${name}.app`;
       for (const root of macApplicationRoots()) {
-        if (macAppExists(path.join(root, bundleName))) {
-          return name;
+        const bundlePath = path.join(root, bundleName);
+        if (macAppExists(bundlePath)) {
+          return { name, bundlePath };
         }
       }
     }
     return null;
   };
 
-  // 缓存 Promise，避免设置页三组候选并行探测时对同一命令重复拉起登录 shell。
-  const commandExists = (command) => {
-    if (typeof command !== "string" || !command.trim()) return Promise.resolve(false);
+  const findCommandInPath = (command) => {
+    if (typeof command !== "string") return null;
     const normalized = command.trim();
-    const cached = commandExistsCache.get(normalized);
-    if (cached) return cached;
+    // 仅允许纯命令名，拒绝路径分隔符或参数注入
+    if (!normalized || /[/\\\s]/.test(normalized)) return null;
+    if (commandPathCache.has(normalized)) {
+      return commandPathCache.get(normalized);
+    }
 
-    const pending = new Promise((resolve) => {
-      let settled = false;
-      let timer = null;
-      const finish = (exists) => {
-        if (settled) return;
-        settled = true;
-        if (timer !== null) clearTimeout(timer);
-        resolve(exists);
-      };
-      let child;
-      try {
-        child = spawn("/bin/zsh", ["-lc", `command -v ${quoteShellArg(normalized)}`], {
-          stdio: "ignore",
-        });
-      } catch {
-        finish(false);
-        return;
-      }
-      timer = setTimeout(() => {
+    const pathEnv = process.env.PATH || "";
+    const dirs = pathEnv.split(path.delimiter).filter(Boolean);
+    const exts =
+      process.platform === "win32"
+        ? (process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM")
+            .split(";")
+            .filter(Boolean)
+        : [""];
+
+    let resolved = null;
+    for (const dir of dirs) {
+      for (const ext of exts) {
+        const candidatePath = path.join(
+          dir,
+          process.platform === "win32" && !normalized.toLowerCase().endsWith(ext.toLowerCase())
+            ? `${normalized}${ext}`
+            : normalized,
+        );
         try {
-          child.kill();
+          const stat = fs.statSync(candidatePath);
+          if (!stat.isFile()) continue;
+          if (process.platform !== "win32") {
+            fs.accessSync(candidatePath, fs.constants.X_OK);
+          }
+          resolved = candidatePath;
+          break;
         } catch {
-          // already exited
+          // continue searching PATH
         }
-        finish(false);
-      }, 1000);
-      child.on("error", () => finish(false));
-      child.on("close", (code) => finish(code === 0));
-    });
-    commandExistsCache.set(normalized, pending);
-    return pending;
+      }
+      if (resolved) break;
+    }
+
+    commandPathCache.set(normalized, resolved);
+    return resolved;
   };
 
   const resolveOpenAppCandidate = async (candidate) => {
     if (!candidate || typeof candidate !== "object") return null;
+    const whitelisted = typeof candidate.id === "string" ? OPEN_APP_BY_ID.get(candidate.id) : null;
+    if (!whitelisted) return null;
+
     if (process.platform === "darwin") {
-      const appName = resolveMacAppName(candidate);
-      if (appName) return { ...candidate, appName };
+      const macMatch = resolveMacAppBundlePath(whitelisted);
+      if (macMatch) return { ...whitelisted, appName: macMatch.name };
     }
 
-    const commands = Array.isArray(candidate.commands) ? candidate.commands : [];
+    const commands = Array.isArray(whitelisted.commands) ? whitelisted.commands : [];
     for (const command of commands) {
-      if (await commandExists(command)) return { ...candidate, appName: command };
-    }
-
-    if (process.platform !== "darwin") {
-      const firstName = getCandidateNames(candidate)[0];
-      if (firstName && (await commandExists(firstName))) {
-        return { ...candidate, appName: firstName };
-      }
+      if (findCommandInPath(command)) return { ...whitelisted, appName: command };
     }
 
     return null;
@@ -666,46 +790,57 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     child.unref();
   };
 
-  const runDetachedCommand = (commandLine, args = []) => {
-    return new Promise((resolve) => {
+  const spawnWhitelisted = (executable, args) =>
+    new Promise((resolve) => {
       try {
-        const child = spawn(commandLine, args, {
+        const child = spawn(executable, args, {
           detached: true,
           stdio: "ignore",
-          shell: true,
+          shell: false,
         });
         finishChildLaunch(child, resolve);
       } catch (err) {
-        console.error("[gooseFs] runDetachedCommand failed:", err);
+        console.error("[gooseFs] spawnWhitelisted failed:", err);
         resolve(false);
       }
     });
+
+  const launchWhitelistedApp = (candidate, safeTargetPath) => {
+    if (!candidate) return Promise.resolve(false);
+
+    if (process.platform === "darwin") {
+      const macMatch = resolveMacAppBundlePath(candidate);
+      if (macMatch) {
+        return spawnWhitelisted("/usr/bin/open", [
+          "-a",
+          macMatch.bundlePath,
+          safeTargetPath,
+        ]);
+      }
+    }
+
+    const commands = Array.isArray(candidate.commands) ? candidate.commands : [];
+    for (const command of commands) {
+      const exePath = findCommandInPath(command);
+      if (exePath) {
+        return spawnWhitelisted(exePath, [safeTargetPath]);
+      }
+    }
+
+    return Promise.resolve(false);
   };
 
-  const openWithApp = (targetPath, appCommand) => {
-    return new Promise((resolve) => {
-      const command = typeof appCommand === "string" ? appCommand.trim() : "";
-      if (!command) {
-        resolve(false);
-        return;
-      }
+  const openWithApp = (targetPath, appId) => {
+    const safeTargetPath = resolveSafePath(targetPath);
+    if (!safeTargetPath) return Promise.resolve(false);
 
-      try {
-        if (process.platform === "darwin") {
-          const child = spawn("open", ["-a", command, targetPath], {
-            detached: true,
-            stdio: "ignore",
-          });
-          finishChildLaunch(child, resolve, () => runDetachedCommand(command, [targetPath]));
-          return;
-        }
+    const id = typeof appId === "string" ? appId.trim() : "";
+    const candidate = OPEN_APP_BY_ID.get(id);
+    if (!candidate || candidate.kind === "terminal") {
+      return Promise.resolve(false);
+    }
 
-        void runDetachedCommand(command, [targetPath]).then(resolve);
-      } catch (err) {
-        console.error("[gooseFs] openWithApp failed:", err);
-        resolve(false);
-      }
-    });
+    return launchWhitelistedApp(candidate, safeTargetPath);
   };
 
   const resolveDirectoryTarget = (targetPath) => {
@@ -718,87 +853,43 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     }
   };
 
-  const isKeroApp = (appName) =>
-    path.basename(appName).replace(/\.app$/i, "").toLowerCase() === "kero";
+  const openTerminalAtPath = (targetPath, terminalId) => {
+    const safeTargetPath = resolveSafePath(targetPath);
+    if (!safeTargetPath) return Promise.resolve(false);
+    const dirPath = resolveDirectoryTarget(safeTargetPath);
 
-  // Kero does not register folders as documents. Its supported external entry
-  // point is the Finder service advertised in Kero's Info.plist, so `open -a`
-  // would launch the app without creating a project for the requested folder.
-  const openKeroAtPath = (dirPath) =>
-    new Promise((resolve) => {
-      const script = `
-        ObjC.import("AppKit");
-        function run(argv) {
-          const pasteboard = $.NSPasteboard.pasteboardWithUniqueName;
-          pasteboard.clearContents;
-          pasteboard.declareTypesOwner(
-            $(["NSFilenamesPboardType"]),
-            null
-          );
-          pasteboard.setPropertyListForType(
-            $(argv),
-            "NSFilenamesPboardType"
-          );
-          if (!$.NSPerformService("New Kero Project Here", pasteboard)) {
-            throw new Error("Kero Finder service is unavailable");
-          }
-        }
-      `;
-      try {
-        const child = spawn("/usr/bin/osascript", ["-l", "JavaScript", "-e", script, dirPath], {
-          detached: true,
-          stdio: "ignore",
-        });
-        finishChildLaunch(child, resolve);
-      } catch (err) {
-        console.error("[gooseFs] openKeroAtPath failed:", err);
-        resolve(false);
+    const id = typeof terminalId === "string" ? terminalId.trim() : "";
+    if (!id) {
+      if (process.platform === "darwin") {
+        return launchWhitelistedApp(OPEN_APP_BY_ID.get("terminal"), dirPath);
       }
-    });
-
-  const openTerminalAtPath = (targetPath, terminalCommand) => {
-    return new Promise((resolve) => {
-      const dirPath = resolveDirectoryTarget(targetPath);
-      const command = typeof terminalCommand === "string" ? terminalCommand.trim() : "";
-
-      try {
-        if (process.platform === "darwin") {
-          const appName = command || "Terminal";
-          if (command && isKeroApp(command)) {
-            void openKeroAtPath(dirPath).then(resolve);
-            return;
-          }
-          const child = spawn("open", ["-a", appName, dirPath], {
-            detached: true,
-            stdio: "ignore",
-          });
-          finishChildLaunch(
-            child,
-            resolve,
-            command ? () => runDetachedCommand(command, [dirPath]) : undefined,
-          );
-          return;
-        }
-
-        if (process.platform === "win32") {
-          if (command) {
-            void runDetachedCommand(command, [dirPath]).then(resolve);
-            return;
-          }
-          const child = spawn("cmd.exe", ["/c", "start", "", "cmd.exe", "/K", "cd", "/d", dirPath], {
-            detached: true,
-            stdio: "ignore",
-          });
-          finishChildLaunch(child, resolve);
-          return;
-        }
-
-        void runDetachedCommand(command || "x-terminal-emulator", [dirPath]).then(resolve);
-      } catch (err) {
-        console.error("[gooseFs] openTerminalAtPath failed:", err);
-        resolve(false);
+      if (process.platform === "win32") {
+        const cmdExe = findCommandInPath("cmd.exe") || "cmd.exe";
+        return spawnWhitelisted(cmdExe, [
+          "/c",
+          "start",
+          "",
+          "cmd.exe",
+          "/K",
+          "cd",
+          "/d",
+          dirPath,
+        ]);
       }
-    });
+      const linuxTerm =
+        findCommandInPath("x-terminal-emulator") ||
+        findCommandInPath("gnome-terminal") ||
+        findCommandInPath("konsole");
+      return linuxTerm
+        ? spawnWhitelisted(linuxTerm, [dirPath])
+        : Promise.resolve(false);
+    }
+
+    const candidate = OPEN_APP_BY_ID.get(id);
+    if (!candidate || candidate.kind !== "terminal") {
+      return Promise.resolve(false);
+    }
+    return launchWhitelistedApp(candidate, dirPath);
   };
 
   const getNotebookAvailability = (notebook) => {
@@ -1308,47 +1399,159 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
   };
 
   const MAX_AI_CONTEXT_FILE_BYTES = 256 * 1024;
-  const MAX_LOCAL_SKILLS = 100;
-  const readLocalSkillFiles = () => {
-    const root = path.join(os.homedir(), ".agents", "skills");
-    const results = [];
-    const visit = (dir, depth = 0) => {
-      if (depth > 8) return;
-      let entries = [];
-      try {
-        entries = fs.readdirSync(dir, { withFileTypes: true });
-      } catch {
-        return;
+
+  const getLocalDataDir = () => {
+    try {
+      if (typeof utools?.getPath === "function") {
+        const dir = utools.getPath("userData");
+        if (typeof dir === "string" && dir.trim()) return dir.trim();
       }
-      for (const entry of entries) {
-        if (results.length >= MAX_LOCAL_SKILLS) return;
-        const entryPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          visit(entryPath, depth + 1);
-        } else if (entry.isFile() && entry.name === "SKILL.md") {
-          try {
-            if (fs.statSync(entryPath).size > MAX_AI_CONTEXT_FILE_BYTES) continue;
-            results.push({ path: entryPath, content: fs.readFileSync(entryPath, "utf-8") });
-          } catch {}
-        }
-      }
-    };
-    visit(root);
-    return results;
+    } catch {
+      /* noop */
+    }
+    return path.join(os.homedir(), ".goose-note");
   };
 
-  // 只暴露固定的全局提示词与 Skill 根目录，不接受前端传入任意路径。
+  const AI_CONTEXT_ALLOWLIST_PATH = path.join(
+    getLocalDataDir(),
+    "goose-note-ai-context-allowlist.json",
+  );
+  const allowedAiContextFiles = new Set();
+
+  try {
+    if (fs.existsSync(AI_CONTEXT_ALLOWLIST_PATH)) {
+      const saved = JSON.parse(fs.readFileSync(AI_CONTEXT_ALLOWLIST_PATH, "utf-8"));
+      if (Array.isArray(saved)) {
+        for (const p of saved) {
+          if (typeof p === "string" && /\.(md|markdown)$/i.test(p)) {
+            allowedAiContextFiles.add(p);
+          }
+        }
+      }
+    }
+  } catch {
+    /* noop */
+  }
+
+  const persistAiContextAllowlist = () => {
+    try {
+      fs.mkdirSync(path.dirname(AI_CONTEXT_ALLOWLIST_PATH), { recursive: true });
+      fs.writeFileSync(
+        AI_CONTEXT_ALLOWLIST_PATH,
+        JSON.stringify(Array.from(allowedAiContextFiles), null, 2),
+        { encoding: "utf-8", mode: 0o600 },
+      );
+    } catch {
+      /* noop */
+    }
+  };
+
+  // 建议 #3：不再自动扫描 ~/AGENTS.md 或 ~/.agents/skills；
+  // 仅允许用户通过原生文件选择器手动挑中的 Markdown 文件进入读取白名单。
   window.gooseAiContext = {
-    readGlobalPrompt: () => {
+    selectContextFiles: async () => {
+      if (typeof utools?.showOpenDialog !== "function") return [];
       try {
-        const agentsPath = path.join(os.homedir(), "AGENTS.md");
-        if (fs.statSync(agentsPath).size > MAX_AI_CONTEXT_FILE_BYTES) return null;
-        return fs.readFileSync(agentsPath, "utf-8");
+        const picked = await Promise.resolve(
+          utools.showOpenDialog({
+            title: "选择 AI 上下文文件",
+            filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+            properties: ["openFile", "multiSelections"],
+          }),
+        );
+        if (!Array.isArray(picked) || picked.length === 0) return [];
+        const selected = [];
+        for (const rawPath of picked) {
+          if (typeof rawPath !== "string" || !/\.(md|markdown)$/i.test(rawPath)) {
+            continue;
+          }
+          try {
+            const real = fs.realpathSync(rawPath);
+            const stat = fs.statSync(real);
+            if (!stat.isFile() || stat.size > MAX_AI_CONTEXT_FILE_BYTES) continue;
+            allowedAiContextFiles.add(real);
+            selected.push({ path: real, name: path.basename(real) });
+          } catch {
+            /* skip unreadable */
+          }
+        }
+        if (selected.length > 0) {
+          persistAiContextAllowlist();
+        }
+        return selected;
       } catch {
-        return null;
+        return [];
       }
     },
-    listLocalSkills: readLocalSkillFiles,
+    readSelectedFiles: (paths) => {
+      if (!Array.isArray(paths)) return [];
+      const results = [];
+      for (const rawPath of paths.slice(0, 50)) {
+        if (typeof rawPath !== "string" || !/\.(md|markdown)$/i.test(rawPath)) {
+          continue;
+        }
+        try {
+          const real = fs.realpathSync(rawPath);
+          if (!allowedAiContextFiles.has(real)) continue;
+          const stat = fs.statSync(real);
+          if (!stat.isFile() || stat.size > MAX_AI_CONTEXT_FILE_BYTES) continue;
+          results.push({
+            path: real,
+            content: fs.readFileSync(real, "utf-8"),
+          });
+        } catch {
+          /* skip unreadable */
+        }
+      }
+      return results;
+    },
+  };
+
+  // 建议 #1：本地密钥仅落本机 userData 目录（不写入会随账号同步的 utools.db）。
+  const LOCAL_SECRETS_PATH = path.join(
+    getLocalDataDir(),
+    "goose-note-local-secrets.json",
+  );
+  const SECRET_KEYS = [
+    "customOpenAIResponsesApiKey",
+    "customOpenAIApiKey",
+    "customClaudeApiKey",
+    "tinyfishApiKey",
+    "webdavPassword",
+  ];
+  const normalizeSecretsPayload = (raw) => {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const key of SECRET_KEYS) {
+      if (typeof raw[key] === "string" && raw[key].length > 0) {
+        out[key] = raw[key];
+      }
+    }
+    return out;
+  };
+  window.gooseLocalSecrets = {
+    read: () => {
+      try {
+        if (!fs.existsSync(LOCAL_SECRETS_PATH)) return {};
+        const parsed = JSON.parse(fs.readFileSync(LOCAL_SECRETS_PATH, "utf-8"));
+        return normalizeSecretsPayload(parsed);
+      } catch {
+        return {};
+      }
+    },
+    write: (secrets) => {
+      try {
+        const sanitized = normalizeSecretsPayload(secrets);
+        fs.mkdirSync(path.dirname(LOCAL_SECRETS_PATH), { recursive: true });
+        fs.writeFileSync(LOCAL_SECRETS_PATH, JSON.stringify(sanitized, null, 2), {
+          encoding: "utf-8",
+          mode: 0o600,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
   };
 
   const waitPrintDocumentReady = async (webContents, timeoutMs = 8000) => {
@@ -1471,13 +1674,33 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
   // 本地文件系统 API 桥接（仅用于本地文件夹模式）
   window.gooseFs = {
     fetchRemoteImage,
+    selectDirectory: async () => {
+      if (typeof utools?.showOpenDialog !== "function") {
+        throw new Error("当前环境无法选择本地文件夹");
+      }
+      const paths = await Promise.resolve(
+        utools.showOpenDialog({
+          title: "打开文件夹",
+          properties: ["openDirectory", "createDirectory"],
+        }),
+      );
+      const selected =
+        Array.isArray(paths) && typeof paths[0] === "string" ? paths[0] : null;
+      if (selected) {
+        addMountedRoot(selected);
+      }
+      return selected;
+    },
+
     readDir: (dir) => {
+      const safeDir = resolveSafePath(dir);
+      if (!safeDir) return [];
       try {
-        return fs.readdirSync(dir, { withFileTypes: true }).map((entry) => ({
+        return fs.readdirSync(safeDir, { withFileTypes: true }).map((entry) => ({
           name: entry.name,
           isFile: entry.isFile(),
           isDirectory: entry.isDirectory(),
-          path: path.join(dir, entry.name),
+          path: path.join(safeDir, entry.name),
         }));
       } catch (err) {
         console.error("[gooseFs] readDir failed:", err);
@@ -1486,13 +1709,15 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     readDirAsync: async (dir) => {
+      const safeDir = resolveSafePath(dir);
+      if (!safeDir) return [];
       try {
-        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+        const entries = await fs.promises.readdir(safeDir, { withFileTypes: true });
         return entries.map((entry) => ({
           name: entry.name,
           isFile: entry.isFile(),
           isDirectory: entry.isDirectory(),
-          path: path.join(dir, entry.name),
+          path: path.join(safeDir, entry.name),
         }));
       } catch (err) {
         console.error("[gooseFs] readDirAsync failed:", err);
@@ -1501,8 +1726,10 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     readFile: (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return null;
       try {
-        return fs.readFileSync(filePath, "utf-8");
+        return fs.readFileSync(safePath, "utf-8");
       } catch (err) {
         console.error("[gooseFs] readFile failed:", err);
         return null;
@@ -1510,8 +1737,10 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     readFileAsync: async (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return null;
       try {
-        return await fs.promises.readFile(filePath, "utf-8");
+        return await fs.promises.readFile(safePath, "utf-8");
       } catch (err) {
         console.error("[gooseFs] readFileAsync failed:", err);
         return null;
@@ -1519,8 +1748,12 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     readFileStatAsync: async (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) {
+        return { ok: false, error: "路径不在已挂载文件夹内", content: null };
+      }
       try {
-        const content = await fs.promises.readFile(filePath, "utf-8");
+        const content = await fs.promises.readFile(safePath, "utf-8");
         return { ok: true, content };
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err);
@@ -1531,8 +1764,10 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
 
     // 仅返回 mtimeMs + size（不含 atime），供渲染进程指纹快路径使用。
     statAsync: async (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return null;
       try {
-        const st = await fs.promises.stat(filePath);
+        const st = await fs.promises.stat(safePath);
         return { mtimeMs: st.mtimeMs, size: st.size };
       } catch (err) {
         console.error("[gooseFs] statAsync failed:", err);
@@ -1541,8 +1776,10 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     readFileBase64: (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return null;
       try {
-        return fs.readFileSync(filePath).toString("base64");
+        return fs.readFileSync(safePath).toString("base64");
       } catch (err) {
         console.error("[gooseFs] readFileBase64 failed:", err);
         return null;
@@ -1550,20 +1787,21 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     writeFile: (filePath, content, encoding = "utf-8") => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return false;
       // 必须在写入前登记：fs.watch 的回调可能在 writeFile/writeFileAsync 尚未返回时
       // 先触发。若等写完再标记，前端会把自己的自动保存误判成外部修改并重载编辑器。
-      const normalizedFilePath = path.resolve(filePath);
       const markedAt = Date.now();
-      recentWrites.set(normalizedFilePath, markedAt);
+      recentWrites.set(safePath, markedAt);
       try {
-        fs.writeFileSync(filePath, content, resolveWriteEncoding(encoding));
+        fs.writeFileSync(safePath, content, resolveWriteEncoding(encoding));
         // 写入结束后续期，覆盖文件系统延迟派发 watch 事件的情况。
-        markRecentWrite(normalizedFilePath);
+        markRecentWrite(safePath);
         invalidateLocalNotebookCache();
         return true;
       } catch (err) {
-        if (recentWrites.get(normalizedFilePath) === markedAt) {
-          recentWrites.delete(normalizedFilePath);
+        if (recentWrites.get(safePath) === markedAt) {
+          recentWrites.delete(safePath);
         }
         console.error("[gooseFs] writeFile failed:", err);
         return false;
@@ -1571,21 +1809,22 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     writeFileAsync: async (filePath, content, encoding = "utf-8") => {
-      const normalizedFilePath = path.resolve(filePath);
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return false;
       const markedAt = Date.now();
-      recentWrites.set(normalizedFilePath, markedAt);
+      recentWrites.set(safePath, markedAt);
       try {
         await fs.promises.writeFile(
-          filePath,
+          safePath,
           content,
           resolveWriteEncoding(encoding),
         );
-        markRecentWrite(normalizedFilePath);
+        markRecentWrite(safePath);
         invalidateLocalNotebookCache();
         return true;
       } catch (err) {
-        if (recentWrites.get(normalizedFilePath) === markedAt) {
-          recentWrites.delete(normalizedFilePath);
+        if (recentWrites.get(safePath) === markedAt) {
+          recentWrites.delete(safePath);
         }
         console.error("[gooseFs] writeFileAsync failed:", err);
         return false;
@@ -1593,8 +1832,10 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     exists: (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return false;
       try {
-        return fs.existsSync(filePath);
+        return fs.existsSync(safePath);
       } catch (err) {
         console.error("[gooseFs] exists failed:", err);
         return false;
@@ -1602,8 +1843,10 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     existsAsync: async (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return false;
       try {
-        await fs.promises.access(filePath);
+        await fs.promises.access(safePath);
         return true;
       } catch {
         return false;
@@ -1611,26 +1854,30 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     realpathAsync: async (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return null;
       try {
-        return await fs.promises.realpath(filePath);
+        return await fs.promises.realpath(safePath);
       } catch {
         return null;
       }
     },
 
     watch: (dirPath, callback) => {
+      const safeDir = resolveSafePath(dirPath);
+      if (!safeDir) return null;
       try {
         // 如果已经存在监听器，先停止
-        if (watchers.has(dirPath)) {
-          watchers.get(dirPath).close();
+        if (watchers.has(safeDir)) {
+          watchers.get(safeDir).close();
         }
 
         const watcher = fs.watch(
-          dirPath,
+          safeDir,
           { recursive: true },
           (eventType, filename) => {
             if (filename) {
-              const fullPath = path.resolve(dirPath, String(filename));
+              const fullPath = path.resolve(safeDir, String(filename));
               // 检查是否为最近写入的文件，避免误触发重载提示
               const now = Date.now();
               let skip = false;
@@ -1654,14 +1901,14 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
               // 通知前端有文件变更
               window.dispatchEvent(
                 new CustomEvent("goose-note:file-changed", {
-                  detail: { eventType, filename, dirPath },
+                  detail: { eventType, filename, dirPath: safeDir },
                 }),
               );
             }
           },
         );
 
-        watchers.set(dirPath, watcher);
+        watchers.set(safeDir, watcher);
         return watcher;
       } catch (err) {
         console.error("[gooseFs] watch failed:", err);
@@ -1670,17 +1917,20 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     unwatch: (dirPath) => {
-      const watcher = watchers.get(dirPath);
+      const safeDir = resolveSafePath(dirPath) || dirPath;
+      const watcher = watchers.get(safeDir);
       if (watcher) {
         watcher.close();
-        watchers.delete(dirPath);
+        watchers.delete(safeDir);
       }
     },
 
     mkdir: (dirPath) => {
+      const safeDir = resolveSafePath(dirPath);
+      if (!safeDir) return false;
       try {
-        fs.mkdirSync(dirPath, { recursive: true });
-        markRecentWrite(`${dirPath}${path.sep}`);
+        fs.mkdirSync(safeDir, { recursive: true });
+        markRecentWrite(`${safeDir}${path.sep}`);
         invalidateLocalNotebookCache();
         return true;
       } catch (err) {
@@ -1690,10 +1940,12 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     deleteFile: async (filePath) => {
+      const safePath = resolveSafePath(filePath);
+      if (!safePath) return false;
       try {
-        const ok = await tryTrash(filePath);
+        const ok = await tryTrash(safePath);
         if (ok) {
-          markRecentWrite(filePath);
+          markRecentWrite(safePath);
           invalidateLocalNotebookCache();
         }
         return ok;
@@ -1703,13 +1955,19 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
       }
     },
 
-    restoreFromTrash,
+    restoreFromTrash: async (destPath) => {
+      const safeDest = resolveSafePath(destPath);
+      if (!safeDest) return false;
+      return restoreFromTrash(safeDest);
+    },
 
     deleteDir: async (dirPath) => {
+      const safeDir = resolveSafePath(dirPath);
+      if (!safeDir) return false;
       try {
-        const ok = await tryTrash(dirPath);
+        const ok = await tryTrash(safeDir);
         if (ok) {
-          markRecentWrite(`${dirPath}${path.sep}`);
+          markRecentWrite(`${safeDir}${path.sep}`);
           invalidateLocalNotebookCache();
         }
         return ok;
@@ -1720,10 +1978,13 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     },
 
     rename: (oldPath, newPath) => {
+      const safeOld = resolveSafePath(oldPath);
+      const safeNew = resolveSafePath(newPath);
+      if (!safeOld || !safeNew) return false;
       try {
-        fs.renameSync(oldPath, newPath);
-        markRecentWrite(oldPath);
-        markRecentWrite(newPath);
+        fs.renameSync(safeOld, safeNew);
+        markRecentWrite(safeOld);
+        markRecentWrite(safeNew);
         invalidateLocalNotebookCache();
         return true;
       } catch (err) {
@@ -1794,36 +2055,9 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     "error-reporting.json",
   );
 
-  const ensureErrorReportingTemplate = () => {
-    try {
-      const dir = path.dirname(ERROR_REPORTING_PATH);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      if (!fs.existsSync(ERROR_REPORTING_PATH)) {
-        fs.writeFileSync(
-          ERROR_REPORTING_PATH,
-          `${JSON.stringify(
-            {
-              enabled: false,
-              environment: "dev",
-              projects: {
-                "goose-note": "",
-                "goose-marks": "",
-              },
-            },
-            null,
-            2,
-          )}\n`,
-          "utf-8",
-        );
-      }
-    } catch (error) {
-      console.warn("[goose-note] error-reporting template failed:", error);
-    }
-  };
-
+  // 不在启动时自动创建 ~/.config/goose/error-reporting.json；仅当文件已存在时读取。
   const readErrorReportingFile = () => {
     try {
-      ensureErrorReportingTemplate();
       if (!fs.existsSync(ERROR_REPORTING_PATH)) return null;
       return JSON.parse(fs.readFileSync(ERROR_REPORTING_PATH, "utf-8"));
     } catch (error) {
@@ -1832,17 +2066,118 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
     }
   };
 
-  const sendSentryEnvelope = (url, body, headers) =>
+  const resolveErrorReportingTarget = () => {
+    const raw = readErrorReportingFile();
+    if (!raw || typeof raw !== "object") return null;
+    const projectEntry = raw.projects && typeof raw.projects === "object"
+      ? raw.projects["goose-note"]
+      : null;
+    let dsn = null;
+    let enabled = raw.enabled === true;
+    if (typeof projectEntry === "string" && projectEntry.trim()) {
+      dsn = projectEntry.trim();
+    } else if (projectEntry && typeof projectEntry === "object") {
+      if (typeof projectEntry.dsn === "string" && projectEntry.dsn.trim()) {
+        dsn = projectEntry.dsn.trim();
+      }
+      if (typeof projectEntry.enabled === "boolean") {
+        enabled = projectEntry.enabled;
+      }
+    }
+    if (!enabled || !dsn) return null;
+    try {
+      const parsed = new NodeURL(dsn);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+      const publicKey = parsed.username;
+      const pathParts = parsed.pathname.split("/").filter(Boolean);
+      const projectId = pathParts.pop();
+      if (!publicKey || !projectId) return null;
+      const basePath = pathParts.length > 0 ? `/${pathParts.join("/")}` : "";
+      const endpoint = `${parsed.protocol}//${parsed.host}${basePath}/api/${projectId}/envelope/`;
+      const environment =
+        typeof raw.environment === "string" && raw.environment.trim()
+          ? raw.environment.trim()
+          : "dev";
+      return { endpoint, dsn, publicKey, environment };
+    } catch {
+      return null;
+    }
+  };
+
+  const sanitizeReportValue = (value, depth = 0) => {
+    if (depth > 4 || value == null) return undefined;
+    if (typeof value === "string") return value.slice(0, 2000);
+    if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+    if (typeof value === "boolean") return value;
+    if (Array.isArray(value)) {
+      return value
+        .slice(0, 20)
+        .map((item) => sanitizeReportValue(item, depth + 1))
+        .filter((item) => item !== undefined);
+    }
+    if (typeof value === "object") {
+      const out = {};
+      for (const [k, v] of Object.entries(value).slice(0, 30)) {
+        if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+        const sanitized = sanitizeReportValue(v, depth + 1);
+        if (sanitized !== undefined) out[k] = sanitized;
+      }
+      return out;
+    }
+    return undefined;
+  };
+
+  const sendWhitelistedSentryEvent = (payload) =>
     new Promise((resolve) => {
       try {
-        const parsed = new NodeURL(String(url));
-        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        const target = resolveErrorReportingTarget();
+        if (!target || !payload || typeof payload !== "object") {
           resolve({ statusCode: 0 });
           return;
         }
+        const eventBody = {
+          event_id:
+            typeof payload.event_id === "string"
+              ? payload.event_id.slice(0, 64)
+              : undefined,
+          timestamp:
+            typeof payload.timestamp === "number" ||
+            typeof payload.timestamp === "string"
+              ? payload.timestamp
+              : Date.now() / 1000,
+          level:
+            typeof payload.level === "string"
+              ? payload.level.slice(0, 16)
+              : "error",
+          environment: target.environment,
+          release:
+            typeof payload.release === "string"
+              ? payload.release.slice(0, 128)
+              : undefined,
+          message:
+            typeof payload.message === "string"
+              ? payload.message.slice(0, 2000)
+              : undefined,
+          exception: sanitizeReportValue(payload.exception),
+          tags: sanitizeReportValue(payload.tags),
+          extra: sanitizeReportValue(payload.extra),
+        };
+        const eventJson = JSON.stringify(eventBody);
+        const envelopeHeader = JSON.stringify({
+          event_id: eventBody.event_id,
+          dsn: target.dsn,
+        });
+        const itemHeader = JSON.stringify({
+          type: "event",
+          length: Buffer.byteLength(eventJson, "utf-8"),
+        });
+        const envelopeBuffer = Buffer.from(
+          `${envelopeHeader}\n${itemHeader}\n${eventJson}\n`,
+          "utf-8",
+        );
+
+        const parsed = new NodeURL(target.endpoint);
         const lib = parsed.protocol === "https:" ? https : http;
-        const payload =
-          typeof body === "string" ? Buffer.from(body) : Buffer.from(body || []);
         const req = lib.request(
           {
             method: "POST",
@@ -1851,8 +2186,8 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
             path: parsed.pathname + parsed.search,
             headers: {
               "Content-Type": "application/x-sentry-envelope",
-              "Content-Length": String(payload.length),
-              ...(headers && typeof headers === "object" ? headers : {}),
+              "Content-Length": String(envelopeBuffer.length),
+              "X-Sentry-Auth": `Sentry sentry_version=7, sentry_key=${target.publicKey}`,
             },
           },
           (res) => {
@@ -1861,16 +2196,15 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
           },
         );
         req.on("error", () => resolve({ statusCode: 0 }));
-        req.end(payload);
+        req.end(envelopeBuffer);
       } catch {
         resolve({ statusCode: 0 });
       }
     });
 
-  ensureErrorReportingTemplate();
   window.gooseErrorReporting = {
     readConfig: () => readErrorReportingFile(),
-    sendEnvelope: (url, body, headers) => sendSentryEnvelope(url, body, headers),
+    reportEvent: (payload) => sendWhitelistedSentryEvent(payload),
   };
 
 
@@ -2126,8 +2460,10 @@ if (typeof window !== "undefined" && typeof utools !== "undefined") {
           try {
             const stat = fs.statSync(targetPath);
             if (stat.isDirectory()) {
+              addMountedRoot(targetPath);
               dispatchOpenFolder(targetPath);
             } else if (stat.isFile() && /\.(md|markdown)$/i.test(targetPath)) {
+              addMountedRoot(path.dirname(targetPath));
               dispatchOpenMarkdown(targetPath);
             }
           } catch (err) {

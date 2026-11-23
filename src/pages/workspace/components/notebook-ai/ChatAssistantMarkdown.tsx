@@ -28,7 +28,7 @@ const STREAMDOWN_PLUGINS = { cjk };
 const STREAMDOWN_MERMAID_LIGHT = {
   config: getMermaidInitConfig({
     mode: "light",
-    securityLevel: "loose",
+    securityLevel: "strict",
     useMaxWidth: true,
   }),
 } as const;
@@ -36,7 +36,7 @@ const STREAMDOWN_MERMAID_LIGHT = {
 const STREAMDOWN_MERMAID_DARK = {
   config: getMermaidInitConfig({
     mode: "dark",
-    securityLevel: "loose",
+    securityLevel: "strict",
     useMaxWidth: true,
   }),
 } as const;

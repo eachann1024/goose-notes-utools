@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { EditorRef } from "@/components/editor/core/Editor";
 import { renderMermaidSvgForExport } from "@/lib/imageExport/mermaid";
+import { sanitizeRenderedSvg } from "@/lib/notebook-ai/svgSanitizer";
 import { svgMarkupToPngBlob } from "@/lib/imageExport/svgToPng";
 import { ArtifactActions } from "./ArtifactActions";
 import { ArtifactPanZoom } from "./ArtifactPanZoom";
@@ -27,7 +28,7 @@ export function DiagramCard({ title, source, editorRef }: DiagramCardProps) {
       setFailed(false);
       try {
         const nextSvg = await renderMermaidSvgForExport(source, resolvedTheme);
-        if (active) setSvg(nextSvg);
+        if (active) setSvg(sanitizeRenderedSvg(nextSvg));
       } catch {
         if (active) {
           setSvg("");

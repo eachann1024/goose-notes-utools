@@ -166,8 +166,10 @@ declare global {
   interface Window {
     utools?: any;
     gooseAiContext?: {
-      readGlobalPrompt: () => string | null;
-      listLocalSkills: () => Array<{ path: string; content: string }>;
+      selectContextFiles: () => Promise<Array<{ path: string; name: string }>>;
+      readSelectedFiles: (
+        paths: string[],
+      ) => Array<{ path: string; content: string }>;
     };
     gooseFirstRunNotice?: {
       hasSeen: () => boolean;
@@ -187,10 +189,8 @@ declare global {
     };
     gooseErrorReporting?: {
       readConfig: () => unknown;
-      sendEnvelope: (
-        url: string,
-        body: string | Uint8Array,
-        headers?: Record<string, string>,
+      reportEvent: (
+        payload: Record<string, unknown>,
       ) => Promise<{ statusCode?: number }>;
     };
     __gooseNoteReportError?: (

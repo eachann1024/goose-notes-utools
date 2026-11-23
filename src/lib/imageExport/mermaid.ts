@@ -92,7 +92,7 @@ export async function renderMermaidSvgForExport(
   mermaid.initialize(
     getMermaidInitConfig({
       mode,
-      securityLevel: "loose",
+      securityLevel: "strict",
       fontFamily: MERMAID_FONT,
       useMaxWidth: false,
     }),

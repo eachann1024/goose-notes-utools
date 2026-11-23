@@ -183,6 +183,8 @@ const EXPORT_FALLBACK_CSS = `
 
 const VENDOR_CSS_FILES = [
   "node_modules/@blocknote/react/dist/style.css",
+  "node_modules/highlight.js/styles/github.min.css",
+  "node_modules/katex/dist/katex.min.css",
   "src/pages/workspace/styles/block-background.css",
   "src/pages/workspace/styles/editor-base.css",
 ];
@@ -190,11 +192,15 @@ const VENDOR_CSS_FILES = [
 function tryLoadVendorCssFromFs(): string | null {
   try {
     if (!existsSync(VENDOR_CSS_FILES[0])) return null;
-    return VENDOR_CSS_FILES.map((file) =>
-      file.endsWith("editor-base.css")
-        ? readCssResolvingLocalImports(file)
-        : readFileSync(file, "utf8"),
-    ).join("\n");
+    return VENDOR_CSS_FILES.map((file) => {
+      if (file.endsWith("editor-base.css")) {
+        return readCssResolvingLocalImports(file);
+      }
+      const css = readFileSync(file, "utf8");
+      return file.endsWith("katex.min.css")
+        ? css.replace(/@font-face\s*\{[^}]*\}/g, "")
+        : css;
+    }).join("\n");
   } catch {
     return null;
   }

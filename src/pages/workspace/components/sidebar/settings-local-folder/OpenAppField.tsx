@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { Input } from "@/components/ui/input";
+import { useMemo, type ComponentType } from "react";
 import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
@@ -20,13 +19,10 @@ export interface OpenAppFieldProps {
   value: string;
   onChange: (value: string) => void;
   defaultLabel: string;
-  customPlaceholder: string;
   options: LocalFolderOpenAppCandidate[];
 }
 
 export const SYSTEM_VALUE = "__system__";
-
-export const CUSTOM_VALUE = "__custom__";
 
 export function OpenAppField({
   id,
@@ -36,52 +32,26 @@ export function OpenAppField({
   value,
   onChange,
   defaultLabel,
-  customPlaceholder,
   options,
 }: OpenAppFieldProps) {
   const trimmedValue = value.trim();
   const matchedOption = useMemo(
-    () => options.find((option) => option.appName === trimmedValue),
+    () =>
+      options.find(
+        (option) =>
+          option.id === trimmedValue || option.appName === trimmedValue,
+      ),
     [options, trimmedValue],
   );
-  const isCustomValue = Boolean(trimmedValue && !matchedOption);
-  const [customActive, setCustomActive] = useState(isCustomValue);
 
-  useEffect(() => {
-    if (isCustomValue) {
-      setCustomActive(true);
-      return;
-    }
-    if (trimmedValue && matchedOption) {
-      setCustomActive(false);
-    }
-  }, [isCustomValue, matchedOption, trimmedValue]);
-
-  const selectedValue =
-    customActive && !trimmedValue
-      ? CUSTOM_VALUE
-      : !trimmedValue
-        ? SYSTEM_VALUE
-        : (matchedOption?.appName ?? CUSTOM_VALUE);
-  const selectedLabel =
-    customActive && !trimmedValue
-      ? "自定义"
-      : !trimmedValue
-        ? defaultLabel
-        : (matchedOption?.label ?? trimmedValue);
-  const showCustomInput = customActive || isCustomValue;
+  const selectedValue = matchedOption ? matchedOption.id : SYSTEM_VALUE;
+  const selectedLabel = matchedOption ? matchedOption.label : defaultLabel;
 
   const handleSelect = (nextValue: string) => {
     if (nextValue === SYSTEM_VALUE) {
-      setCustomActive(false);
       onChange("");
       return;
     }
-    if (nextValue === CUSTOM_VALUE) {
-      setCustomActive(true);
-      return;
-    }
-    setCustomActive(false);
     onChange(nextValue);
   };
 
@@ -94,7 +64,7 @@ export function OpenAppField({
               className="h-4 w-4 shrink-0 text-muted-foreground"
               strokeWidth={1.75}
             />
-            <Label htmlFor={`${id}-custom`} className="cursor-pointer">
+            <Label htmlFor={id} className="cursor-pointer">
               {title}
             </Label>
           </div>
@@ -105,6 +75,7 @@ export function OpenAppField({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
+              id={id}
               type="button"
               className="flex h-9 min-w-36 max-w-56 shrink-0 items-center justify-between gap-2 rounded-[10px] bg-[hsl(var(--background))] px-3 text-left text-sm text-foreground shadow-[inset_0_0_0_1px_hsl(var(--input))] transition-colors hover:bg-[var(--goose-interactive-hover)] hover:text-[var(--goose-interactive-selected-fg)] focus:bg-[var(--goose-interactive-selected)] data-[state=open]:bg-[var(--goose-interactive-hover)]"
             >
@@ -121,30 +92,14 @@ export function OpenAppField({
                 <span className="truncate">{defaultLabel}</span>
               </DropdownMenuRadioItem>
               {options.map((option) => (
-                <DropdownMenuRadioItem key={option.id} value={option.appName}>
+                <DropdownMenuRadioItem key={option.id} value={option.id}>
                   <span className="truncate">{option.label}</span>
                 </DropdownMenuRadioItem>
               ))}
-              <DropdownMenuRadioItem value={CUSTOM_VALUE}>
-                <span>自定义</span>
-              </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      {showCustomInput && (
-        <div className="pl-7">
-          <Input
-            id={`${id}-custom`}
-            value={trimmedValue}
-            onChange={(event) => onChange(event.target.value)}
-            onBlur={(event) => onChange(event.target.value.trim())}
-            placeholder={customPlaceholder}
-            className="h-9 text-sm"
-          />
-        </div>
-      )}
     </div>
   );
 }

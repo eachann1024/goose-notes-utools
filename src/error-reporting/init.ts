@@ -33,10 +33,53 @@ function readRuntimeConfig() {
   }
 }
 
+function extractWhitelistedEventFromEnvelope(
+  body: string | Uint8Array,
+): Record<string, unknown> | null {
+  try {
+    const text =
+      typeof body === "string" ? body : new TextDecoder().decode(body);
+    const lines = text.split("\n").filter((line) => line.trim().length > 0);
+    // Sentry envelope: header \n item_header \n item_payload
+    for (let i = 0; i < lines.length - 1; i += 1) {
+      const header = JSON.parse(lines[i]) as { type?: string };
+      if (header?.type === "event") {
+        const event = JSON.parse(lines[i + 1]) as Record<string, unknown>;
+        return {
+          event_id:
+            typeof event.event_id === "string" ? event.event_id : undefined,
+          timestamp:
+            typeof event.timestamp === "number" ||
+            typeof event.timestamp === "string"
+              ? event.timestamp
+              : undefined,
+          level: typeof event.level === "string" ? event.level : "error",
+          environment:
+            typeof event.environment === "string"
+              ? event.environment
+              : undefined,
+          release:
+            typeof event.release === "string" ? event.release : undefined,
+          message:
+            typeof event.message === "string" ? event.message : undefined,
+          exception: event.exception,
+          tags: event.tags,
+          extra: event.extra,
+        };
+      }
+    }
+  } catch {
+    // ignore malformed envelope
+  }
+  return null;
+}
+
 async function postEnvelope(url: string, body: string | Uint8Array) {
-  const send = window.gooseErrorReporting?.sendEnvelope;
-  if (typeof send === "function") {
-    const result = await send(url, body);
+  const reportEvent = window.gooseErrorReporting?.reportEvent;
+  if (typeof reportEvent === "function") {
+    const payload = extractWhitelistedEventFromEnvelope(body);
+    if (!payload) return { statusCode: 0 };
+    const result = await reportEvent(payload);
     return { statusCode: result?.statusCode ?? 0 };
   }
   // file:// 的 fetch 是 null origin，会被 CORS 挡；没有 preload 就放弃。

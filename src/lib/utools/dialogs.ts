@@ -5,6 +5,14 @@ const getGooseFs = (): GooseFs | null =>
 
 export const dialogs = {
   showSaveDialog: (options?: Record<string, unknown>): string | null => {
+    const gooseFs = getGooseFs();
+    if (typeof gooseFs?.showSaveDialog === "function") {
+      try {
+        return gooseFs.showSaveDialog(options ?? {});
+      } catch {
+        return null;
+      }
+    }
     const utools = getUToolsApi();
     if (!utools || typeof utools.showSaveDialog !== "function") return null;
     try {
@@ -16,6 +24,14 @@ export const dialogs = {
   },
 
   showOpenDialog: (options?: Record<string, unknown>): string[] | null => {
+    const gooseFs = getGooseFs();
+    if (typeof gooseFs?.showOpenDialog === "function") {
+      try {
+        return gooseFs.showOpenDialog(options ?? {});
+      } catch {
+        return null;
+      }
+    }
     const utools = getUToolsApi();
     if (!utools || typeof utools.showOpenDialog !== "function") return null;
     try {
@@ -26,6 +42,10 @@ export const dialogs = {
   },
 
   selectDirectory: async (): Promise<string | null> => {
+    const gooseFs = getGooseFs();
+    if (typeof gooseFs?.selectDirectory === "function") {
+      return await gooseFs.selectDirectory();
+    }
     const utools = getUToolsApi();
     if (typeof utools?.showOpenDialog === "function") {
       const paths = await utools.showOpenDialog({
@@ -36,9 +56,7 @@ export const dialogs = {
         ? paths[0]
         : null;
     }
-    const gooseFs = getGooseFs();
-    if (!gooseFs?.selectDirectory) throw new Error("当前环境无法选择本地文件夹");
-    return await gooseFs.selectDirectory();
+    throw new Error("当前环境无法选择本地文件夹");
   },
 
   restoreLastDirectory: async (): Promise<string | null> => {

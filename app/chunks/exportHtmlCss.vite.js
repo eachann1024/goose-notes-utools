@@ -1,4 +1,4 @@
-import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏、行号与代码预览 lightbox。
+import{t as e}from"./vendor-blocknote.js";import{t}from"./vendor-katex~exportHtmlCss.vite~katex.min.js";import{t as n}from"./vendor-markdown~exportHtmlCss.vite.js";var r=`/* 代码块 chrome、工具栏、行号与代码预览 lightbox。
  * 被 editor-base.css 按序 @import。
  * 依赖 --editor-code-* / --goose-block-subtle-* / --goose-preview-toolbar-height / --goose-popup-trigger-origin。
  */
@@ -511,7 +511,7 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   border: 0;
   background: #fff;
 }
-`,n=`/* 文件块与媒体/文件空状态、加载态。
+`,i=`/* 文件块与媒体/文件空状态、加载态。
  * 被 editor-base.css 按序 @import。
  * 依赖 --goose-block-subtle-* / --goose-interactive-hover / --muted / --border / --ring。
  */
@@ -800,7 +800,7 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   .goose-media-placeholder {
   width: 100%;
 }
-`,r=`/* 行内代码、待办清单、标题子级缩进、页面字体切换。
+`,a=`/* 行内代码、待办清单、标题子级缩进、页面字体切换。
  * 被 editor-base.css 按序 @import。
  * 依赖 --goose-inline-code-* / --editor-inline-code-* / --font-mono / --font-default / --font-serif / --goose-interactive-selected-fg。
  */
@@ -1162,7 +1162,7 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
 .workspace-editor-surface[data-font-family="mono"] .bn-default-styles {
   font-family: var(--font-mono);
 }
-`,i=`/* 有序/无序列表 marker、代码块与表格块外边距。
+`,o=`/* 有序/无序列表 marker、代码块与表格块外边距。
  * 被 editor-base.css 按序 @import。
  * 依赖 --goose-list-* / --goose-bullet-* / --goose-interactive-selected-fg。
  */
@@ -1372,7 +1372,7 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
   .bn-block-outer:has(.bn-block-content[data-content-type="table"]) {
   margin-bottom: 0.6em;
 }
-`,a=`/* 自定义视频播放器与全屏图片 lightbox。
+`,s=`/* 自定义视频播放器与全屏图片 lightbox。
  * 被 editor-base.css 按序 @import。
  * 依赖 --goose-preview-toolbar-height / --background / --goose-block-subtle-* / --ring。
  */
@@ -1800,7 +1800,7 @@ import{t as e}from"./vendor-blocknote.js";var t=`/* 代码块 chrome、工具栏
     transition: none;
   }
 }
-`,o=`/* 格式工具栏底栏停靠，以及设置/AI 任务面下的编辑器浮层收起。
+`,c=`/* 格式工具栏底栏停靠，以及设置/AI 任务面下的编辑器浮层收起。
  * 被 editor-base.css 按序 @import。
  * 依赖 body 上的 data-goose-settings-open / data-goose-ai-fullscreen / data-goose-ai-panel-active。
  */
@@ -1846,7 +1846,7 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
     transition: none;
   }
 }
-`,s=`/* 编辑器容器、上下文 UI 缩放、侧栏块把手、文字选区。
+`,l=`/* 编辑器容器、上下文 UI 缩放、侧栏块把手、文字选区。
  * 被 editor-base.css 按序 @import。
  * 依赖 --editor-font-size / --editor-ui-scale / --editor-scale / --goose-editor-selection-bg / --goose-interactive-selected。
  */
@@ -2065,7 +2065,7 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
   ) !important;
   color: inherit;
 }
-`,c=`/* 页内搜索高亮、工作区编辑器表面与块间距基线。
+`,u=`/* 页内搜索高亮、工作区编辑器表面与块间距基线。
  * 被 editor-base.css 按序 @import。
  * 依赖 --goose-find-match 字面色；表面背景走透明以继承工作区 token。
  */
@@ -2221,7 +2221,7 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
 .workspace-editor-surface .bn-block-outer:last-child {
   margin-bottom: 0;
 }
-`,l=`/* 表格与分割线、链接、标注、表格扩展/拖拽手柄、图视频块间距。
+`,d=`/* 表格与分割线、链接、标注、表格扩展/拖拽手柄、图视频块间距。
  * 被 editor-base.css 按序 @import。
  * 依赖 --goose-editor-selection-bg / --goose-interactive-selected-fg / --goose-accent-link / --border / --primary / --muted-foreground。
  */
@@ -2620,7 +2620,7 @@ body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
   .bn-block-outer:has(.bn-block-content[data-content-type="video"]) {
   margin-bottom: 0.5em;
 }
-`,u=`/* 标题区块折叠：隐藏 collapsed heading 后续兄弟块（不用 BlockNote toggle children）。 */
+`,f=`/* 标题区块折叠：隐藏 collapsed heading 后续兄弟块（不用 BlockNote toggle children）。 */
 .bn-editor .bn-block-outer[data-goose-section-hidden="true"],
 .bn-editor .bn-block-outer.goose-section-hidden,
 .bn-editor .goose-section-hidden {
@@ -2798,7 +2798,7 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
 .bn-block-content[data-content-type="toggleListItem"] ~ .bn-block-group {
   margin-left: 22px;
 }
-`,d=`/* 格式工具栏、块工具栏、选中节点去描边、极简工作区隐藏首个 H1。
+`,p=`/* 格式工具栏、块工具栏、选中节点去描边、极简工作区隐藏首个 H1。
  * 被 editor-base.css 按序 @import。
  * 依赖 --editor-ui-scale / --goose-interactive-selected / --goose-icon-chip-on-selected / --goose-color-danger / --popover / --border / --ring。
  */
@@ -3196,7 +3196,7 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
   > .bn-block-outer:first-child {
   display: none;
 }
-`,f=`/*
+`,m=`/*
  * 常规笔记本的语义颜色令牌。
  *
  * BlockNote 默认深色方案把同色文字与同色背景放在相近明度，叠加后对比不足。
@@ -3316,7 +3316,7 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
   margin-top: 15px;
   padding-top: 3px;
 }
-`,p=`/* 编辑器基础样式入口：按原文件书写顺序引入子文件，级联与拆分前一致。
+`,h=`/* 编辑器基础样式入口：按原文件书写顺序引入子文件，级联与拆分前一致。
  * 被 src/index.css、workspace/styles/index.css、editor/main.tsx 引入。
  * 子文件依赖 --editor-* / --goose-*（定义在 src/index.css）；本文件只负责顺序。
  */
@@ -3331,6 +3331,6 @@ html body .bn-side-menu button.goose-heading-fold-btn[aria-expanded="false"]:hov
 @import "./editor-base/code.css";
 @import "./editor-base/files.css";
 @import "./editor-base/overlays.css";
-`,m=Object.assign({"../../pages/workspace/styles/editor-base/code.css":t,"../../pages/workspace/styles/editor-base/files.css":n,"../../pages/workspace/styles/editor-base/inline.css":r,"../../pages/workspace/styles/editor-base/lists.css":i,"../../pages/workspace/styles/editor-base/media.css":a,"../../pages/workspace/styles/editor-base/overlays.css":o,"../../pages/workspace/styles/editor-base/shell.css":s,"../../pages/workspace/styles/editor-base/surface.css":c,"../../pages/workspace/styles/editor-base/tables-callouts.css":l,"../../pages/workspace/styles/editor-base/toggles.css":u,"../../pages/workspace/styles/editor-base/toolbars.css":d});function h(){let e=[...p.matchAll(/@import\s+"\.\/editor-base\/([^"]+)";/g)].map(e=>e[1]);if(e.length===0)throw Error(`editor-base.css 未声明子文件`);return e.map(e=>{let t=Object.keys(m).find(t=>t.endsWith(`/${e}`));if(!t)throw Error(`导出样式缺少 ${e}`);return m[t]}).join(`
-`)}var g=[e,f,h()].join(`
-`);export{g as EXPORT_VENDOR_CSS};
+`,g=Object.assign({"../../pages/workspace/styles/editor-base/code.css":r,"../../pages/workspace/styles/editor-base/files.css":i,"../../pages/workspace/styles/editor-base/inline.css":a,"../../pages/workspace/styles/editor-base/lists.css":o,"../../pages/workspace/styles/editor-base/media.css":s,"../../pages/workspace/styles/editor-base/overlays.css":c,"../../pages/workspace/styles/editor-base/shell.css":l,"../../pages/workspace/styles/editor-base/surface.css":u,"../../pages/workspace/styles/editor-base/tables-callouts.css":d,"../../pages/workspace/styles/editor-base/toggles.css":f,"../../pages/workspace/styles/editor-base/toolbars.css":p});function _(){let e=[...h.matchAll(/@import\s+"\.\/editor-base\/([^"]+)";/g)].map(e=>e[1]);if(e.length===0)throw Error(`editor-base.css 未声明子文件`);return e.map(e=>{let t=Object.keys(g).find(t=>t.endsWith(`/${e}`));if(!t)throw Error(`导出样式缺少 ${e}`);return g[t]}).join(`
+`)}var v=[e,n,t.replace(/@font-face\s*\{[^}]*\}/g,``),m,_()].join(`
+`);export{v as EXPORT_VENDOR_CSS};
