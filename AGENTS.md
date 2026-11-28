@@ -2,13 +2,13 @@
 
 # 项目范围
 
-- 本项目是 uTools 插件。先判断任务属于速记小窗、常规笔记本还是两者共享。速记小窗入口为 `quicknote.html`，通过 `__GOOSE_LITE__` 和 `quicknote.css` 隔离。
+- 本项目是 uTools 插件。先判断任务属于速记小窗、常规笔记本还是两者共享。速记小窗入口为 `quicknote.html`，用 `__GOOSE_LITE__` 精简构建，样式在 `src/pages/quick-note/quicknote.css`，清单是 `quicknote-plugin.json`，预加载是 `preload/preload-quicknote.cjs`。
 
 # 构建与验收
 
-- 每次改动后执行 `bun run build`，失败就修到通过。不额外跑类型检查或模拟 DOM 充当验收。
-- 功能改动用真实浏览器走一遍主流程（先读 `use-browser`）；修缺陷先复现再验证；改共享编辑器时两个入口都看一下。用隔离测试数据，不动用户真实笔记。
-- uTools API、系统剪贴板等宿主能力在浏览器里测不了时，标为未验收。
+- 每次改动后执行 `bun run build`，失败就修到通过；会分别生成笔记本 `dist/` 和小窗 `dist-quicknote/`，ZTools 发布须带上构建同步的 `app/`。
+- 功能改动走一遍主流程；改共享编辑器时两个入口都看一下。用隔离测试数据，不动用户真实笔记。
+- uTools API、系统剪贴板等宿主能力在 uTools 里验证，验证不了就在交付时注明。
 - 交付只说修了什么、构建结果和未验收项。
 
 ## 提交与推送
